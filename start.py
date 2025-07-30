@@ -61,12 +61,13 @@ def create_project_database(project_name):
     cursor.execute("""
         CREATE TABLE brainstorming_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            act INTEGER,
-            scene INTEGER,
-            scene_description TEXT,
-            bucket_name TEXT,
+            session_id TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
             tone_preset TEXT,
-            response TEXT,
+            scenes_selected TEXT,
+            bucket_selection TEXT,
+            lightrag_context TEXT,
+            ai_suggestions TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -75,11 +76,10 @@ def create_project_database(project_name):
     cursor.execute("""
         CREATE TABLE finalized_draft_v1 (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            act INTEGER NOT NULL,
-            scene INTEGER NOT NULL,
-            final_text TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(act, scene)
+            version_number INTEGER NOT NULL,
+            content TEXT,
+            word_count INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
     

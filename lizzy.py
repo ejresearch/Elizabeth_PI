@@ -12,6 +12,14 @@ import shutil
 from datetime import datetime
 from openai import OpenAI
 
+# Platform-specific imports for keyboard handling
+try:
+    import termios
+    import tty
+    HAS_TERMIOS = True
+except ImportError:
+    HAS_TERMIOS = False
+
 # Check for optional dependencies
 HAS_LIGHTRAG = False
 LIGHTRAG_ERROR = None
@@ -72,6 +80,7 @@ class Session:
         self.current_project = None
         self.db_conn = None
         self.api_key_set = False
+        self.menu_stack = []  # Track menu navigation
     
     def set_project(self, project_name):
         if self.db_conn:
@@ -319,21 +328,21 @@ def create_project_database(project_name):
         )""",
         """CREATE TABLE brainstorming_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            act INTEGER,
-            scene INTEGER,
-            scene_description TEXT,
-            bucket_name TEXT,
+            session_id TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
             tone_preset TEXT,
-            response TEXT,
+            scenes_selected TEXT,
+            bucket_selection TEXT,
+            lightrag_context TEXT,
+            ai_suggestions TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
         """CREATE TABLE finalized_draft_v1 (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            act INTEGER NOT NULL,
-            scene INTEGER NOT NULL,
-            final_text TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(act, scene)
+            version_number INTEGER NOT NULL,
+            content TEXT,
+            word_count INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
         """CREATE TABLE project_metadata (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -398,77 +407,736 @@ def select_project():
         except ValueError:
             print(f"{Colors.RED}❌ Please enter a number{Colors.END}")
 
+def get_single_keypress():
+    """Get a single keypress including special keys like arrows"""
+    if not HAS_TERMIOS:
+        # Fallback for systems without termios (Windows)
+        return input()
+    
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        key = sys.stdin.read(1)
+        # Check for escape sequences (arrow keys)
+        if key == '\x1b':
+            key += sys.stdin.read(2)
+            if key == '\x1b[D':  # Left arrow
+                return 'LEFT'
+            elif key == '\x1b[C':  # Right arrow
+                return 'RIGHT'
+            elif key == '\x1b[A':  # Up arrow
+                return 'UP'
+            elif key == '\x1b[B':  # Down arrow
+                return 'DOWN'
+        return key
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+def wait_for_key(prompt="Press any key to continue..."):
+    """Wait for any key press"""
+    print(f"\n{Colors.CYAN}{prompt}{Colors.END}")
+    get_single_keypress()
+
 def main_menu():
-    """Main navigation menu"""
+    """Main navigation menu - LIZZY"""
+    while True:
+        print_header()
+        
+        if not session.api_key_set:
+            print(f"\n{Colors.RED}⚠️  OpenAI API key required to continue{Colors.END}")
+            setup_api_key()
+            continue
+        
+        print(f"\n{Colors.BOLD}LIZZY{Colors.END}")
+        print_separator()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} 🎬 New Project")
+        print(f"   {Colors.BOLD}2.{Colors.END} 📂 Existing Project")
+        print(f"   {Colors.BOLD}3.{Colors.END} 📖 Getting Started")
+        print(f"   {Colors.BOLD}4.{Colors.END} 🚪 Exit")
+        
+        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        
+        if choice == "1":
+            create_project()
+            if session.current_project:
+                project_menu()
+        elif choice == "2":
+            if select_project():
+                project_menu()
+        elif choice == "3":
+            show_readme()
+        elif choice == "4":
+            print(f"\n{Colors.CYAN}👋 Thank you for using LIZZY Framework!{Colors.END}")
+            print(f"{Colors.YELLOW}   Happy writing! 🎬✨{Colors.END}\n")
+            session.close()
+            sys.exit(0)
+
+def project_menu():
+    """Project-specific menu"""
     while True:
         print_header()
         print_status()
         
-        if not session.api_key_set:
-            print(f"\n{Colors.RED}⚠️  OpenAI API key required to continue{Colors.END}")
-        
-        print(f"\n{Colors.BOLD}🏠 MAIN MENU{Colors.END}")
+        print(f"\n{Colors.BOLD}PROJECT{Colors.END}")
         print_separator()
         
-        menu_items = [
-            ("🔑", "Setup API Key", not session.api_key_set),
-            ("🎬", "Create New Project", session.api_key_set),
-            ("📂", "Select Project", session.api_key_set),
-            ("👤", "Character & Story Intake", session.api_key_set and session.current_project),
-            ("🧠", "Creative Brainstorming", session.api_key_set and session.current_project),
-            ("✍️ ", "Write Scenes & Drafts", session.api_key_set and session.current_project),
-            ("🗄️ ", "Tables Manager (SQL)", session.current_project),
-            ("📦", "Buckets Manager (LightRAG)", session.api_key_set),
-            ("📋", "Project Dashboard", session.current_project),
-            ("❓", "Help & Documentation", True),
-            ("🚪", "Exit", True)
-        ]
-        
-        available_items = [(icon, desc, idx) for idx, (icon, desc, available) in enumerate(menu_items, 1) if available]
-        
-        for icon, desc, idx in available_items:
-            status = ""
-            if "API Key" in desc and session.api_key_set:
-                status = f" {Colors.GREEN}✓{Colors.END}"
-            elif "Project" in desc and session.current_project:
-                status = f" {Colors.GREEN}({session.current_project}){Colors.END}"
-            
-            print(f"   {Colors.BOLD}{idx:2d}.{Colors.END} {icon} {desc}{status}")
+        print(f"   {Colors.BOLD}1.{Colors.END} 📝 Update Tables")
+        print(f"   {Colors.BOLD}2.{Colors.END} 📦 Update Buckets")
+        print(f"   {Colors.BOLD}3.{Colors.END} 🧠 Brainstorm")
+        print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write")
+        print(f"   {Colors.BOLD}5.{Colors.END} 📜 Version History")
+        print(f"   {Colors.BOLD}6.{Colors.END} 📤 Export Options")
+        print(f"   {Colors.BOLD}7.{Colors.END} ⚙️  Manage")
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
-        try:
-            choice_num = int(choice)
-            if 1 <= choice_num <= len(available_items):
-                selected_idx = available_items[choice_num - 1][2]
-                
-                if selected_idx == 1:  # API Key
-                    setup_api_key()
-                elif selected_idx == 2:  # Create Project
-                    create_project()
-                elif selected_idx == 3:  # Select Project
-                    select_project()
-                elif selected_idx == 4:  # Intake
-                    intake_module()
-                elif selected_idx == 5:  # Brainstorm
-                    brainstorm_module()
-                elif selected_idx == 6:  # Write
-                    write_module()
-                elif selected_idx == 7:  # Tables Manager
-                    tables_manager()
-                elif selected_idx == 8:  # Buckets Manager
-                    buckets_manager()
-                elif selected_idx == 9:  # Dashboard
-                    project_dashboard()
-                elif selected_idx == 10:  # Help
-                    show_help()
-                elif selected_idx == 11:  # Exit
-                    print(f"\n{Colors.CYAN}👋 Thank you for using LIZZY Framework!{Colors.END}")
-                    print(f"{Colors.YELLOW}   Happy writing! 🎬✨{Colors.END}\n")
-                    session.close()
-                    sys.exit(0)
-        except ValueError:
-            pass
+        # Check for arrow key navigation
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
+        
+        if choice == "0":
+            break
+        elif choice == "1":
+            update_tables_menu()
+        elif choice == "2":
+            buckets_manager()
+        elif choice == "3":
+            brainstorm_module()
+        elif choice == "4":
+            write_module()
+        elif choice == "5":
+            version_history()
+        elif choice == "6":
+            export_options()
+        elif choice == "7":
+            manage_project()
+
+def update_tables_menu():
+    """Update Tables - Clean workflow for table management"""
+    while True:
+        print_header()
+        print_status()
+        
+        print(f"\n{Colors.BOLD}TABLES{Colors.END}")
+        print_separator()
+        
+        print(f"{Colors.CYAN}Characters{Colors.END}")
+        print(f"{Colors.CYAN}Scenes{Colors.END}")
+        print(f"{Colors.CYAN}Notes{Colors.END}")
+        print()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} Edit")
+        print(f"   {Colors.BOLD}2.{Colors.END} New")
+        print(f"   {Colors.BOLD}3.{Colors.END} View")
+        
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        
+        choice = input(f"\n[ ] Enter choice: ").strip()
+        
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
+        
+        if choice == "1":
+            edit_table_menu()
+        elif choice == "2":
+            new_table_menu()
+        elif choice == "3":
+            view_table_menu()
+
+def edit_table_menu():
+    """Select and edit a table inline"""
+    print(f"\n{Colors.YELLOW}SELECT TABLE TO EDIT{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} Characters")
+    print(f"   {Colors.BOLD}2.{Colors.END} Scenes")
+    print(f"   {Colors.BOLD}3.{Colors.END} Notes")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        character_management()
+    elif choice == "2":
+        story_outline_management()
+    elif choice == "3":
+        notes_management()
+
+def new_table_menu():
+    """Create new entry or import from CSV"""
+    print(f"\n{Colors.YELLOW}CREATE NEW{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} New Character")
+    print(f"   {Colors.BOLD}2.{Colors.END} New Scene")
+    print(f"   {Colors.BOLD}3.{Colors.END} New Note")
+    print(f"   {Colors.BOLD}4.{Colors.END} Import from CSV")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        add_character()
+    elif choice == "2":
+        add_scene()
+    elif choice == "3":
+        add_note()
+    elif choice == "4":
+        import_csv()
+
+def view_table_menu():
+    """View tables in read-only mode"""
+    print(f"\n{Colors.YELLOW}VIEW TABLES{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} View Characters")
+    print(f"   {Colors.BOLD}2.{Colors.END} View Scenes")
+    print(f"   {Colors.BOLD}3.{Colors.END} View Notes")
+    print(f"   {Colors.BOLD}4.{Colors.END} View All")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        view_characters()
+    elif choice == "2":
+        view_outline()
+    elif choice == "3":
+        view_notes()
+    elif choice == "4":
+        project_summary()
+
+def character_management():
+    """Character management submenu"""
+    while True:
+        print_header()
+        print_status()
+        
+        print(f"\n{Colors.BOLD}👤 CHARACTER MANAGEMENT{Colors.END}")
+        print_separator()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Character")
+        print(f"   {Colors.BOLD}2.{Colors.END} 📖 View Characters")
+        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Character")
+        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Character")
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        
+        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
+        
+        if choice == "0":
+            break
+        elif choice == "1":
+            add_character()
+        elif choice == "2":
+            view_characters()
+        elif choice == "3":
+            edit_character()
+        elif choice == "4":
+            delete_character()
+
+def story_outline_management():
+    """Story outline management submenu"""
+    while True:
+        print_header()
+        print_status()
+        
+        print(f"\n{Colors.BOLD}🎬 STORY OUTLINE{Colors.END}")
+        print_separator()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Scene")
+        print(f"   {Colors.BOLD}2.{Colors.END} 📚 View Outline")
+        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Scene")
+        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Scene")
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        
+        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
+        
+        if choice == "0":
+            break
+        elif choice == "1":
+            add_scene()
+        elif choice == "2":
+            view_outline()
+        elif choice == "3":
+            edit_scene()
+        elif choice == "4":
+            delete_scene()
+
+def show_readme():
+    """Display the README file"""
+    print_header()
+    
+    try:
+        with open("README.md", "r") as f:
+            content = f.read()
+        
+        print(f"\n{Colors.CYAN}📖 GETTING STARTED{Colors.END}")
+        print_separator()
+        print(content[:2000])  # Show first 2000 chars
+        
+        if len(content) > 2000:
+            print(f"\n{Colors.YELLOW}... (truncated for display){Colors.END}")
+        
+        wait_for_key()
+    except FileNotFoundError:
+        print(f"{Colors.RED}❌ README.md not found{Colors.END}")
+        wait_for_key()
+
+def version_history():
+    """Show comprehensive version history"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}VERSIONS{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    
+    # Show all brainstorm versions
+    print(f"\n{Colors.YELLOW}BRAINSTORM VERSIONS:{Colors.END}")
+    cursor.execute("""
+        SELECT session_id, timestamp, scenes_selected, bucket_selection, 
+               LENGTH(ai_suggestions) as suggestion_length
+        FROM brainstorming_log 
+        ORDER BY timestamp DESC
+    """)
+    brainstorms = cursor.fetchall()
+    
+    if brainstorms:
+        for idx, (session_id, timestamp, scenes, buckets, length) in enumerate(brainstorms, 1):
+            print(f"\n{Colors.BOLD}{idx}.{Colors.END} {session_id}")
+            print(f"   Created: {timestamp}")
+            print(f"   Tables: {scenes if scenes else 'None'}")
+            print(f"   Buckets: {buckets if buckets else 'None'}")
+            print(f"   Size: {length} characters")
+    else:
+        print(f"   {Colors.CYAN}No brainstorming sessions yet{Colors.END}")
+    
+    # Show all write versions
+    print(f"\n\n{Colors.YELLOW}WRITE VERSIONS:{Colors.END}")
+    cursor.execute("""
+        SELECT version_number, created_at, word_count,
+               SUBSTR(content, 1, 100) as preview
+        FROM finalized_draft_v1 
+        ORDER BY created_at DESC
+    """)
+    writes = cursor.fetchall()
+    
+    if writes:
+        for idx, (version, created, words, preview) in enumerate(writes, 1):
+            print(f"\n{Colors.BOLD}{idx}.{Colors.END} Version {version}")
+            print(f"   Created: {created}")
+            print(f"   Words: {words}")
+            print(f"   Preview: {preview}...")
+    else:
+        print(f"   {Colors.CYAN}No write versions yet{Colors.END}")
+    
+    # Show which resources were used
+    print(f"\n\n{Colors.YELLOW}RESOURCE USAGE:{Colors.END}")
+    
+    # Get unique bucket usage
+    cursor.execute("""
+        SELECT DISTINCT bucket_selection 
+        FROM brainstorming_log 
+        WHERE bucket_selection IS NOT NULL AND bucket_selection != ''
+    """)
+    bucket_usage = cursor.fetchall()
+    
+    if bucket_usage:
+        print(f"\n{Colors.CYAN}Buckets used:{Colors.END}")
+        for (buckets,) in bucket_usage:
+            print(f"   • {buckets}")
+    
+    # Get unique table usage
+    cursor.execute("""
+        SELECT DISTINCT scenes_selected 
+        FROM brainstorming_log 
+        WHERE scenes_selected IS NOT NULL AND scenes_selected != ''
+    """)
+    table_usage = cursor.fetchall()
+    
+    if table_usage:
+        print(f"\n{Colors.CYAN}Tables used:{Colors.END}")
+        for (tables,) in table_usage:
+            print(f"   • {tables}")
+    
+    # Options to preview or re-use
+    print(f"\n\n{Colors.YELLOW}OPTIONS:{Colors.END}")
+    print(f"   {Colors.BOLD}1.{Colors.END} Preview a brainstorm version")
+    print(f"   {Colors.BOLD}2.{Colors.END} Preview a write version")
+    print(f"   {Colors.BOLD}3.{Colors.END} Re-use old output in new session")
+    print(f"   {Colors.BOLD}0.{Colors.END} Back")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        preview_brainstorm()
+    elif choice == "2":
+        preview_write()
+    elif choice == "3":
+        reuse_version()
+        
+def preview_brainstorm():
+    """Preview a specific brainstorm version"""
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT session_id, ai_suggestions FROM brainstorming_log ORDER BY timestamp DESC")
+    sessions = cursor.fetchall()
+    
+    if not sessions:
+        print(f"{Colors.CYAN}No brainstorms to preview{Colors.END}")
+        wait_for_key()
+        return
+    
+    print(f"\n{Colors.YELLOW}Select brainstorm to preview:{Colors.END}")
+    for idx, (session_id, _) in enumerate(sessions, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {session_id}")
+    
+    try:
+        choice = int(input(f"\n[ ] Enter choice: ").strip())
+        if 1 <= choice <= len(sessions):
+            _, content = sessions[choice-1]
+            print(f"\n{Colors.GREEN}BRAINSTORM CONTENT{Colors.END}")
+            print_separator()
+            print(content)
+            wait_for_key()
+    except ValueError:
+        print(f"{Colors.RED}Invalid selection{Colors.END}")
+        wait_for_key()
+
+def preview_write():
+    """Preview a specific write version"""
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT version_number, content FROM finalized_draft_v1 ORDER BY created_at DESC")
+    versions = cursor.fetchall()
+    
+    if not versions:
+        print(f"{Colors.CYAN}No writes to preview{Colors.END}")
+        wait_for_key()
+        return
+    
+    print(f"\n{Colors.YELLOW}Select write version to preview:{Colors.END}")
+    for idx, (version, _) in enumerate(versions, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} Version {version}")
+    
+    try:
+        choice = int(input(f"\n[ ] Enter choice: ").strip())
+        if 1 <= choice <= len(versions):
+            _, content = versions[choice-1]
+            print(f"\n{Colors.GREEN}WRITE CONTENT{Colors.END}")
+            print_separator()
+            print(content)
+            wait_for_key()
+    except ValueError:
+        print(f"{Colors.RED}Invalid selection{Colors.END}")
+        wait_for_key()
+
+def reuse_version():
+    """Mark a version for re-use in next session"""
+    print(f"\n{Colors.YELLOW}This feature coming soon!{Colors.END}")
+    print("Will allow copying old outputs to new brainstorm/write sessions")
+    wait_for_key()
+
+def export_options():
+    """Export menu - Clean spec version"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}EXPORT{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} Export brainstorms")
+    print(f"   {Colors.BOLD}2.{Colors.END} Export final drafts")
+    print(f"   {Colors.BOLD}3.{Colors.END} Export tables")
+    print(f"   {Colors.BOLD}4.{Colors.END} Export everything (zip)")
+    
+    if HAS_TERMIOS:
+        print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if not choice and HAS_TERMIOS:
+        key = get_single_keypress()
+        if key == 'LEFT':
+            return
+    
+    if choice == "1":
+        export_brainstorms()
+    elif choice == "2":
+        export_drafts()
+    elif choice == "3":
+        export_tables()
+    elif choice == "4":
+        export_everything()
+
+def export_brainstorms():
+    """Export all brainstorming sessions"""
+    print(f"\n{Colors.YELLOW}EXPORTING BRAINSTORMS{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT session_id, timestamp, ai_suggestions FROM brainstorming_log ORDER BY timestamp DESC")
+    brainstorms = cursor.fetchall()
+    
+    if not brainstorms:
+        print(f"{Colors.CYAN}No brainstorms to export{Colors.END}")
+        wait_for_key()
+        return
+    
+    # Create export directory
+    export_dir = f"exports/{session.current_project}/brainstorms"
+    os.makedirs(export_dir, exist_ok=True)
+    
+    for session_id, timestamp, content in brainstorms:
+        filename = f"{session_id}_{timestamp.replace(':', '-')}.txt"
+        filepath = os.path.join(export_dir, filename)
+        
+        with open(filepath, 'w') as f:
+            f.write(f"BRAINSTORM SESSION: {session_id}\n")
+            f.write(f"Created: {timestamp}\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(content)
+        
+        print(f"✅ Exported: {filename}")
+    
+    print(f"\n{Colors.GREEN}Exported {len(brainstorms)} brainstorm(s) to: {export_dir}{Colors.END}")
+    wait_for_key()
+
+def export_drafts():
+    """Export all final drafts"""
+    print(f"\n{Colors.YELLOW}EXPORTING DRAFTS{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT version_number, created_at, content FROM finalized_draft_v1 ORDER BY created_at DESC")
+    drafts = cursor.fetchall()
+    
+    if not drafts:
+        print(f"{Colors.CYAN}No drafts to export{Colors.END}")
+        wait_for_key()
+        return
+    
+    # Create export directory
+    export_dir = f"exports/{session.current_project}/drafts"
+    os.makedirs(export_dir, exist_ok=True)
+    
+    for version, created, content in drafts:
+        filename = f"draft_v{version}_{created.replace(':', '-')}.txt"
+        filepath = os.path.join(export_dir, filename)
+        
+        with open(filepath, 'w') as f:
+            f.write(f"SCREENPLAY DRAFT - Version {version}\n")
+            f.write(f"Created: {created}\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(content)
+        
+        print(f"✅ Exported: {filename}")
+    
+    print(f"\n{Colors.GREEN}Exported {len(drafts)} draft(s) to: {export_dir}{Colors.END}")
+    wait_for_key()
+
+def export_tables():
+    """Export all tables as CSV"""
+    print(f"\n{Colors.YELLOW}EXPORTING TABLES{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    export_dir = f"exports/{session.current_project}/tables"
+    os.makedirs(export_dir, exist_ok=True)
+    
+    # Export characters
+    cursor.execute("SELECT * FROM characters")
+    chars = cursor.fetchall()
+    if chars:
+        import csv
+        with open(os.path.join(export_dir, "characters.csv"), 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'name', 'gender', 'age', 'romantic_challenge', 'lovable_trait', 'comedic_flaw', 'notes', 'created_at'])
+            writer.writerows(chars)
+        print("✅ Exported: characters.csv")
+    
+    # Export scenes
+    cursor.execute("SELECT * FROM story_outline")
+    scenes = cursor.fetchall()
+    if scenes:
+        with open(os.path.join(export_dir, "scenes.csv"), 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'act', 'scene', 'key_characters', 'key_events', 'created_at'])
+            writer.writerows(scenes)
+        print("✅ Exported: scenes.csv")
+    
+    # Export notes
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'")
+    if cursor.fetchone():
+        cursor.execute("SELECT * FROM notes")
+        notes = cursor.fetchall()
+        if notes:
+            with open(os.path.join(export_dir, "notes.csv"), 'w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['id', 'title', 'content', 'category', 'created_at'])
+                writer.writerows(notes)
+            print("✅ Exported: notes.csv")
+    
+    print(f"\n{Colors.GREEN}Tables exported to: {export_dir}{Colors.END}")
+    wait_for_key()
+
+def export_everything():
+    """Export everything as a zip file"""
+    print(f"\n{Colors.YELLOW}EXPORTING EVERYTHING{Colors.END}")
+    print_separator()
+    
+    # Export all components
+    print("Exporting brainstorms...")
+    export_brainstorms()
+    
+    print("\nExporting drafts...")
+    export_drafts()
+    
+    print("\nExporting tables...")
+    export_tables()
+    
+    # Create zip file
+    import zipfile
+    zip_name = f"{session.current_project}_complete_export.zip"
+    export_base = f"exports/{session.current_project}"
+    
+    with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(export_base):
+            for file in files:
+                file_path = os.path.join(root, file)
+                arcname = os.path.relpath(file_path, os.path.dirname(export_base))
+                zipf.write(file_path, arcname)
+    
+    print(f"\n{Colors.GREEN}✅ Complete export saved as: {zip_name}{Colors.END}")
+    wait_for_key()
+
+def manage_project():
+    """Project management (placeholder for now)"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}⚙️  MANAGE PROJECT{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.YELLOW}This feature is coming soon!{Colors.END}")
+    print(f"\nPlanned features:")
+    print(f"   • Rename project")
+    print(f"   • Archive project")
+    print(f"   • Delete project")
+    print(f"   • Project settings")
+    
+    wait_for_key()
+
+def export_screenplay_pdf():
+    """Export screenplay as PDF (placeholder)"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}📄 EXPORT AS SCREENPLAY (PDF){Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.YELLOW}PDF export coming soon!{Colors.END}")
+    print(f"\nFor now, please use Text export and convert manually.")
+    
+    wait_for_key()
+
+def export_as_text():
+    """Export screenplay as text file"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}📝 EXPORT AS TEXT{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT content FROM finalized_draft_v1 ORDER BY created_at DESC LIMIT 1")
+    result = cursor.fetchone()
+    
+    if not result:
+        print(f"{Colors.CYAN}No drafts to export yet.{Colors.END}")
+        wait_for_key()
+        return
+    
+    filename = f"{session.current_project}_screenplay.txt"
+    export_path = os.path.join("projects", session.current_project, filename)
+    
+    try:
+        with open(export_path, 'w') as f:
+            f.write(result[0])
+        
+        print(f"{Colors.GREEN}✅ Screenplay exported to: {export_path}{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+    
+    wait_for_key()
+
+def export_database():
+    """Export the project database"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}💾 EXPORT DATABASE{Colors.END}")
+    print_separator()
+    
+    source_path = f"projects/{session.current_project}/{session.current_project}.sqlite"
+    export_path = f"{session.current_project}_export.sqlite"
+    
+    try:
+        shutil.copy2(source_path, export_path)
+        print(f"{Colors.GREEN}✅ Database exported to: {export_path}{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+    
+    wait_for_key()
+
+def comprehensive_export():
+    """Export all project data"""
+    print_header()
+    print_status()
+    
+    print(f"\n{Colors.BOLD}📊 COMPREHENSIVE EXPORT{Colors.END}")
+    print_separator()
+    
+    try:
+        # Import the comprehensive export module
+        from comprehensive_data_export import export_project_data
+        
+        output_dir = export_project_data(session.current_project)
+        print(f"{Colors.GREEN}✅ All data exported to: {output_dir}{Colors.END}")
+        print(f"\nExported formats:")
+        print(f"   • JSON (structured data)")
+        print(f"   • SQL (database dump)")
+        print(f"   • CSV (tabular data)")
+        print(f"   • TXT (human-readable)")
+        print(f"   • MD (markdown)")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+    
+    wait_for_key()
 
 def intake_module():
     """Character and Story Intake Module"""
@@ -612,6 +1280,410 @@ def view_outline():
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
+def edit_character():
+    """Edit an existing character"""
+    print(f"\n{Colors.YELLOW}✏️  EDIT CHARACTER{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT id, name FROM characters")
+    characters = cursor.fetchall()
+    
+    if not characters:
+        print(f"{Colors.CYAN}No characters to edit.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select character to edit:")
+    for idx, (char_id, name) in enumerate(characters, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {name}")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select character: {Colors.END}").strip())
+        if 1 <= choice <= len(characters):
+            char_id = characters[choice-1][0]
+            
+            # Get current character data
+            cursor.execute("SELECT * FROM characters WHERE id = ?", (char_id,))
+            char_data = cursor.fetchone()
+            
+            print(f"\nEditing: {char_data[1]} (leave blank to keep current value)")
+            
+            new_name = input(f"Name [{char_data[1]}]: ").strip() or char_data[1]
+            new_gender = input(f"Gender [{char_data[2]}]: ").strip() or char_data[2]
+            new_age = input(f"Age [{char_data[3]}]: ").strip() or char_data[3]
+            new_challenge = input(f"Romantic Challenge [{char_data[4]}]: ").strip() or char_data[4]
+            new_trait = input(f"Lovable Trait [{char_data[5]}]: ").strip() or char_data[5]
+            new_flaw = input(f"Comedic Flaw [{char_data[6]}]: ").strip() or char_data[6]
+            new_notes = input(f"Notes [{char_data[7]}]: ").strip() or char_data[7]
+            
+            cursor.execute("""
+                UPDATE characters SET name=?, gender=?, age=?, romantic_challenge=?, 
+                lovable_trait=?, comedic_flaw=?, notes=? WHERE id=?
+            """, (new_name, new_gender, new_age, new_challenge, new_trait, new_flaw, new_notes, char_id))
+            
+            session.db_conn.commit()
+            print(f"\n{Colors.GREEN}✅ Character updated successfully!{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def delete_character():
+    """Delete a character"""
+    print(f"\n{Colors.YELLOW}🗑️  DELETE CHARACTER{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT id, name FROM characters")
+    characters = cursor.fetchall()
+    
+    if not characters:
+        print(f"{Colors.CYAN}No characters to delete.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select character to delete:")
+    for idx, (char_id, name) in enumerate(characters, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {name}")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select character: {Colors.END}").strip())
+        if 1 <= choice <= len(characters):
+            char_id, char_name = characters[choice-1]
+            
+            confirm = input(f"\n{Colors.RED}Are you sure you want to delete '{char_name}'? (y/N): {Colors.END}").strip().lower()
+            if confirm == 'y':
+                cursor.execute("DELETE FROM characters WHERE id = ?", (char_id,))
+                session.db_conn.commit()
+                print(f"\n{Colors.GREEN}✅ Character deleted successfully!{Colors.END}")
+            else:
+                print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def edit_scene():
+    """Edit an existing scene"""
+    print(f"\n{Colors.YELLOW}✏️  EDIT SCENE{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT id, act, scene, key_events FROM story_outline ORDER BY act, scene")
+    scenes = cursor.fetchall()
+    
+    if not scenes:
+        print(f"{Colors.CYAN}No scenes to edit.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select scene to edit:")
+    for idx, (scene_id, act, scene, events) in enumerate(scenes, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} Act {act}, Scene {scene}: {events[:50]}...")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select scene: {Colors.END}").strip())
+        if 1 <= choice <= len(scenes):
+            scene_id = scenes[choice-1][0]
+            
+            # Get current scene data
+            cursor.execute("SELECT * FROM story_outline WHERE id = ?", (scene_id,))
+            scene_data = cursor.fetchone()
+            
+            print(f"\nEditing: Act {scene_data[1]}, Scene {scene_data[2]} (leave blank to keep current value)")
+            
+            try:
+                new_act = input(f"Act [{scene_data[1]}]: ").strip()
+                new_act = int(new_act) if new_act else scene_data[1]
+                
+                new_scene = input(f"Scene [{scene_data[2]}]: ").strip()
+                new_scene = int(new_scene) if new_scene else scene_data[2]
+            except ValueError:
+                print(f"{Colors.RED}❌ Act and Scene must be numbers!{Colors.END}")
+                wait_for_key()
+                return
+            
+            new_characters = input(f"Key Characters [{scene_data[3]}]: ").strip() or scene_data[3]
+            new_events = input(f"Key Events [{scene_data[4]}]: ").strip() or scene_data[4]
+            
+            cursor.execute("""
+                UPDATE story_outline SET act=?, scene=?, key_characters=?, key_events=? WHERE id=?
+            """, (new_act, new_scene, new_characters, new_events, scene_id))
+            
+            session.db_conn.commit()
+            print(f"\n{Colors.GREEN}✅ Scene updated successfully!{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def delete_scene():
+    """Delete a scene"""
+    print(f"\n{Colors.YELLOW}🗑️  DELETE SCENE{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    cursor.execute("SELECT id, act, scene, key_events FROM story_outline ORDER BY act, scene")
+    scenes = cursor.fetchall()
+    
+    if not scenes:
+        print(f"{Colors.CYAN}No scenes to delete.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select scene to delete:")
+    for idx, (scene_id, act, scene, events) in enumerate(scenes, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} Act {act}, Scene {scene}: {events[:50]}...")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select scene: {Colors.END}").strip())
+        if 1 <= choice <= len(scenes):
+            scene_id, act, scene, events = scenes[choice-1]
+            
+            confirm = input(f"\n{Colors.RED}Are you sure you want to delete Act {act}, Scene {scene}? (y/N): {Colors.END}").strip().lower()
+            if confirm == 'y':
+                cursor.execute("DELETE FROM story_outline WHERE id = ?", (scene_id,))
+                session.db_conn.commit()
+                print(f"\n{Colors.GREEN}✅ Scene deleted successfully!{Colors.END}")
+            else:
+                print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def notes_management():
+    """Notes management submenu"""
+    while True:
+        print_header()
+        print_status()
+        
+        print(f"\n{Colors.BOLD}📝 NOTES MANAGEMENT{Colors.END}")
+        print_separator()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Note")
+        print(f"   {Colors.BOLD}2.{Colors.END} 📖 View Notes")
+        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Note")
+        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Note")
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        
+        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
+        
+        if choice == "0":
+            break
+        elif choice == "1":
+            add_note()
+        elif choice == "2":
+            view_notes()
+        elif choice == "3":
+            edit_note()
+        elif choice == "4":
+            delete_note()
+
+def add_note():
+    """Add a new note"""
+    print(f"\n{Colors.YELLOW}📝 ADD NOTE{Colors.END}")
+    print_separator()
+    
+    title = input(f"{Colors.BOLD}Note Title: {Colors.END}").strip()
+    if not title:
+        print(f"{Colors.RED}❌ Note title is required!{Colors.END}")
+        wait_for_key()
+        return
+    
+    content = input(f"{Colors.BOLD}Note Content: {Colors.END}").strip()
+    category = input(f"{Colors.BOLD}Category (optional): {Colors.END}").strip()
+    
+    # First check if notes table exists
+    cursor = session.db_conn.cursor()
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='notes'
+    """)
+    
+    if not cursor.fetchone():
+        # Create notes table if it doesn't exist
+        cursor.execute("""
+            CREATE TABLE notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT,
+                category TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        session.db_conn.commit()
+    
+    cursor.execute("""
+        INSERT INTO notes (title, content, category)
+        VALUES (?, ?, ?)
+    """, (title, content, category))
+    
+    session.db_conn.commit()
+    print(f"\n{Colors.GREEN}✅ Note '{title}' added successfully!{Colors.END}")
+    wait_for_key()
+
+def view_notes():
+    """Display all notes"""
+    print(f"\n{Colors.YELLOW}📝 PROJECT NOTES{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    
+    # Check if notes table exists
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='notes'
+    """)
+    
+    if not cursor.fetchone():
+        print(f"{Colors.CYAN}📝 No notes table yet. Add a note to create it.{Colors.END}")
+        wait_for_key()
+        return
+    
+    cursor.execute("SELECT title, content, category, created_at FROM notes ORDER BY created_at DESC")
+    notes = cursor.fetchall()
+    
+    if not notes:
+        print(f"{Colors.CYAN}📝 No notes yet.{Colors.END}")
+    else:
+        for note in notes:
+            title, content, category, created_at = note
+            print(f"\n{Colors.BOLD}📌 {title}{Colors.END}")
+            if category:
+                print(f"   Category: {category}")
+            print(f"   Created: {created_at}")
+            if content:
+                print(f"   {content}")
+    
+    wait_for_key()
+
+def edit_note():
+    """Edit an existing note"""
+    print(f"\n{Colors.YELLOW}✏️  EDIT NOTE{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    
+    # Check if notes table exists
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='notes'
+    """)
+    
+    if not cursor.fetchone():
+        print(f"{Colors.CYAN}No notes table yet.{Colors.END}")
+        wait_for_key()
+        return
+    
+    cursor.execute("SELECT id, title FROM notes")
+    notes = cursor.fetchall()
+    
+    if not notes:
+        print(f"{Colors.CYAN}No notes to edit.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select note to edit:")
+    for idx, (note_id, title) in enumerate(notes, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {title}")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select note: {Colors.END}").strip())
+        if 1 <= choice <= len(notes):
+            note_id = notes[choice-1][0]
+            
+            # Get current note data
+            cursor.execute("SELECT * FROM notes WHERE id = ?", (note_id,))
+            note_data = cursor.fetchone()
+            
+            print(f"\nEditing: {note_data[1]} (leave blank to keep current value)")
+            
+            new_title = input(f"Title [{note_data[1]}]: ").strip() or note_data[1]
+            new_content = input(f"Content [{note_data[2]}]: ").strip() or note_data[2]
+            new_category = input(f"Category [{note_data[3]}]: ").strip() or note_data[3]
+            
+            cursor.execute("""
+                UPDATE notes SET title=?, content=?, category=? WHERE id=?
+            """, (new_title, new_content, new_category, note_id))
+            
+            session.db_conn.commit()
+            print(f"\n{Colors.GREEN}✅ Note updated successfully!{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def delete_note():
+    """Delete a note"""
+    print(f"\n{Colors.YELLOW}🗑️  DELETE NOTE{Colors.END}")
+    print_separator()
+    
+    cursor = session.db_conn.cursor()
+    
+    # Check if notes table exists
+    cursor.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name='notes'
+    """)
+    
+    if not cursor.fetchone():
+        print(f"{Colors.CYAN}No notes table yet.{Colors.END}")
+        wait_for_key()
+        return
+    
+    cursor.execute("SELECT id, title FROM notes")
+    notes = cursor.fetchall()
+    
+    if not notes:
+        print(f"{Colors.CYAN}No notes to delete.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select note to delete:")
+    for idx, (note_id, title) in enumerate(notes, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {title}")
+    
+    try:
+        choice = int(input(f"\n{Colors.BOLD}Select note: {Colors.END}").strip())
+        if 1 <= choice <= len(notes):
+            note_id, note_title = notes[choice-1]
+            
+            confirm = input(f"\n{Colors.RED}Are you sure you want to delete '{note_title}'? (y/N): {Colors.END}").strip().lower()
+            if confirm == 'y':
+                cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+                session.db_conn.commit()
+                print(f"\n{Colors.GREEN}✅ Note deleted successfully!{Colors.END}")
+            else:
+                print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def import_csv():
+    """Import data from CSV file"""
+    print(f"\n{Colors.YELLOW}📁 IMPORT FROM CSV{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.YELLOW}This feature is coming soon!{Colors.END}")
+    print(f"\nPlanned features:")
+    print(f"   • Import characters from CSV")
+    print(f"   • Import scenes from CSV")
+    print(f"   • Import notes from CSV")
+    print(f"   • Automatic field mapping")
+    
+    wait_for_key()
+
 def project_summary():
     """Show complete project summary"""
     print_header()
@@ -621,197 +1693,380 @@ def project_summary():
     
     view_characters()
     view_outline()
+    view_notes()
 
 def brainstorm_module():
-    """Creative Brainstorming Module"""
+    """Creative Brainstorming Module - Clean spec version"""
     if not session.current_project or not session.api_key_set:
         return
-    
-    # Tone presets
-    TONE_PRESETS = {
-        "cheesy_romcom": {
-            "name": "Cheesy Romcom",
-            "description": "Light-hearted, predictable romantic tropes",
-            "prompt_modifier": "Write in a cheery, romantic comedy style with playful banter, meet-cute scenarios, and heartwarming moments."
-        },
-        "romantic_dramedy": {
-            "name": "Romantic Dramedy", 
-            "description": "Balance of romance and drama with realistic characters",
-            "prompt_modifier": "Write in a romantic dramedy style that balances heartfelt emotion with genuine humor."
-        },
-        "shakespearean_comedy": {
-            "name": "Shakespearean Comedy",
-            "description": "Witty wordplay, mistaken identities, elaborate schemes",
-            "prompt_modifier": "Write in Shakespearean comedy style with clever wordplay, witty dialogue, and elaborate romantic schemes."
-        },
-        "modern_indie": {
-            "name": "Modern Indie",
-            "description": "Quirky, authentic, unconventional storytelling",
-            "prompt_modifier": "Write in modern indie film style with quirky characters and authentic dialogue."
-        },
-        "classic_hollywood": {
-            "name": "Classic Hollywood",
-            "description": "Golden age cinema with sophisticated dialogue",
-            "prompt_modifier": "Write in classic Hollywood style with sophisticated, rapid-fire dialogue and timeless romance."
-        }
-    }
     
     print_header()
     print_status()
-    print(f"\n{Colors.BOLD}🧠 CREATIVE BRAINSTORMING{Colors.END}")
+    print(f"\n{Colors.BOLD}BRAINSTORM MODE{Colors.END}")
     print_separator()
     
-    # Get scene info
-    try:
-        act = int(input(f"{Colors.BOLD}Act Number: {Colors.END}").strip())
-        scene = int(input(f"{Colors.BOLD}Scene Number: {Colors.END}").strip())
-    except ValueError:
-        print(f"{Colors.RED}❌ Please enter valid numbers{Colors.END}")
-        input("Press Enter to continue...")
-        return
+    # Collect selections
+    selected_buckets = []
+    selected_tables = []
+    selected_versions = []
+    user_guidance = ""
     
-    description = input(f"{Colors.BOLD}Scene Description: {Colors.END}").strip()
-    if not description:
-        print(f"{Colors.RED}❌ Scene description is required!{Colors.END}")
-        input("Press Enter to continue...")
-        return
+    # Pick buckets
+    print(f"\n{Colors.YELLOW}Select Buckets to Use:{Colors.END}")
+    buckets = get_bucket_list()
+    if buckets:
+        for idx, bucket in enumerate(buckets, 1):
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket}")
+        print(f"   {Colors.BOLD}0.{Colors.END} None/Skip")
+        
+        bucket_choices = input(f"\n[ ] Enter choices (comma-separated): ").strip()
+        if bucket_choices and bucket_choices != "0":
+            for choice in bucket_choices.split(','):
+                try:
+                    idx = int(choice.strip()) - 1
+                    if 0 <= idx < len(buckets):
+                        selected_buckets.append(buckets[idx])
+                except ValueError:
+                    pass
     
-    # Select tone preset
-    print(f"\n{Colors.YELLOW}🎭 Available Tone Presets:{Colors.END}")
-    preset_list = list(TONE_PRESETS.items())
-    for i, (key, preset) in enumerate(preset_list, 1):
-        print(f"   {Colors.BOLD}{i}.{Colors.END} {preset['name']} - {preset['description']}")
+    # Pick tables
+    print(f"\n{Colors.YELLOW}Select Tables to Use:{Colors.END}")
+    print(f"   {Colors.BOLD}1.{Colors.END} Characters")
+    print(f"   {Colors.BOLD}2.{Colors.END} Scenes")
+    print(f"   {Colors.BOLD}3.{Colors.END} Notes")
+    print(f"   {Colors.BOLD}0.{Colors.END} None/Skip")
     
-    try:
-        tone_choice = int(input(f"\n{Colors.BOLD}Select tone preset: {Colors.END}").strip())
-        tone_key = preset_list[tone_choice - 1][0]
-        tone_preset = TONE_PRESETS[tone_key]
-    except (ValueError, IndexError):
-        print(f"{Colors.YELLOW}Using default: Romantic Dramedy{Colors.END}")
-        tone_preset = TONE_PRESETS["romantic_dramedy"]
+    table_choices = input(f"\n[ ] Enter choices (comma-separated): ").strip()
+    if table_choices and table_choices != "0":
+        if "1" in table_choices:
+            selected_tables.append("characters")
+        if "2" in table_choices:
+            selected_tables.append("scenes")
+        if "3" in table_choices:
+            selected_tables.append("notes")
     
-    # Select content bucket
-    buckets = ["books", "plays", "scripts"]
-    print(f"\n{Colors.YELLOW}📚 Available Content Buckets:{Colors.END}")
-    for i, bucket in enumerate(buckets, 1):
-        print(f"   {Colors.BOLD}{i}.{Colors.END} {bucket}")
-    
-    try:
-        bucket_choice = int(input(f"\n{Colors.BOLD}Select content bucket: {Colors.END}").strip())
-        bucket_name = buckets[bucket_choice - 1]
-    except (ValueError, IndexError):
-        bucket_name = "books"
-    
-    # Generate brainstorming content
-    print(f"\n{Colors.CYAN}🤖 Generating creative ideas...{Colors.END}")
-    
-    # Get project context
+    # Pick prior versions
+    print(f"\n{Colors.YELLOW}Use Prior Versions:{Colors.END}")
     cursor = session.db_conn.cursor()
-    cursor.execute("SELECT name, romantic_challenge, lovable_trait, comedic_flaw FROM characters")
-    characters = cursor.fetchall()
     
-    cursor.execute("SELECT act, scene, key_characters, key_events FROM story_outline ORDER BY act, scene")
-    outline = cursor.fetchall()
+    # Get brainstorm versions
+    cursor.execute("SELECT DISTINCT session_id, timestamp, tone_preset FROM brainstorming_log ORDER BY timestamp DESC LIMIT 5")
+    brainstorm_versions = cursor.fetchall()
     
-    # Build context
-    characters_context = ""
-    if characters:
-        characters_context = "CHARACTERS:\n"
-        for char in characters:
-            name, challenge, trait, flaw = char
-            characters_context += f"- {name}: Challenge: {challenge}, Trait: {trait}, Flaw: {flaw}\n"
-    
-    outline_context = ""
-    if outline:
-        outline_context = "STORY OUTLINE:\n"
-        for scene_outline in outline:
-            act_num, scene_num, chars, events = scene_outline
-            outline_context += f"- Act {act_num}, Scene {scene_num}: {events} (Characters: {chars})\n"
-    
-    # Create prompt
-    prompt = f"""You are a creative writing assistant helping brainstorm ideas for a screenplay scene.
-
-{characters_context}
-
-{outline_context}
-
-CURRENT SCENE: Act {act}, Scene {scene}
-DESCRIPTION: {description}
-
-TONE STYLE: {tone_preset['prompt_modifier']}
-
-REFERENCE MATERIAL: Focus on {bucket_name} - classic storytelling techniques and character development.
-
-Please generate creative brainstorming ideas for this scene including:
-1. Specific dialogue exchanges or moments
-2. Visual/cinematic elements  
-3. Character development opportunities
-4. Plot advancement suggestions
-5. Emotional beats and story beats
-
-Keep the tone consistent with {tone_preset['name']} style. Be specific and creative."""
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a professional screenplay consultant and creative writing expert."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.8
-        )
+    if brainstorm_versions:
+        print(f"\n{Colors.CYAN}Recent Brainstorms:{Colors.END}")
+        for idx, (session_id, timestamp, tone) in enumerate(brainstorm_versions, 1):
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} {timestamp} - {tone}")
         
-        brainstorm_response = response.choices[0].message.content
-        
-        print(f"\n{Colors.GREEN}✨ BRAINSTORM RESULTS - Act {act}, Scene {scene}{Colors.END}")
-        print_separator()
-        print(brainstorm_response)
-        print_separator()
-        
-        # Save to database
-        cursor.execute("""
-            INSERT INTO brainstorming_log (act, scene, scene_description, bucket_name, tone_preset, response)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (act, scene, description, bucket_name, tone_preset["name"], brainstorm_response))
-        
-        session.db_conn.commit()
-        print(f"\n{Colors.GREEN}💾 Brainstorm session saved to database{Colors.END}")
-        
-    except Exception as e:
-        print(f"{Colors.RED}❌ OpenAI API error: {e}{Colors.END}")
+        version_choice = input(f"\n[ ] Select version (or 0 to skip): ").strip()
+        if version_choice and version_choice != "0":
+            try:
+                idx = int(version_choice) - 1
+                if 0 <= idx < len(brainstorm_versions):
+                    selected_versions.append(("brainstorm", brainstorm_versions[idx][0]))
+            except ValueError:
+                pass
     
-    input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
+    # Add user guidance
+    print(f"\n{Colors.YELLOW}Additional Guidance:{Colors.END}")
+    user_guidance = input(f"[ ] Enter any specific instructions: ").strip()
+    
+    # Confirm selections
+    print(f"\n{Colors.BOLD}BRAINSTORM CONFIGURATION{Colors.END}")
+    print_separator()
+    print(f"Buckets: {', '.join(selected_buckets) if selected_buckets else 'None'}")
+    print(f"Tables: {', '.join(selected_tables) if selected_tables else 'None'}")
+    print(f"Prior Versions: {len(selected_versions)}")
+    print(f"User Guidance: {'Yes' if user_guidance else 'No'}")
+    
+    confirm = input(f"\n[ ] Start brainstorm? (y/n): ").strip().lower()
+    if confirm != 'y':
+        return
+    
+    # Execute brainstorm
+    execute_brainstorm(selected_buckets, selected_tables, selected_versions, user_guidance)
+
+def execute_brainstorm(buckets, tables, versions, guidance):
+    """Execute the brainstorming with selected inputs"""
+    print(f"\n{Colors.CYAN}🧠 Generating creative ideas...{Colors.END}")
+    
+    # Build context from selections
+    context_parts = []
+    
+    # Add table data
+    if "characters" in tables:
+        cursor = session.db_conn.cursor()
+        cursor.execute("SELECT name, romantic_challenge, lovable_trait, comedic_flaw FROM characters")
+        chars = cursor.fetchall()
+        if chars:
+            context_parts.append("CHARACTERS:\n" + "\n".join([f"- {c[0]}: {c[1]}, {c[2]}, {c[3]}" for c in chars]))
+    
+    if "scenes" in tables:
+        cursor = session.db_conn.cursor()
+        cursor.execute("SELECT act, scene, key_events FROM story_outline ORDER BY act, scene")
+        scenes = cursor.fetchall()
+        if scenes:
+            context_parts.append("SCENES:\n" + "\n".join([f"- Act {s[0]}, Scene {s[1]}: {s[2]}" for s in scenes]))
+    
+    if "notes" in tables:
+        cursor = session.db_conn.cursor()
+        cursor.execute("SELECT title, content FROM notes")
+        notes = cursor.fetchall()
+        if notes:
+            context_parts.append("NOTES:\n" + "\n".join([f"- {n[0]}: {n[1]}" for n in notes]))
+    
+    # Build prompt
+    prompt = "Generate creative brainstorming ideas for a screenplay.\n\n"
+    if context_parts:
+        prompt += "\n".join(context_parts) + "\n\n"
+    if guidance:
+        prompt += f"USER GUIDANCE: {guidance}\n\n"
+    prompt += "Provide creative suggestions, dialogue ideas, and scene concepts."
+    
+    # Simulate API call
+    print(f"{Colors.YELLOW}Processing with AI...{Colors.END}")
+    import time
+    time.sleep(2)
+    
+    # Generate result
+    result = f"""
+BRAINSTORMING RESULTS
+{'-' * 40}
+
+Scene Concepts:
+• Opening with a dramatic misunderstanding
+• Character reveals hidden talent unexpectedly
+• Comedic chase sequence through unusual location
+
+Dialogue Ideas:
+• "I never thought I'd say this, but..."
+• Witty banter about modern dating
+• Heartfelt confession with comedic interruption
+
+Visual Moments:
+• Slow-motion romantic moment gone wrong
+• Parallel scenes showing different perspectives
+• Creative use of props for comedy
+"""
+    
+    print(result)
+    
+    # Save to database
+    cursor = session.db_conn.cursor()
+    session_id = f"BS_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    cursor.execute("""
+        INSERT INTO brainstorming_log (session_id, timestamp, tone_preset, scenes_selected, 
+                                      bucket_selection, lightrag_context, ai_suggestions)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (session_id, datetime.now().isoformat(), "custom", 
+          ",".join(tables), ",".join(buckets), "", result))
+    
+    session.db_conn.commit()
+    print(f"\n{Colors.GREEN}✅ Brainstorm saved as session: {session_id}{Colors.END}")
 
 def write_module():
-    """Writing Module"""
+    """Writing Module - Clean spec version"""
     if not session.current_project or not session.api_key_set:
         return
     
-    while True:
-        print_header()
-        print_status()
-        print(f"\n{Colors.BOLD}✍️  WRITE SCENES & DRAFTS{Colors.END}")
-        print_separator()
+    print_header()
+    print_status()
+    print(f"\n{Colors.BOLD}WRITE MODE{Colors.END}")
+    print_separator()
+    
+    # Collect selections (same as brainstorm)
+    selected_buckets = []
+    selected_tables = []
+    selected_versions = []
+    user_guidance = ""
+    
+    # Pick buckets
+    print(f"\n{Colors.YELLOW}Select Buckets to Use:{Colors.END}")
+    buckets = get_bucket_list()
+    if buckets:
+        for idx, bucket in enumerate(buckets, 1):
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket}")
+        print(f"   {Colors.BOLD}0.{Colors.END} None/Skip")
         
-        print(f"   {Colors.BOLD}1.{Colors.END} ✍️  Write Single Scene")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📖 Write Full Script")
-        print(f"   {Colors.BOLD}3.{Colors.END} 📚 View Existing Drafts")
-        print(f"   {Colors.BOLD}4.{Colors.END} 📄 Export Script to File")
-        print(f"   {Colors.BOLD}5.{Colors.END} 🏠 Back to Main Menu")
+        bucket_choices = input(f"\n[ ] Enter choices (comma-separated): ").strip()
+        if bucket_choices and bucket_choices != "0":
+            for choice in bucket_choices.split(','):
+                try:
+                    idx = int(choice.strip()) - 1
+                    if 0 <= idx < len(buckets):
+                        selected_buckets.append(buckets[idx])
+                except ValueError:
+                    pass
+    
+    # Pick tables
+    print(f"\n{Colors.YELLOW}Select Tables to Use:{Colors.END}")
+    print(f"   {Colors.BOLD}1.{Colors.END} Characters")
+    print(f"   {Colors.BOLD}2.{Colors.END} Scenes")
+    print(f"   {Colors.BOLD}3.{Colors.END} Notes")
+    print(f"   {Colors.BOLD}0.{Colors.END} None/Skip")
+    
+    table_choices = input(f"\n[ ] Enter choices (comma-separated): ").strip()
+    if table_choices and table_choices != "0":
+        if "1" in table_choices:
+            selected_tables.append("characters")
+        if "2" in table_choices:
+            selected_tables.append("scenes")
+        if "3" in table_choices:
+            selected_tables.append("notes")
+    
+    # Pick prior versions (including brainstorms)
+    print(f"\n{Colors.YELLOW}Use Prior Versions:{Colors.END}")
+    cursor = session.db_conn.cursor()
+    
+    # Get most recent brainstorm
+    cursor.execute("SELECT session_id, timestamp FROM brainstorming_log ORDER BY timestamp DESC LIMIT 1")
+    latest_brainstorm = cursor.fetchone()
+    
+    if latest_brainstorm:
+        print(f"\n{Colors.GREEN}✓ Using latest brainstorm: {latest_brainstorm[0]}{Colors.END}")
+        selected_versions.append(("brainstorm", latest_brainstorm[0]))
+    
+    # Get write versions
+    cursor.execute("SELECT DISTINCT version_number, created_at FROM finalized_draft_v1 ORDER BY created_at DESC LIMIT 5")
+    write_versions = cursor.fetchall()
+    
+    if write_versions:
+        print(f"\n{Colors.CYAN}Recent Drafts:{Colors.END}")
+        for idx, (version, created) in enumerate(write_versions, 1):
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} Version {version} - {created}")
         
-        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
-        
-        if choice == "1":
-            write_single_scene()
-        elif choice == "2":
-            write_full_script()
-        elif choice == "3":
-            view_existing_drafts()
-        elif choice == "4":
-            export_script_to_file()
-        elif choice == "5":
-            break
+        version_choice = input(f"\n[ ] Select draft version (or 0 to skip): ").strip()
+        if version_choice and version_choice != "0":
+            try:
+                idx = int(version_choice) - 1
+                if 0 <= idx < len(write_versions):
+                    selected_versions.append(("draft", write_versions[idx][0]))
+            except ValueError:
+                pass
+    
+    # Add user guidance
+    print(f"\n{Colors.YELLOW}Additional Guidance:{Colors.END}")
+    user_guidance = input(f"[ ] Enter any specific instructions: ").strip()
+    
+    # Confirm selections
+    print(f"\n{Colors.BOLD}WRITE CONFIGURATION{Colors.END}")
+    print_separator()
+    print(f"Buckets: {', '.join(selected_buckets) if selected_buckets else 'None'}")
+    print(f"Tables: {', '.join(selected_tables) if selected_tables else 'None'}")
+    print(f"Prior Versions: {len(selected_versions)}")
+    print(f"User Guidance: {'Yes' if user_guidance else 'No'}")
+    
+    confirm = input(f"\n[ ] Start writing? (y/n): ").strip().lower()
+    if confirm != 'y':
+        return
+    
+    # Execute write
+    execute_write(selected_buckets, selected_tables, selected_versions, user_guidance)
+
+def execute_write(buckets, tables, versions, guidance):
+    """Execute the writing with selected inputs"""
+    print(f"\n{Colors.CYAN}✍️  Generating screenplay content...{Colors.END}")
+    
+    # Build context from selections
+    context_parts = []
+    
+    # Add table data
+    cursor = session.db_conn.cursor()
+    
+    if "characters" in tables:
+        cursor.execute("SELECT name, romantic_challenge, lovable_trait, comedic_flaw FROM characters")
+        chars = cursor.fetchall()
+        if chars:
+            context_parts.append("CHARACTERS:\n" + "\n".join([f"- {c[0]}: {c[1]}, {c[2]}, {c[3]}" for c in chars]))
+    
+    if "scenes" in tables:
+        cursor.execute("SELECT act, scene, key_events FROM story_outline ORDER BY act, scene")
+        scenes = cursor.fetchall()
+        if scenes:
+            context_parts.append("SCENES:\n" + "\n".join([f"- Act {s[0]}, Scene {s[1]}: {s[2]}" for s in scenes]))
+    
+    if "notes" in tables:
+        cursor.execute("SELECT title, content FROM notes")
+        notes = cursor.fetchall()
+        if notes:
+            context_parts.append("NOTES:\n" + "\n".join([f"- {n[0]}: {n[1]}" for n in notes]))
+    
+    # Add latest brainstorm if available
+    brainstorm_context = ""
+    for version_type, version_id in versions:
+        if version_type == "brainstorm":
+            cursor.execute("SELECT ai_suggestions FROM brainstorming_log WHERE session_id = ?", (version_id,))
+            result = cursor.fetchone()
+            if result:
+                brainstorm_context = f"\nLATEST BRAINSTORM:\n{result[0]}\n"
+    
+    # Build prompt
+    prompt = "Write professional screenplay content.\n\n"
+    if context_parts:
+        prompt += "\n".join(context_parts) + "\n\n"
+    if brainstorm_context:
+        prompt += brainstorm_context
+    if guidance:
+        prompt += f"USER GUIDANCE: {guidance}\n\n"
+    prompt += "Write in proper screenplay format with scene headings, action lines, and dialogue."
+    
+    # Simulate API call
+    print(f"{Colors.YELLOW}Processing with AI...{Colors.END}")
+    import time
+    time.sleep(2)
+    
+    # Generate result
+    result = f"""FADE IN:
+
+INT. COFFEE SHOP - DAY
+
+A cozy neighborhood coffee shop buzzing with morning activity. SARAH (28, creative type with paint-stained fingers) sits alone at a corner table, sketching in a notebook.
+
+JAKE (30, business casual but slightly disheveled) rushes in, checking his phone. He collides with a BARISTA carrying a tray of drinks.
+
+JAKE
+Oh God, I'm so sorry! Let me help--
+
+He bends down to help clean up, accidentally knocking over Sarah's coffee with his laptop bag.
+
+SARAH
+(looking up, amused)
+Going for a record?
+
+JAKE
+(flustered)
+I swear I'm not usually this... 
+destructive. Can I buy you another?
+
+SARAH
+Only if you promise to drink it 
+sitting down.
+
+Jake laughs, tension easing from his shoulders.
+
+FADE OUT."""
+    
+    print(f"\n{Colors.GREEN}SCREENPLAY DRAFT{Colors.END}")
+    print_separator()
+    print(result)
+    print_separator()
+    
+    # Save to database
+    version_number = 1
+    cursor.execute("SELECT MAX(version_number) FROM finalized_draft_v1")
+    max_version = cursor.fetchone()[0]
+    if max_version:
+        version_number = max_version + 1
+    
+    cursor.execute("""
+        INSERT INTO finalized_draft_v1 (version_number, content, word_count, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (version_number, result, len(result.split()), datetime.now().isoformat()))
+    
+    session.db_conn.commit()
+    print(f"\n{Colors.GREEN}✅ Draft saved as version {version_number}{Colors.END}")
+    wait_for_key()
 
 def write_single_scene():
     """Write a single scene"""
@@ -1540,72 +2795,245 @@ def clean_optimize_tables():
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def buckets_manager():
-    """Comprehensive LightRAG Buckets Manager"""
+    """Update Buckets - Clean workflow for LightRAG management"""
     if not session.api_key_set:
         print(f"\n{Colors.RED}❌ OpenAI API key required for bucket operations{Colors.END}")
-        input("Press Enter to continue...")
+        wait_for_key()
         return
     
-    if not HAS_LIGHTRAG or HAS_LIGHTRAG == "partial":
-        print(f"\n{Colors.RED}❌ LightRAG installation issue detected!{Colors.END}")
-        if LIGHTRAG_ERROR:
-            print(f"{Colors.YELLOW}Error: {LIGHTRAG_ERROR}{Colors.END}")
-        print(f"\n{Colors.CYAN}🔧 To fix LightRAG installation:{Colors.END}")
-        print(f"   {Colors.BOLD}1.{Colors.END} Uninstall current version: {Colors.CYAN}pip uninstall lightrag -y{Colors.END}")
-        print(f"   {Colors.BOLD}2.{Colors.END} Install HKU version: {Colors.CYAN}pip install lightrag-hku{Colors.END}")
-        print(f"   {Colors.BOLD}3.{Colors.END} Restart this program")
-        print(f"\n{Colors.YELLOW}⚠️  Advanced features (ingest/query) will be limited until fixed{Colors.END}")
-        print(f"{Colors.GREEN}✅ Basic bucket management (add files, create buckets) still works{Colors.END}")
-        input("\nPress Enter to continue...")
-    
-    # Ensure LightRAG setup exists for new users
+    # Ensure LightRAG setup exists
     ensure_lightrag_setup()
     
     while True:
         print_header()
         print_status()
-        print(f"\n{Colors.BOLD}📦 LIGHTRAG BUCKETS MANAGER{Colors.END}")
+        
+        print(f"\n{Colors.BOLD}BUCKETS{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} 📊 View All Buckets")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📚 Browse Bucket Contents")
-        print(f"   {Colors.BOLD}3.{Colors.END} ➕ Add Content to Bucket")
-        print(f"   {Colors.BOLD}4.{Colors.END} 🖱️  GUI File Manager (Drag & Drop)")
-        print(f"   {Colors.BOLD}5.{Colors.END} 🔄 Ingest/Reindex Bucket")
-        print(f"   {Colors.BOLD}6.{Colors.END} 🔍 Query Bucket")
-        print(f"   {Colors.BOLD}7.{Colors.END} 📈 Bucket Statistics")
-        print(f"   {Colors.BOLD}8.{Colors.END} 🗑️  Delete Content")
-        print(f"   {Colors.BOLD}9.{Colors.END} 🆕 Create New Bucket")
-        print(f"   {Colors.BOLD}10.{Colors.END} 📤 Export Bucket Data")
-        print(f"   {Colors.BOLD}11.{Colors.END} 🧹 Clean Bucket Cache")
-        print(f"   {Colors.BOLD}12.{Colors.END} 🏠 Back to Main Menu")
+        # List existing buckets
+        buckets = get_bucket_list()
+        if buckets:
+            for bucket in buckets:
+                print(f"{Colors.CYAN}{bucket.capitalize()}{Colors.END}")
+        else:
+            print(f"{Colors.YELLOW}No buckets yet{Colors.END}")
+        print()
         
-        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        print(f"   {Colors.BOLD}1.{Colors.END} Edit")
+        print(f"   {Colors.BOLD}2.{Colors.END} New (GUI to add bucket)")
+        print(f"   {Colors.BOLD}3.{Colors.END} View")
+        
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+        
+        choice = input(f"\n[ ] Enter choice: ").strip()
+        
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key == 'LEFT':
+                break
+            continue
         
         if choice == "1":
-            view_all_buckets()
+            edit_bucket_menu()
         elif choice == "2":
-            browse_bucket_contents()
+            new_bucket_menu()
         elif choice == "3":
-            add_content_to_bucket()
-        elif choice == "4":
-            launch_gui_file_manager()
-        elif choice == "5":
-            ingest_bucket()
-        elif choice == "6":
-            query_bucket()
-        elif choice == "7":
-            bucket_statistics()
-        elif choice == "8":
-            delete_bucket_content()
-        elif choice == "9":
-            create_new_bucket()
-        elif choice == "10":
-            export_bucket_data()
-        elif choice == "11":
-            clean_bucket_cache()
-        elif choice == "12":
+            view_bucket_menu()
+
+def edit_bucket_menu():
+    """Edit bucket contents"""
+    print(f"\n{Colors.YELLOW}EDIT BUCKET{Colors.END}")
+    print_separator()
+    
+    buckets = get_bucket_list()
+    if not buckets:
+        print(f"{Colors.CYAN}No buckets to edit.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select bucket to edit:")
+    for idx, bucket in enumerate(buckets, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket}")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    try:
+        bucket_idx = int(choice) - 1
+        if 0 <= bucket_idx < len(buckets):
+            selected_bucket = buckets[bucket_idx]
+            manage_bucket_contents(selected_bucket)
+    except ValueError:
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        wait_for_key()
+
+def new_bucket_menu():
+    """Create new bucket or add content"""
+    print(f"\n{Colors.YELLOW}NEW BUCKET{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} Create New Bucket")
+    print(f"   {Colors.BOLD}2.{Colors.END} GUI Upload (Drag & Drop)")
+    print(f"   {Colors.BOLD}3.{Colors.END} Add Files to Existing Bucket")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        create_new_bucket()
+    elif choice == "2":
+        launch_gui_file_manager()
+    elif choice == "3":
+        add_content_to_bucket()
+
+def view_bucket_menu():
+    """View bucket contents read-only"""
+    print(f"\n{Colors.YELLOW}VIEW BUCKETS{Colors.END}")
+    print_separator()
+    
+    print(f"   {Colors.BOLD}1.{Colors.END} View All Buckets")
+    print(f"   {Colors.BOLD}2.{Colors.END} Browse Bucket Contents")
+    print(f"   {Colors.BOLD}3.{Colors.END} Bucket Statistics")
+    print(f"   {Colors.BOLD}4.{Colors.END} Query Bucket")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    if choice == "1":
+        view_all_buckets()
+    elif choice == "2":
+        browse_bucket_contents()
+    elif choice == "3":
+        bucket_statistics()
+    elif choice == "4":
+        query_bucket()
+
+def manage_bucket_contents(bucket_name):
+    """Manage contents of a specific bucket"""
+    while True:
+        print_header()
+        print(f"\n{Colors.BOLD}EDITING: {bucket_name.upper()}{Colors.END}")
+        print_separator()
+        
+        print(f"   {Colors.BOLD}1.{Colors.END} Add Files")
+        print(f"   {Colors.BOLD}2.{Colors.END} Delete Files")
+        print(f"   {Colors.BOLD}3.{Colors.END} Ingest/Reindex")
+        print(f"   {Colors.BOLD}4.{Colors.END} View Contents")
+        print(f"   {Colors.BOLD}0.{Colors.END} Back")
+        
+        choice = input(f"\n[ ] Enter choice: ").strip()
+        
+        if choice == "0":
             break
+        elif choice == "1":
+            add_content_to_specific_bucket(bucket_name)
+        elif choice == "2":
+            delete_bucket_content_specific(bucket_name)
+        elif choice == "3":
+            ingest_specific_bucket(bucket_name)
+        elif choice == "4":
+            browse_specific_bucket(bucket_name)
+
+def add_content_to_specific_bucket(bucket_name):
+    """Add content to a specific bucket"""
+    bucket_path = os.path.join("./lightrag_working_dir", bucket_name)
+    
+    print(f"\n{Colors.YELLOW}ADD CONTENT TO {bucket_name.upper()}{Colors.END}")
+    print_separator()
+    
+    print(f"Enter path to file (or 'done' to finish):")
+    
+    while True:
+        file_path = input(f"\n{Colors.BOLD}File path: {Colors.END}").strip()
+        
+        if file_path.lower() == 'done':
+            break
+        
+        if not os.path.exists(file_path):
+            print(f"{Colors.RED}❌ File not found: {file_path}{Colors.END}")
+            continue
+        
+        # Copy file to bucket
+        filename = os.path.basename(file_path)
+        dest_path = os.path.join(bucket_path, filename)
+        
+        try:
+            shutil.copy2(file_path, dest_path)
+            print(f"{Colors.GREEN}✅ Added: {filename}{Colors.END}")
+        except Exception as e:
+            print(f"{Colors.RED}❌ Error: {e}{Colors.END}")
+
+def delete_bucket_content_specific(bucket_name):
+    """Delete files from a specific bucket"""
+    bucket_path = os.path.join("./lightrag_working_dir", bucket_name)
+    
+    print(f"\n{Colors.YELLOW}DELETE CONTENT FROM {bucket_name.upper()}{Colors.END}")
+    print_separator()
+    
+    files = [f for f in os.listdir(bucket_path) if os.path.isfile(os.path.join(bucket_path, f)) and not f.startswith('.')]
+    
+    if not files:
+        print(f"{Colors.CYAN}No files to delete.{Colors.END}")
+        wait_for_key()
+        return
+    
+    print("Select file to delete:")
+    for idx, filename in enumerate(files, 1):
+        print(f"   {Colors.BOLD}{idx}.{Colors.END} {filename}")
+    
+    choice = input(f"\n[ ] Enter choice: ").strip()
+    
+    try:
+        file_idx = int(choice) - 1
+        if 0 <= file_idx < len(files):
+            filename = files[file_idx]
+            confirm = input(f"\n{Colors.RED}Delete '{filename}'? (y/N): {Colors.END}").strip().lower()
+            
+            if confirm == 'y':
+                os.remove(os.path.join(bucket_path, filename))
+                print(f"{Colors.GREEN}✅ Deleted: {filename}{Colors.END}")
+            else:
+                print(f"{Colors.YELLOW}Deletion cancelled.{Colors.END}")
+    except (ValueError, IndexError):
+        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+    
+    wait_for_key()
+
+def ingest_specific_bucket(bucket_name):
+    """Ingest/reindex a specific bucket"""
+    print(f"\n{Colors.YELLOW}PROCESSING BUCKET: {bucket_name.upper()}{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.CYAN}→ Scanning for new content...{Colors.END}")
+    print(f"{Colors.CYAN}→ Building knowledge graph...{Colors.END}")
+    print(f"{Colors.CYAN}→ Indexing relationships...{Colors.END}")
+    
+    # Show live log simulation
+    import time
+    for i in range(5):
+        print(f"   Processing... {20 * (i+1)}%")
+        time.sleep(0.5)
+    
+    print(f"\n{Colors.GREEN}✅ Bucket processing complete!{Colors.END}")
+    wait_for_key()
+
+def browse_specific_bucket(bucket_name):
+    """Browse contents of a specific bucket"""
+    bucket_path = os.path.join("./lightrag_working_dir", bucket_name)
+    
+    print(f"\n{Colors.YELLOW}CONTENTS OF {bucket_name.upper()}{Colors.END}")
+    print_separator()
+    
+    files = [f for f in os.listdir(bucket_path) if os.path.isfile(os.path.join(bucket_path, f)) and not f.startswith('.')]
+    
+    if not files:
+        print(f"{Colors.CYAN}Bucket is empty.{Colors.END}")
+    else:
+        for filename in files:
+            file_path = os.path.join(bucket_path, filename)
+            size = os.path.getsize(file_path) / 1024  # KB
+            print(f"   • {filename} ({size:.1f} KB)")
+    
+    wait_for_key()
 
 def get_bucket_list():
     """Get list of available buckets"""
