@@ -170,7 +170,11 @@ Keep the tone consistent with the {tone_preset['name']} style. Be specific and c
         
         return response.choices[0].message.content
     except Exception as e:
-        print(f"❌ OpenAI API error: {e}")
+        # Sanitize error message to prevent API key leakage
+        error_msg = str(e)
+        if 'api' in error_msg.lower() and ('key' in error_msg.lower() or 'auth' in error_msg.lower()):
+            error_msg = "Authentication failed - please check your API key"
+        print(f"❌ OpenAI API error: {error_msg}")
         return None
 
 def save_brainstorm_log(conn, act, scene, description, bucket_name, tone_preset, response):

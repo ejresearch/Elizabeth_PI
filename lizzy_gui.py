@@ -6,6 +6,7 @@ Drag-and-drop interface for adding content to LightRAG buckets
 
 import os
 import sys
+import re
 import shutil
 import threading
 from pathlib import Path
@@ -17,6 +18,18 @@ try:
     GUI_AVAILABLE = True
 except ImportError:
     GUI_AVAILABLE = False
+
+def validate_filename(filename):
+    """Validate filename to prevent path traversal"""
+    if not filename or not isinstance(filename, str):
+        return False
+    # Prevent path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return False
+    # Allow only safe characters
+    if not re.match(r'^[a-zA-Z0-9._-]+$', filename):
+        return False
+    return True
 
 class LizzyFileDropGUI:
     def __init__(self):
@@ -379,6 +392,12 @@ class LizzyFileDropGUI:
         for file_path in self.pending_files:
             try:
                 filename = os.path.basename(file_path)
+                
+                # Validate filename to prevent path traversal
+                if not validate_filename(filename):
+                    error_files.append(f"{filename}: Invalid filename")
+                    continue
+                
                 dest_path = os.path.join(bucket_path, filename)
                 
                 # Handle duplicates
@@ -387,11 +406,24 @@ class LizzyFileDropGUI:
                 while os.path.exists(dest_path):
                     name, ext = os.path.splitext(original_name)
                     filename = f"{name}_{counter}{ext}"
+                    
+                    # Validate new filename as well
+                    if not validate_filename(filename):
+                        error_files.append(f"{original_name}: Unable to create safe filename")
+                        break
+                    
                     dest_path = os.path.join(bucket_path, filename)
                     counter += 1
-                
-                shutil.copy2(file_path, dest_path)
-                success_count += 1
+                else:
+                    # Ensure destination is within bucket directory
+                    dest_path_abs = os.path.abspath(dest_path)
+                    bucket_path_abs = os.path.abspath(bucket_path)
+                    if not dest_path_abs.startswith(bucket_path_abs):
+                        error_files.append(f"{filename}: Invalid destination path")
+                        continue
+                    
+                    shutil.copy2(file_path, dest_path)
+                    success_count += 1
                 
             except Exception as e:
                 error_files.append(f"{os.path.basename(file_path)}: {str(e)}")

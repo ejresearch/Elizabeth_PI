@@ -9,6 +9,7 @@ import sqlite3
 import sys
 import json
 import shutil
+import re
 from datetime import datetime
 from openai import OpenAI
 
@@ -98,6 +99,47 @@ class Session:
             self.db_conn.close()
 
 session = Session()
+
+# Security validation functions
+def validate_table_name(table_name):
+    """Validate table name to prevent SQL injection"""
+    if not table_name or not isinstance(table_name, str):
+        return False
+    # Allow only alphanumeric characters, underscores, and hyphens
+    if not re.match(r'^[a-zA-Z0-9_-]+$', table_name):
+        return False
+    # Prevent SQL keywords
+    sql_keywords = {'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 'union', 'where'}
+    if table_name.lower() in sql_keywords:
+        return False
+    return True
+
+def get_valid_table_names(cursor):
+    """Get list of valid table names from database"""
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    return [row[0] for row in cursor.fetchall()]
+
+def validate_filename(filename):
+    """Validate filename to prevent path traversal"""
+    if not filename or not isinstance(filename, str):
+        return False
+    # Prevent path traversal attempts
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return False
+    # Allow only safe characters
+    if not re.match(r'^[a-zA-Z0-9._-]+$', filename):
+        return False
+    return True
+
+def sanitize_path(path):
+    """Sanitize file path to prevent directory traversal"""
+    if not path:
+        return None
+    # Remove any path traversal attempts
+    path = path.replace('..', '').replace('//', '/')
+    # Normalize the path
+    path = os.path.normpath(path)
+    return path
 
 # LightRAG async helper functions
 async def initialize_lightrag(bucket_path):
@@ -2231,7 +2273,11 @@ Write the scene as a complete, production-ready screenplay segment. Focus on vis
             print(f"{Colors.GREEN}💾 Draft saved for Act {act}, Scene {scene}{Colors.END}")
         
     except Exception as e:
-        print(f"{Colors.RED}❌ OpenAI API error: {e}{Colors.END}")
+        # Sanitize error message to prevent API key leakage
+        error_msg = str(e)
+        if 'api' in error_msg.lower() and ('key' in error_msg.lower() or 'auth' in error_msg.lower()):
+            error_msg = "Authentication failed - please check your API key"
+        print(f"{Colors.RED}❌ OpenAI API error: {error_msg}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
@@ -2404,12 +2450,17 @@ def view_all_tables():
     print(f"{Colors.CYAN}Database Tables ({len(tables)} total):{Colors.END}\n")
     
     for i, (table_name,) in enumerate(tables, 1):
+        # Validate table name before using it
+        if not validate_table_name(table_name):
+            print(f"{Colors.RED}❌ Invalid table name: {table_name}{Colors.END}")
+            continue
+            
         # Get record count
-        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        cursor.execute("SELECT COUNT(*) FROM " + table_name)
         count = cursor.fetchone()[0]
         
         # Get table info
-        cursor.execute(f"PRAGMA table_info({table_name})")
+        cursor.execute("PRAGMA table_info(" + table_name + ")")
         columns = cursor.fetchall()
         
         print(f"{Colors.BOLD}{i:2d}. {table_name}{Colors.END}")
@@ -2436,17 +2487,24 @@ def browse_table_data():
     try:
         table_idx = int(input(f"\n{Colors.BOLD}Select table number: {Colors.END}").strip()) - 1
         table_name = tables[table_idx]
+        
+        # Validate table name
+        if not validate_table_name(table_name):
+            print(f"{Colors.RED}❌ Invalid table name{Colors.END}")
+            input("Press Enter to continue...")
+            return
+            
     except (ValueError, IndexError):
         print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
     # Get table data
-    cursor.execute(f"SELECT * FROM {table_name}")
+    cursor.execute("SELECT * FROM " + table_name)
     rows = cursor.fetchall()
     
     # Get column names
-    cursor.execute(f"PRAGMA table_info({table_name})")
+    cursor.execute("PRAGMA table_info(" + table_name + ")")
     columns = [col[1] for col in cursor.fetchall()]
     
     print(f"\n{Colors.GREEN}📋 Table: {table_name} ({len(rows)} records){Colors.END}")
@@ -2490,13 +2548,20 @@ def insert_new_record():
     try:
         table_idx = int(input(f"\n{Colors.BOLD}Select table number: {Colors.END}").strip()) - 1
         table_name = tables[table_idx]
+        
+        # Validate table name
+        if not validate_table_name(table_name):
+            print(f"{Colors.RED}❌ Invalid table name{Colors.END}")
+            input("Press Enter to continue...")
+            return
+            
     except (ValueError, IndexError):
         print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
     # Get table columns (exclude auto-increment id and timestamps)
-    cursor.execute(f"PRAGMA table_info({table_name})")
+    cursor.execute("PRAGMA table_info(" + table_name + ")")
     columns = cursor.fetchall()
     
     insertable_columns = []
@@ -2530,12 +2595,23 @@ def insert_new_record():
         values.append(value)
         column_names.append(col_name)
     
-    # Create and execute insert statement
+    # Create and execute insert statement with proper validation
+    # Validate all column names to prevent injection
+    safe_column_names = []
+    for col_name in column_names:
+        if not re.match(r'^[a-zA-Z0-9_]+$', col_name):
+            print(f"{Colors.RED}❌ Invalid column name: {col_name}{Colors.END}")
+            input("Press Enter to continue...")
+            return
+        safe_column_names.append(col_name)
+    
     placeholders = ', '.join(['?' for _ in values])
-    columns_str = ', '.join(column_names)
+    columns_str = ', '.join(safe_column_names)
     
     try:
-        cursor.execute(f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})", values)
+        # Use safe string concatenation for table and column names (already validated)
+        sql = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
+        cursor.execute(sql, values)
         session.db_conn.commit()
         print(f"\n{Colors.GREEN}✅ Record inserted successfully!{Colors.END}")
     except Exception as e:
@@ -2570,17 +2646,22 @@ def table_statistics():
     
     total_records = 0
     for table_name in tables:
-        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        # Validate table name
+        if not validate_table_name(table_name):
+            print(f"{Colors.RED}❌ Skipping invalid table name: {table_name}{Colors.END}")
+            continue
+            
+        cursor.execute("SELECT COUNT(*) FROM " + table_name)
         count = cursor.fetchone()[0]
         total_records += count
         
         # Get table size info
-        cursor.execute(f"PRAGMA table_info({table_name})")
+        cursor.execute("PRAGMA table_info(" + table_name + ")")
         columns = len(cursor.fetchall())
         
         # Recent activity (if has timestamp)
         try:
-            cursor.execute(f"SELECT MAX(created_at) FROM {table_name}")
+            cursor.execute("SELECT MAX(created_at) FROM " + table_name)
             last_activity = cursor.fetchone()[0]
         except:
             last_activity = "N/A"
@@ -2606,7 +2687,26 @@ def table_statistics():
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def custom_sql_query():
-    """Execute custom SQL queries"""
+    """DISABLED - Execute custom SQL queries (SECURITY RISK)"""
+    print(f"\n{Colors.YELLOW}🔧 CUSTOM SQL QUERY{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.RED}🚫 FEATURE DISABLED FOR SECURITY{Colors.END}")
+    print(f"{Colors.YELLOW}This feature has been disabled due to SQL injection security risks.{Colors.END}")
+    print(f"{Colors.CYAN}Use the other table management features instead:{Colors.END}")
+    print(f"   • Browse Table Data - View table contents safely")
+    print(f"   • Table Statistics - Get table information")
+    print(f"   • Export Table Data - Export data in various formats")
+    
+    print(f"\n{Colors.BLUE}Alternative: Use the Browse Table Data feature for safe data viewing.{Colors.END}")
+    
+    input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
+    return
+    
+def custom_sql_query_old_unsafe():
+    """OLD UNSAFE VERSION - DO NOT USE - Execute custom SQL queries"""
+    # This function is preserved but not called to show the security risk
+    # NEVER re-enable this without proper SQL query validation
     print(f"\n{Colors.YELLOW}🔧 CUSTOM SQL QUERY{Colors.END}")
     print_separator()
     
@@ -2629,7 +2729,8 @@ def custom_sql_query():
         return
     
     try:
-        cursor.execute(query)
+        # SECURITY VULNERABILITY: Direct execution of user input
+        cursor.execute(query)  # THIS IS DANGEROUS!
         
         if query.upper().startswith('SELECT'):
             results = cursor.fetchall()
@@ -2706,14 +2807,19 @@ def export_table_data():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
     for table_name in export_tables:
+        # Validate table name before using it
+        if not validate_table_name(table_name):
+            print(f"{Colors.RED}❌ Skipping invalid table name: {table_name}{Colors.END}")
+            continue
+            
         filename = f"{session.current_project}_{table_name}_{timestamp}.{export_format}"
         
         try:
-            cursor.execute(f"SELECT * FROM {table_name}")
+            cursor.execute("SELECT * FROM " + table_name)
             rows = cursor.fetchall()
             
             # Get column names
-            cursor.execute(f"PRAGMA table_info({table_name})")
+            cursor.execute("PRAGMA table_info(" + table_name + ")")
             columns = [col[1] for col in cursor.fetchall()]
             
             if export_format == 'csv':
@@ -2952,9 +3058,22 @@ def add_content_to_specific_bucket(bucket_name):
             print(f"{Colors.RED}❌ File not found: {file_path}{Colors.END}")
             continue
         
-        # Copy file to bucket
+        # Copy file to bucket with path validation
         filename = os.path.basename(file_path)
+        
+        # Validate filename to prevent path traversal
+        if not validate_filename(filename):
+            print(f"{Colors.RED}❌ Invalid filename: {filename}{Colors.END}")
+            continue
+        
         dest_path = os.path.join(bucket_path, filename)
+        
+        # Ensure destination is within bucket directory
+        dest_path = os.path.abspath(dest_path)
+        bucket_path_abs = os.path.abspath(bucket_path)
+        if not dest_path.startswith(bucket_path_abs):
+            print(f"{Colors.RED}❌ Invalid destination path{Colors.END}")
+            continue
         
         try:
             shutil.copy2(file_path, dest_path)
@@ -2986,10 +3105,27 @@ def delete_bucket_content_specific(bucket_name):
         file_idx = int(choice) - 1
         if 0 <= file_idx < len(files):
             filename = files[file_idx]
+            
+            # Validate filename to prevent path traversal
+            if not validate_filename(filename):
+                print(f"{Colors.RED}❌ Invalid filename: {filename}{Colors.END}")
+                wait_for_key()
+                return
+            
             confirm = input(f"\n{Colors.RED}Delete '{filename}'? (y/N): {Colors.END}").strip().lower()
             
             if confirm == 'y':
-                os.remove(os.path.join(bucket_path, filename))
+                file_path = os.path.join(bucket_path, filename)
+                
+                # Ensure file is within bucket directory
+                file_path_abs = os.path.abspath(file_path)
+                bucket_path_abs = os.path.abspath(bucket_path)
+                if not file_path_abs.startswith(bucket_path_abs):
+                    print(f"{Colors.RED}❌ Invalid file path{Colors.END}")
+                    wait_for_key()
+                    return
+                
+                os.remove(file_path)
                 print(f"{Colors.GREEN}✅ Deleted: {filename}{Colors.END}")
             else:
                 print(f"{Colors.YELLOW}Deletion cancelled.{Colors.END}")

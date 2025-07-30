@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import csv
+import re
 import tkinter as tk
 from tkinter import filedialog
 
@@ -10,6 +11,19 @@ class SQLTableEditor:
         self.project_name = None
         self.db_path = None
         self.conn = None
+    
+    def validate_table_name(self, table_name):
+        """Validate table name to prevent SQL injection"""
+        if not table_name or not isinstance(table_name, str):
+            return False
+        # Allow only alphanumeric characters, underscores, and hyphens
+        if not re.match(r'^[a-zA-Z0-9_-]+$', table_name):
+            return False
+        # Prevent SQL keywords
+        sql_keywords = {'select', 'insert', 'update', 'delete', 'drop', 'create', 'alter', 'union', 'where'}
+        if table_name.lower() in sql_keywords:
+            return False
+        return True
 
     def run(self):
         self.choose_project()
@@ -53,11 +67,17 @@ class SQLTableEditor:
 
     def edit_table(self):
         table = input("Enter the table name to edit: ").strip()
+        
+        # Validate table name
+        if not self.validate_table_name(table):
+            print("❌ Invalid table name.")
+            return
+            
         cursor = self.conn.cursor()
-        cursor.execute(f"PRAGMA table_info({table})")
+        cursor.execute("PRAGMA table_info(" + table + ")")
         columns = [row[1] for row in cursor.fetchall()]
 
-        cursor.execute(f"SELECT rowid, * FROM {table}")
+        cursor.execute("SELECT rowid, * FROM " + table)
         rows = cursor.fetchall()
         print(f"\n📄 Rows in {table}:")
         for row in rows:
@@ -67,8 +87,20 @@ class SQLTableEditor:
         if not rowid:
             return
 
+        # Validate rowid is numeric
+        try:
+            int(rowid)
+        except ValueError:
+            print("❌ Invalid rowid - must be a number.")
+            return
+
         updates = []
         for col in columns:
+            # Validate column name
+            if not re.match(r'^[a-zA-Z0-9_]+$', col):
+                print(f"❌ Skipping invalid column name: {col}")
+                continue
+                
             val = input(f"New value for {col} (leave blank to keep): ").strip()
             if val:
                 updates.append((col, val))
@@ -77,28 +109,65 @@ class SQLTableEditor:
             set_clause = ", ".join([f"{col} = ?" for col, _ in updates])
             values = [val for _, val in updates]
             values.append(rowid)
-            cursor.execute(f"UPDATE {table} SET {set_clause} WHERE rowid = ?", values)
+            cursor.execute("UPDATE " + table + " SET " + set_clause + " WHERE rowid = ?", values)
             self.conn.commit()
             print("✅ Row updated.")
 
     def add_table_row(self):
         table = input("Enter the table name to add to: ").strip()
+        
+        # Validate table name
+        if not self.validate_table_name(table):
+            print("❌ Invalid table name.")
+            return
+            
         cursor = self.conn.cursor()
-        cursor.execute(f"PRAGMA table_info({table})")
+        cursor.execute("PRAGMA table_info(" + table + ")")
         columns = [row[1] for row in cursor.fetchall()]
-        values = []
+        
+        # Validate column names
+        safe_columns = []
         for col in columns:
+            if re.match(r'^[a-zA-Z0-9_]+$', col):
+                safe_columns.append(col)
+            else:
+                print(f"❌ Skipping invalid column name: {col}")
+        
+        if not safe_columns:
+            print("❌ No valid columns found.")
+            return
+            
+        values = []
+        for col in safe_columns:
             val = input(f"  {col}: ").strip()
             values.append(val)
-        cursor.execute(f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(['?']*len(columns))})", values)
+            
+        columns_str = ', '.join(safe_columns)
+        placeholders = ', '.join(['?'] * len(safe_columns))
+        
+        cursor.execute(f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})", values)
         self.conn.commit()
         print("✅ Row added.")
 
     def delete_table_row(self):
         table = input("Enter the table name to delete from: ").strip()
+        
+        # Validate table name
+        if not self.validate_table_name(table):
+            print("❌ Invalid table name.")
+            return
+            
         rowid = input("Enter the rowid to delete: ").strip()
+        
+        # Validate rowid is numeric
+        try:
+            int(rowid)
+        except ValueError:
+            print("❌ Invalid rowid - must be a number.")
+            return
+            
         cursor = self.conn.cursor()
-        cursor.execute(f"DELETE FROM {table} WHERE rowid = ?", (rowid,))
+        cursor.execute("DELETE FROM " + table + " WHERE rowid = ?", (rowid,))
         self.conn.commit()
         print("🗑️ Row deleted.")
 
@@ -112,7 +181,7 @@ class SQLTableEditor:
             return
 
         table_name = input("📝 Enter name for the new table: ").strip()
-        if not table_name.isidentifier():
+        if not self.validate_table_name(table_name):
             print("❌ Invalid table name.")
             return
 
