@@ -1,0 +1,105 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+nell_env/
+lizzy_env/
+*_env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+logs/
+lightrag.log
+
+# Cache
+.cache/
+local_cache/
+*.cache
+
+# API Keys and Configs
+config.json
+.env
+.env.local
+*.key
+api_keys.txt
+
+# Database
+*.sqlite
+*.db
+*.sqlite3
+*.db-journal
+
+# LightRAG Working Data (too large for GitHub)
+lightrag_working_dir/
+
+# Project Data (optional - uncomment if you want to exclude user projects)
+# projects/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+.~*
+
+# OS Files
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Export files (large JSON files)
+*_export_*.json
+*_summary_*.md
+
+# Node (from old version)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Old web app files
+package-lock.json
+yarn.lock
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# PyCharm
+.idea/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon\r
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+.Trash-*
