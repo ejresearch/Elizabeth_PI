@@ -17,9 +17,12 @@ from openai import OpenAI
 try:
     from template_manager import TemplateManager
     from admin import LizzyAdmin
+    from autonomous_agent import AutonomousAgent
     HAS_TEMPLATE_SYSTEM = True
+    HAS_AUTONOMOUS_AGENT = True
 except ImportError:
     HAS_TEMPLATE_SYSTEM = False
+    HAS_AUTONOMOUS_AGENT = False
 
 # Platform-specific imports for keyboard handling
 try:
@@ -503,10 +506,11 @@ def main_menu():
         
         print(f"   {Colors.BOLD}1.{Colors.END}  New Project")
         print(f"   {Colors.BOLD}2.{Colors.END}  Existing Project")
-        print(f"   {Colors.BOLD}3.{Colors.END}  Getting Started")
+        print(f"   {Colors.BOLD}3.{Colors.END}  🤖 Auto Agent (Pick Template & Go)")
+        print(f"   {Colors.BOLD}4.{Colors.END}  Getting Started")
         if HAS_TEMPLATE_SYSTEM:
-            print(f"   {Colors.BOLD}4.{Colors.END}   Admin")
-        print(f"   {Colors.BOLD}5.{Colors.END}  Exit")
+            print(f"   {Colors.BOLD}5.{Colors.END}   Admin")
+        print(f"   {Colors.BOLD}6.{Colors.END}  Exit")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
@@ -518,10 +522,12 @@ def main_menu():
             if select_project():
                 project_menu()
         elif choice == "3":
+            run_autonomous_agent()
+        elif choice == "4":
             show_readme()
-        elif choice == "4" and HAS_TEMPLATE_SYSTEM:
+        elif choice == "5" and HAS_TEMPLATE_SYSTEM:
             admin_menu()
-        elif choice == "5":
+        elif choice == "6":
             print(f"\n{Colors.CYAN} Thank you for using LIZZY Framework!{Colors.END}")
             print(f"{Colors.YELLOW}   Happy writing! {Colors.END}\n")
             session.close()
@@ -4044,6 +4050,91 @@ def create_project_with_template():
         return True
     else:
         return False
+
+def run_autonomous_agent():
+    """Run the autonomous agent - picks template and creates project automatically"""
+    if not HAS_AUTONOMOUS_AGENT:
+        print(f"{Colors.RED} Autonomous agent not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    print_header()
+    print(f"\n{Colors.BOLD}🤖 AUTONOMOUS AGENT{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.CYAN}The agent will:{Colors.END}")
+    print(f"  • Analyze available templates")
+    print(f"  • Pick the best one intelligently")
+    print(f"  • Generate a creative project name")
+    print(f"  • Create complete project with sample data")
+    print(f"  • Run brainstorm and write workflows")
+    print(f"  • Export results automatically")
+    
+    print(f"\n{Colors.YELLOW}Press Enter to start the agent, or 'back' to return...{Colors.END}")
+    choice = input().strip().lower()
+    
+    if choice == 'back':
+        return
+    
+    print(f"\n{Colors.GREEN}🚀 Starting Autonomous Agent...{Colors.END}\n")
+    
+    try:
+        # Initialize and run the autonomous agent
+        agent = AutonomousAgent(api_key=client.api_key if client else None)
+        success = agent.run_full_cycle()
+        
+        if success:
+            # Show summary
+            summary = agent.get_execution_summary()
+            print(f"\n{Colors.GREEN}✅ Agent completed successfully!{Colors.END}")
+            print(f"{Colors.CYAN}📊 Execution Summary:{Colors.END}")
+            print(f"   Total Actions: {summary['total_actions']}")
+            print(f"   Successful: {summary['successful_actions']}")
+            print(f"   Errors: {summary['errors']}")
+            
+            if summary['current_project']:
+                print(f"   {Colors.BOLD}Project Created: {summary['current_project']}{Colors.END}")
+                
+                # Ask if user wants to open the project
+                print(f"\n{Colors.YELLOW}Would you like to open this project now? (y/n): {Colors.END}", end="")
+                open_choice = input().strip().lower()
+                
+                if open_choice == 'y':
+                    if session.set_project(summary['current_project']):
+                        print(f"{Colors.GREEN} Project loaded successfully{Colors.END}")
+                        wait_for_key()
+                        project_menu()
+                    else:
+                        print(f"{Colors.RED} Error loading project{Colors.END}")
+                        wait_for_key()
+                
+                # Ask if user wants to export screenplay
+                print(f"\n{Colors.YELLOW}Export screenplay to desktop? (y/n): {Colors.END}", end="")
+                export_choice = input().strip().lower()
+                
+                if export_choice == 'y':
+                    export_agent_screenplay(summary['current_project'])
+        else:
+            print(f"{Colors.RED}❌ Agent encountered errors{Colors.END}")
+            
+    except Exception as e:
+        print(f"{Colors.RED}❌ Error running autonomous agent: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def export_agent_screenplay(project_name):
+    """Export screenplay from agent-created project"""
+    try:
+        import subprocess
+        result = subprocess.run(['python3', 'export_screenplay.py'], 
+                              capture_output=True, text=True, cwd='.')
+        
+        if result.returncode == 0:
+            print(f"{Colors.GREEN}✅ Screenplay exported to desktop{Colors.END}")
+        else:
+            print(f"{Colors.RED}❌ Export failed: {result.stderr}{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}❌ Export error: {str(e)}{Colors.END}")
 
 def admin_menu():
     """Admin menu for template management"""
