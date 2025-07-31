@@ -27,7 +27,7 @@ class SQLTableEditor:
 
     def run(self):
         self.choose_project()
-        if input("\n📥 Do you want to import a CSV as a table? (yes/no): ").strip().lower() == "yes":
+        if input("\n Do you want to import a CSV as a table? (yes/no): ").strip().lower() == "yes":
             self.import_csv_to_sqlite()
         while True:
             self.show_tables()
@@ -41,10 +41,10 @@ class SQLTableEditor:
             elif choice == "exit":
                 break
             else:
-                print("❌ Invalid choice.")
+                print(" Invalid choice.")
 
     def choose_project(self):
-        print("\n📂 Available Projects:")
+        print("\n Available Projects:")
         projects = [d for d in os.listdir(self.base_dir) if os.path.isdir(os.path.join(self.base_dir, d))]
         for p in projects:
             print(f"- {p}")
@@ -53,7 +53,7 @@ class SQLTableEditor:
             if name in projects:
                 self.project_name = name
                 break
-            print("❌ Project not found.")
+            print(" Project not found.")
         self.db_path = os.path.join(self.base_dir, self.project_name, f"{self.project_name}.sqlite")
         self.conn = sqlite3.connect(self.db_path)
 
@@ -61,7 +61,7 @@ class SQLTableEditor:
         cursor = self.conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         tables = [row[0] for row in cursor.fetchall()]
-        print("\n📊 Tables in this project:")
+        print("\n Tables in this project:")
         for t in tables:
             print(f"- {t}")
 
@@ -70,7 +70,7 @@ class SQLTableEditor:
         
         # Validate table name
         if not self.validate_table_name(table):
-            print("❌ Invalid table name.")
+            print(" Invalid table name.")
             return
             
         cursor = self.conn.cursor()
@@ -79,7 +79,7 @@ class SQLTableEditor:
 
         cursor.execute("SELECT rowid, * FROM " + table)
         rows = cursor.fetchall()
-        print(f"\n📄 Rows in {table}:")
+        print(f"\n Rows in {table}:")
         for row in rows:
             print(row)
 
@@ -91,14 +91,14 @@ class SQLTableEditor:
         try:
             int(rowid)
         except ValueError:
-            print("❌ Invalid rowid - must be a number.")
+            print(" Invalid rowid - must be a number.")
             return
 
         updates = []
         for col in columns:
             # Validate column name
             if not re.match(r'^[a-zA-Z0-9_]+$', col):
-                print(f"❌ Skipping invalid column name: {col}")
+                print(f" Skipping invalid column name: {col}")
                 continue
                 
             val = input(f"New value for {col} (leave blank to keep): ").strip()
@@ -111,14 +111,14 @@ class SQLTableEditor:
             values.append(rowid)
             cursor.execute("UPDATE " + table + " SET " + set_clause + " WHERE rowid = ?", values)
             self.conn.commit()
-            print("✅ Row updated.")
+            print(" Row updated.")
 
     def add_table_row(self):
         table = input("Enter the table name to add to: ").strip()
         
         # Validate table name
         if not self.validate_table_name(table):
-            print("❌ Invalid table name.")
+            print(" Invalid table name.")
             return
             
         cursor = self.conn.cursor()
@@ -131,10 +131,10 @@ class SQLTableEditor:
             if re.match(r'^[a-zA-Z0-9_]+$', col):
                 safe_columns.append(col)
             else:
-                print(f"❌ Skipping invalid column name: {col}")
+                print(f" Skipping invalid column name: {col}")
         
         if not safe_columns:
-            print("❌ No valid columns found.")
+            print(" No valid columns found.")
             return
             
         values = []
@@ -147,14 +147,14 @@ class SQLTableEditor:
         
         cursor.execute(f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})", values)
         self.conn.commit()
-        print("✅ Row added.")
+        print(" Row added.")
 
     def delete_table_row(self):
         table = input("Enter the table name to delete from: ").strip()
         
         # Validate table name
         if not self.validate_table_name(table):
-            print("❌ Invalid table name.")
+            print(" Invalid table name.")
             return
             
         rowid = input("Enter the rowid to delete: ").strip()
@@ -163,26 +163,26 @@ class SQLTableEditor:
         try:
             int(rowid)
         except ValueError:
-            print("❌ Invalid rowid - must be a number.")
+            print(" Invalid rowid - must be a number.")
             return
             
         cursor = self.conn.cursor()
         cursor.execute("DELETE FROM " + table + " WHERE rowid = ?", (rowid,))
         self.conn.commit()
-        print("🗑️ Row deleted.")
+        print(" Row deleted.")
 
     def import_csv_to_sqlite(self):
-        print("\n📁 Import CSV File")
+        print("\n Import CSV File")
         root = tk.Tk()
         root.withdraw()
         filepath = filedialog.askopenfilename(title="Select CSV File", filetypes=[("CSV Files", "*.csv")])
         if not filepath:
-            print("⚠️ No file selected.")
+            print(" No file selected.")
             return
 
-        table_name = input("📝 Enter name for the new table: ").strip()
+        table_name = input(" Enter name for the new table: ").strip()
         if not self.validate_table_name(table_name):
-            print("❌ Invalid table name.")
+            print(" Invalid table name.")
             return
 
         with open(filepath, newline='', encoding="utf-8") as csvfile:
@@ -194,7 +194,7 @@ class SQLTableEditor:
             for row in reader:
                 cursor.execute(f'INSERT INTO "{table_name}" VALUES ({", ".join(["?"]*len(row))})', row)
             self.conn.commit()
-            print(f"✅ Imported CSV into table '{table_name}'")
+            print(f" Imported CSV into table '{table_name}'")
 
 if __name__ == "__main__":
     editor = SQLTableEditor()

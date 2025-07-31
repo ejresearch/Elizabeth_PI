@@ -1,0 +1,129 @@
+{
+  "name": "Academic Textbook",
+  "version": "1.0",
+  "description": "Template for educational textbooks with structured learning objectives",
+  "tables": {
+    "chapters": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "chapter_number": "INTEGER NOT NULL",
+        "chapter_title": "TEXT NOT NULL",
+        "chapter_subtitle": "TEXT",
+        "opening_quote": "TEXT",
+        "quote_attribution": "TEXT",
+        "introduction_text": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["chapter_number", "chapter_title"],
+      "display_name": "Chapters",
+      "description": "Main chapter structure and introductory content"
+    },
+    "learning_objectives": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "chapter_id": "INTEGER NOT NULL",
+        "objective_text": "TEXT NOT NULL",
+        "bloom_level": "TEXT",
+        "sequence_order": "INTEGER",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "FOREIGN KEY": "(chapter_id) REFERENCES chapters(id)"
+      },
+      "required": ["chapter_id", "objective_text"],
+      "display_name": "Learning Objectives",
+      "description": "Chapter-specific learning goals using Bloom's taxonomy"
+    },
+    "content_sections": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "chapter_id": "INTEGER NOT NULL",
+        "section_title": "TEXT NOT NULL",
+        "section_content": "TEXT",
+        "section_type": "TEXT",
+        "sequence_order": "INTEGER",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "FOREIGN KEY": "(chapter_id) REFERENCES chapters(id)"
+      },
+      "required": ["chapter_id", "section_title"],
+      "display_name": "Content Sections",
+      "description": "Main content broken into teachable sections"
+    },
+    "key_concepts": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "term": "TEXT NOT NULL",
+        "definition": "TEXT NOT NULL",
+        "chapter_id": "INTEGER",
+        "first_mention_section": "TEXT",
+        "examples": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["term", "definition"],
+      "display_name": "Key Concepts",
+      "description": "Important terms and definitions"
+    },
+    "review_points": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "chapter_id": "INTEGER NOT NULL",
+        "review_text": "TEXT NOT NULL",
+        "emphasis_level": "TEXT",
+        "related_objective_id": "INTEGER",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["chapter_id", "review_text"],
+      "display_name": "Review Points",
+      "description": "Key takeaways and review boxes"
+    },
+    "examples_cases": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "chapter_id": "INTEGER",
+        "example_type": "TEXT",
+        "example_title": "TEXT",
+        "example_content": "TEXT NOT NULL",
+        "learning_point": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["example_content"],
+      "display_name": "Examples & Cases",
+      "description": "Real-world examples, case studies, and scenarios"
+    }
+  },
+  "buckets": {
+    "recommended": ["bordwell_sources", "cook_sources", "reference_sources"],
+    "descriptions": {
+      "bordwell_sources": "Bordwell's film studies and narrative theory",
+      "cook_sources": "David Cook's film history and analysis",
+      "cousins_sources": "Mark Cousins' cinema history perspectives", 
+      "dixon_foster_sources": "Technical and production analysis",
+      "gomery_sources": "Film industry and economic analysis",
+      "knight_sources": "Film criticism and theory",
+      "balio_sources": "Hollywood studio system and business",
+      "cultural_sources": "Cultural studies and media analysis",
+      "reference_sources": "General academic references and methodology",
+      "american_cinema_series": "American film history and development"
+    }
+  },
+  "prompts": {
+    "brainstorm": {
+      "tones": {
+        "academic-formal": "Write in clear, formal academic prose suitable for university students, with proper terminology and scholarly tone.",
+        "conversational-teaching": "Write as if explaining to students in an engaging classroom setting, balancing accessibility with academic rigor.",
+        "simplified-introductory": "Write for beginners with simple language, clear definitions, and many relatable examples."
+      },
+      "bucket_guidance": {
+        "pedagogical": "You are an expert in educational theory and instructional design. Focus on **learning objectives, cognitive load, and scaffolding concepts**. Ensure content aligns with **Bloom's taxonomy** and promotes active learning.",
+        "academic_sources": "You are an expert in academic research and scholarly writing. Emphasize **evidence-based content, proper citations, and academic integrity**. Connect concepts to **current research and established theories** in the field.",
+        "examples": "You are an expert at making abstract concepts concrete through examples. Provide **real-world applications, case studies, and practical scenarios**. Use **analogies and comparisons** to enhance understanding."
+      }
+    },
+    "write": {
+      "styles": {
+        "academic": "Write in formal academic style with clear topic sentences, evidence-based arguments, and proper citations.",
+        "accessible": "Write in an engaging, accessible style that maintains academic rigor while being student-friendly.",
+        "reference": "Write in reference format with clear definitions, bullet points, and quick-access information."
+      },
+      "default_guidance": "COLLEGE TEXTBOOK TEACHING GUIDELINES:\n\nEDUCATIONAL DISCOVERY APPROACH:\n• Identify the most important people, innovations, and developments from sources\n• Explain WHY each topic matters to understanding the subject\n• Teach concepts by building from concrete examples to broader principles\n• Help students see patterns and connections across topics\n\nCOLLEGE-LEVEL PEDAGOGY:\n• Assume intelligent students who need context and explanation, not just facts\n• Define technical terms and historical context clearly\n• Use engaging examples that illustrate larger concepts\n• Balance detail with accessibility - scholarly but not intimidating\n\nTEACHING STRUCTURE:\n• Start with concrete examples students can visualize\n• Explain the significance and broader implications\n• Connect individual innovations to industry-wide changes\n• Show cause-and-effect relationships clearly\n\nDISCOVERY PRINCIPLES:\n1. FIND THE MOST IMPORTANT FIGURES: Who were the key innovators and decision-makers?\n2. IDENTIFY BREAKTHROUGH MOMENTS: What innovations changed everything?\n3. EXPLAIN EVOLUTION: How did technical capabilities advance?\n4. ANALYZE TRANSFORMATION: How did systems and models evolve?\n5. SHOW IMPACT: How did developments change society?\n\nWRITING FOR COLLEGE STUDENTS:\n• Use clear, engaging prose that maintains academic rigor\n• Include specific dates, names, and technical details as learning anchors\n• Explain complex concepts through familiar comparisons when helpful\n• Ask implicit questions students might have and answer them\n• Build knowledge progressively - each section prepares for the next\n\nAVOID TEXTBOOK PITFALLS:\n• Don't just list facts - explain their significance\n• Don't assume prior knowledge - build understanding step by step\n• Don't oversimplify - maintain intellectual rigor appropriate for college level\n• Don't lose the human stories in technical or business details"
+    }
+  }
+}

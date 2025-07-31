@@ -17,7 +17,7 @@ def get_project_database(project_name):
     """Get database connection for the specified project"""
     db_path = f"projects/{project_name}/{project_name}.sqlite"
     if not os.path.exists(db_path):
-        print(f"❌ Project '{project_name}' not found!")
+        print(f" Project '{project_name}' not found!")
         return None
     return sqlite3.connect(db_path)
 
@@ -156,7 +156,7 @@ Write the scene as a complete, production-ready screenplay segment. Focus on vis
         error_msg = str(e)
         if 'api' in error_msg.lower() and ('key' in error_msg.lower() or 'auth' in error_msg.lower()):
             error_msg = "Authentication failed - please check your API key"
-        print(f"❌ OpenAI API error: {error_msg}")
+        print(f" OpenAI API error: {error_msg}")
         return None
 
 def save_draft(conn, act, scene, draft_text):
@@ -183,14 +183,14 @@ def view_existing_drafts(conn):
     drafts = cursor.fetchall()
     
     if not drafts:
-        print("\n📝 No drafts written yet.")
+        print("\n No drafts written yet.")
         return
     
-    print("\n📚 EXISTING DRAFTS")
+    print("\n EXISTING DRAFTS")
     print("=" * 50)
     for draft in drafts:
         act, scene, preview, created = draft
-        print(f"🎬 Act {act}, Scene {scene} (Created: {created})")
+        print(f" Act {act}, Scene {scene} (Created: {created})")
         print(f"   Preview: {preview}...")
         print()
 
@@ -200,7 +200,7 @@ def write_single_scene(conn, project_name):
     
     # Show available scenes from outline
     if project_context["outline"]:
-        print("\n📋 Available Scenes from Outline:")
+        print("\n Available Scenes from Outline:")
         for scene_data in project_context["outline"]:
             act, scene, chars, events = scene_data
             print(f"  Act {act}, Scene {scene}: {events} (Characters: {chars})")
@@ -211,7 +211,7 @@ def write_single_scene(conn, project_name):
         act = int(input("Select Act Number to write: ").strip())
         scene = int(input("Select Scene Number to write: ").strip())
     except ValueError:
-        print("❌ Please enter valid numbers")
+        print(" Please enter valid numbers")
         return False
     
     # Find the scene in the outline
@@ -222,30 +222,30 @@ def write_single_scene(conn, project_name):
             break
     
     if not scene_data:
-        print(f"❌ Scene {act}.{scene} not found in story outline!")
-        print("💡 Add it using: python intake.py {project_name}")
+        print(f" Scene {act}.{scene} not found in story outline!")
+        print(" Add it using: python intake.py {project_name}")
         return False
     
     # Get brainstorming data for this scene
     brainstorm_data = get_brainstorm_data(conn, act, scene)
     
     if not brainstorm_data:
-        print(f"⚠️  No brainstorming data found for Act {act}, Scene {scene}")
-        print(f"💡 Run: python brainstorm.py {project_name}")
+        print(f"  No brainstorming data found for Act {act}, Scene {scene}")
+        print(f" Run: python brainstorm.py {project_name}")
         
         continue_choice = input("Continue writing without brainstorming data? (y/n): ").strip().lower()
         if continue_choice != 'y':
             return False
         brainstorm_data = []
     else:
-        print(f"✅ Found {len(brainstorm_data)} brainstorming session(s) for this scene")
+        print(f" Found {len(brainstorm_data)} brainstorming session(s) for this scene")
     
     # Generate the draft
     print(f"\n🤖 Generating draft for Act {act}, Scene {scene}...")
     draft_text = generate_scene_draft(project_context, scene_data, brainstorm_data)
     
     if draft_text:
-        print(f"\n✨ GENERATED DRAFT - Act {act}, Scene {scene}")
+        print(f"\n GENERATED DRAFT - Act {act}, Scene {scene}")
         print("=" * 60)
         print(draft_text)
         print("=" * 60)
@@ -256,7 +256,7 @@ def write_single_scene(conn, project_name):
             save_draft(conn, act, scene, draft_text)
             return True
     else:
-        print("❌ Failed to generate draft")
+        print(" Failed to generate draft")
     
     return False
 
@@ -265,24 +265,24 @@ def write_full_script(conn, project_name):
     project_context = get_project_context(conn)
     
     if not project_context["outline"]:
-        print("❌ No story outline found!")
-        print(f"💡 Add scenes using: python intake.py {project_name}")
+        print(" No story outline found!")
+        print(f" Add scenes using: python intake.py {project_name}")
         return
     
-    print(f"\n📖 Writing full script for {len(project_context['outline'])} scenes...")
+    print(f"\n Writing full script for {len(project_context['outline'])} scenes...")
     
     successful_scenes = 0
     failed_scenes = []
     
     for scene_data in project_context["outline"]:
         act, scene, chars, events = scene_data
-        print(f"\n🎬 Writing Act {act}, Scene {scene}: {events}")
+        print(f"\n Writing Act {act}, Scene {scene}: {events}")
         
         # Get brainstorming data for this scene
         brainstorm_data = get_brainstorm_data(conn, act, scene)
         
         if not brainstorm_data:
-            print(f"⚠️  No brainstorming data for Act {act}, Scene {scene}")
+            print(f"  No brainstorming data for Act {act}, Scene {scene}")
         
         # Generate draft
         draft_text = generate_scene_draft(project_context, scene_data, brainstorm_data)
@@ -290,28 +290,28 @@ def write_full_script(conn, project_name):
         if draft_text:
             save_draft(conn, act, scene, draft_text)
             successful_scenes += 1
-            print(f"✅ Act {act}, Scene {scene} completed")
+            print(f" Act {act}, Scene {scene} completed")
         else:
             failed_scenes.append(f"Act {act}, Scene {scene}")
-            print(f"❌ Failed to generate Act {act}, Scene {scene}")
+            print(f" Failed to generate Act {act}, Scene {scene}")
     
     # Summary
-    print(f"\n📊 SCRIPT GENERATION COMPLETE")
+    print(f"\n SCRIPT GENERATION COMPLETE")
     print("=" * 40)
-    print(f"✅ Successful: {successful_scenes} scenes")
+    print(f" Successful: {successful_scenes} scenes")
     if failed_scenes:
-        print(f"❌ Failed: {len(failed_scenes)} scenes")
+        print(f" Failed: {len(failed_scenes)} scenes")
         for failed in failed_scenes:
             print(f"   - {failed}")
     
     if successful_scenes > 0:
-        print(f"\n🎉 Script drafts saved to database!")
-        print(f"💡 Review and refine individual scenes as needed")
+        print(f"\n Script drafts saved to database!")
+        print(f" Review and refine individual scenes as needed")
 
 def interactive_write_menu(conn, project_name):
     """Main interactive writing menu"""
     while True:
-        print(f"\n✍️  LIZZY WRITE MODULE - Project: {project_name}")
+        print(f"\n  LIZZY WRITE MODULE - Project: {project_name}")
         print("=" * 50)
         print("1. Write Single Scene")
         print("2. Write Full Script (All Scenes)")
@@ -330,10 +330,10 @@ def interactive_write_menu(conn, project_name):
         elif choice == "4":
             export_script_to_file(conn, project_name)
         elif choice == "0":
-            print("👋 Writing session complete!")
+            print(" Writing session complete!")
             break
         else:
-            print("❌ Invalid choice. Please try again.")
+            print(" Invalid choice. Please try again.")
 
 def export_script_to_file(conn, project_name):
     """Export the complete script to a text file"""
@@ -346,7 +346,7 @@ def export_script_to_file(conn, project_name):
     scenes = cursor.fetchall()
     
     if not scenes:
-        print("❌ No drafts found to export!")
+        print(" No drafts found to export!")
         return
     
     # Create export filename
@@ -367,24 +367,24 @@ def export_script_to_file(conn, project_name):
                 f.write(text)
                 f.write("\n\n")
         
-        print(f"✅ Script exported to: {filename}")
-        print(f"📄 {len(scenes)} scenes exported")
+        print(f" Script exported to: {filename}")
+        print(f" {len(scenes)} scenes exported")
         
     except Exception as e:
-        print(f"❌ Export failed: {e}")
+        print(f" Export failed: {e}")
 
 def main():
     """Main function for the Write module"""
     if len(sys.argv) != 2:
-        print("✍️  LIZZY FRAMEWORK - WRITE MODULE")
+        print("  LIZZY FRAMEWORK - WRITE MODULE")
         print("=" * 50)
         print("Usage: python write.py <project_name>")
         sys.exit(1)
     
     # Check for OpenAI API key
     if not os.getenv('OPENAI_API_KEY'):
-        print("❌ OpenAI API key not found!")
-        print("💡 Set your API key: export OPENAI_API_KEY=your_key_here")
+        print(" OpenAI API key not found!")
+        print(" Set your API key: export OPENAI_API_KEY=your_key_here")
         sys.exit(1)
     
     project_name = sys.argv[1]

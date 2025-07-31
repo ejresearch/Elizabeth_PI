@@ -13,19 +13,19 @@ def get_project_database(project_name):
     """Get database connection for the specified project"""
     db_path = f"projects/{project_name}/{project_name}.sqlite"
     if not os.path.exists(db_path):
-        print(f"❌ Project '{project_name}' not found!")
-        print("💡 Run 'python start.py' to create a new project")
+        print(f" Project '{project_name}' not found!")
+        print(" Run 'python start.py' to create a new project")
         return None
     return sqlite3.connect(db_path)
 
 def input_character(conn, project_name):
     """Interactive character input"""
-    print("\n👤 CHARACTER INTAKE")
+    print("\n CHARACTER INTAKE")
     print("-" * 20)
     
     name = input("Character Name: ").strip()
     if not name:
-        print("❌ Character name is required!")
+        print(" Character name is required!")
         return False
     
     gender = input("Gender (optional): ").strip()
@@ -42,26 +42,26 @@ def input_character(conn, project_name):
     """, (name, gender, age, romantic_challenge, lovable_trait, comedic_flaw, notes))
     
     conn.commit()
-    print(f"✅ Character '{name}' added successfully!")
+    print(f" Character '{name}' added successfully!")
     return True
 
 def input_scene(conn, project_name):
     """Interactive scene outline input"""
-    print("\n🎬 SCENE OUTLINE INTAKE")
+    print("\n SCENE OUTLINE INTAKE")
     print("-" * 25)
     
     try:
         act = int(input("Act Number: ").strip())
         scene = int(input("Scene Number: ").strip())
     except ValueError:
-        print("❌ Act and Scene must be numbers!")
+        print(" Act and Scene must be numbers!")
         return False
     
     key_characters = input("Key Characters (comma-separated): ").strip()
     key_events = input("Key Events: ").strip()
     
     if not key_events:
-        print("❌ Key events are required!")
+        print(" Key events are required!")
         return False
     
     cursor = conn.cursor()
@@ -71,7 +71,7 @@ def input_scene(conn, project_name):
     """, (act, scene, key_characters, key_events))
     
     conn.commit()
-    print(f"✅ Scene {act}.{scene} added successfully!")
+    print(f" Scene {act}.{scene} added successfully!")
     return True
 
 def view_characters(conn):
@@ -81,14 +81,14 @@ def view_characters(conn):
     characters = cursor.fetchall()
     
     if not characters:
-        print("\n📝 No characters defined yet.")
+        print("\n No characters defined yet.")
         return
     
     print("\n👥 CURRENT CHARACTERS")
     print("=" * 50)
     for char in characters:
         name, gender, age, challenge, trait, flaw = char
-        print(f"🎭 {name}")
+        print(f" {name}")
         if gender: print(f"   Gender: {gender}")
         if age: print(f"   Age: {age}")
         if challenge: print(f"   Romantic Challenge: {challenge}")
@@ -103,16 +103,16 @@ def view_outline(conn):
     scenes = cursor.fetchall()
     
     if not scenes:
-        print("\n📖 No story outline defined yet.")
+        print("\n No story outline defined yet.")
         return
     
-    print("\n📚 STORY OUTLINE")
+    print("\n STORY OUTLINE")
     print("=" * 40)
     current_act = None
     for scene_data in scenes:
         act, scene, characters, events = scene_data
         if act != current_act:
-            print(f"\n🎭 ACT {act}")
+            print(f"\n ACT {act}")
             print("-" * 15)
             current_act = act
         
@@ -124,7 +124,7 @@ def view_outline(conn):
 def interactive_menu(conn, project_name):
     """Main interactive menu"""
     while True:
-        print(f"\n🎬 LIZZY INTAKE - Project: {project_name}")
+        print(f"\n LIZZY INTAKE - Project: {project_name}")
         print("=" * 50)
         print("1. Add Character")
         print("2. Add Scene Outline")
@@ -145,7 +145,7 @@ def interactive_menu(conn, project_name):
         elif choice == "4":
             view_outline(conn)
         elif choice == "5":
-            print(f"\n📊 PROJECT SUMMARY: {project_name}")
+            print(f"\n PROJECT SUMMARY: {project_name}")
             print("=" * 40)
             view_characters(conn)
             view_outline(conn)
@@ -154,18 +154,18 @@ def interactive_menu(conn, project_name):
             print(f"   Next: python brainstorm.py {project_name}")
             break
         elif choice == "0":
-            print("👋 Goodbye!")
+            print(" Goodbye!")
             break
         else:
-            print("❌ Invalid choice. Please try again.")
+            print(" Invalid choice. Please try again.")
 
 def main():
     """Main function for the Intake module"""
     if len(sys.argv) != 2:
-        print("🎬 LIZZY FRAMEWORK - INTAKE MODULE")
+        print(" LIZZY FRAMEWORK - INTAKE MODULE")
         print("=" * 50)
         print("Usage: python intake.py <project_name>")
-        print("\n📚 Available Projects:")
+        print("\n Available Projects:")
         
         # List available projects
         if os.path.exists("projects"):
@@ -182,10 +182,10 @@ def main():
                 print(f"\nExample: python intake.py {projects[0]}")
             else:
                 print("  No projects found.")
-                print("  💡 Run 'python start.py' to create a new project")
+                print("   Run 'python start.py' to create a new project")
         else:
             print("  No projects found.")
-            print("  💡 Run 'python start.py' to create a new project")
+            print("   Run 'python start.py' to create a new project")
         
         sys.exit(1)
     

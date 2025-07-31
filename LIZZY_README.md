@@ -1,9 +1,9 @@
-# 🎬 LIZZY FRAMEWORK
+#  LIZZY FRAMEWORK
 ## AI-Assisted Long-Form Writing System
 
 A modular command-line framework for AI-assisted creative writing, featuring structured memory, dynamic document retrieval, and iterative refinement.
 
-## 🚀 Quick Start
+##  Quick Start
 
 1. **Set your OpenAI API key:**
    ```bash
@@ -27,19 +27,19 @@ A modular command-line framework for AI-assisted creative writing, featuring str
    python write.py project_name     # Create polished drafts
    ```
 
-## 📋 Module Overview
+##  Module Overview
 
-### 🎯 Start Module (`start.py`)
+###  Start Module (`start.py`)
 - **Purpose:** Initialize new writing projects
 - **Features:** Creates isolated SQLite databases with structured tables
 - **Usage:** `python start.py`
 
-### 📝 Intake Module (`intake.py`) 
+###  Intake Module (`intake.py`) 
 - **Purpose:** Capture story elements and foundational metadata
 - **Features:** Interactive forms for characters, scenes, and story outline
 - **Usage:** `python intake.py <project_name>`
 
-### 🧠 Brainstorm Module (`brainstorm.py`)
+###  Brainstorm Module (`brainstorm.py`)
 - **Purpose:** Generate creative ideas using AI and source material
 - **Features:** 
   - 5 tone presets (Cheesy Romcom, Romantic Dramedy, Shakespearean Comedy, etc.)
@@ -47,7 +47,7 @@ A modular command-line framework for AI-assisted creative writing, featuring str
   - Dynamic querying of thematic buckets (books, plays, scripts)
 - **Usage:** `python brainstorm.py <project_name>`
 
-### ✍️ Write Module (`write.py`)
+###  Write Module (`write.py`)
 - **Purpose:** Synthesize brainstorming into polished drafts
 - **Features:**
   - Single scene or full script generation
@@ -56,7 +56,7 @@ A modular command-line framework for AI-assisted creative writing, featuring str
   - Versioned draft storage
 - **Usage:** `python write.py <project_name>`
 
-### 📦 Content Buckets (`setup_buckets.py`)
+###  Content Buckets (`setup_buckets.py`)
 - **Purpose:** Manage LightRAG thematic content buckets
 - **Features:**
   - Organize source material (books, plays, scripts)
@@ -64,7 +64,7 @@ A modular command-line framework for AI-assisted creative writing, featuring str
   - Bucket management and content listing
 - **Usage:** `python setup_buckets.py`
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 projects/
@@ -86,7 +86,7 @@ Each project has dedicated tables:
 - **finalized_draft_v1:** Polished scene drafts
 - **project_metadata:** Project settings and versioning
 
-## 🎭 Tone Presets
+##  Tone Presets
 
 1. **Cheesy Romcom** - Light-hearted with obvious romantic tropes
 2. **Romantic Dramedy** - Balance of romance and realistic drama
@@ -94,7 +94,7 @@ Each project has dedicated tables:
 4. **Modern Indie** - Quirky, authentic, unconventional storytelling
 5. **Classic Hollywood** - Sophisticated dialogue, timeless romance
 
-## 🔧 Advanced Features
+##  Advanced Features
 
 ### LightRAG Integration
 - **Graph-based retrieval:** Semantic content discovery
@@ -111,7 +111,7 @@ Each project has dedicated tables:
 - **Data encapsulation:** Isolated project databases
 - **Workflow flexibility:** Adapt to different creative processes
 
-## 📖 Example Workflow
+##  Example Workflow
 
 ```bash
 # 1. Initialize project
@@ -136,7 +136,7 @@ python write.py romantic_comedy_pilot
 # > Export: romantic_comedy_pilot_script_20250729.txt
 ```
 
-## 🎯 Key Benefits
+##  Key Benefits
 
 - **Enhanced Coherence:** Structured memory maintains narrative consistency
 - **Authentic Content:** Dynamic retrieval creates contextually rich outputs  

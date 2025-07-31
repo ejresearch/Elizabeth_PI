@@ -184,7 +184,7 @@ def add_brainstorming_sessions():
     
     conn.commit()
     conn.close()
-    print("✅ Added comprehensive brainstorming sessions")
+    print(" Added comprehensive brainstorming sessions")
 
 def add_scene_content():
     """Add complete screenplay scenes"""
@@ -573,16 +573,16 @@ FINAL FADE OUT.''',
     
     conn.commit()
     conn.close()
-    print("✅ Added complete screenplay scenes")
+    print(" Added complete screenplay scenes")
 
 if __name__ == "__main__":
-    print("🎬 Completing Sample Project with Full Content")
+    print(" Completing Sample Project with Full Content")
     print("=" * 50)
     
     add_brainstorming_sessions()
     add_scene_content()
     
-    print("\n✅ Sample project now contains:")
+    print("\n Sample project now contains:")
     print("   • Complete character development")
     print("   • Detailed story outline") 
     print("   • Comprehensive brainstorming sessions")

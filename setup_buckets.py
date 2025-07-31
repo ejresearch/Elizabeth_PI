@@ -15,13 +15,13 @@ def create_bucket_structure():
     
     if not os.path.exists(working_dir):
         os.makedirs(working_dir)
-        print(f"✅ Created LightRAG working directory: {working_dir}")
+        print(f" Created LightRAG working directory: {working_dir}")
     
     for bucket in buckets:
         bucket_path = os.path.join(working_dir, bucket)
         if not os.path.exists(bucket_path):
             os.makedirs(bucket_path)
-            print(f"✅ Created bucket: {bucket}")
+            print(f" Created bucket: {bucket}")
         
         # Create a README file for each bucket
         readme_path = os.path.join(bucket_path, "README.txt")
@@ -78,20 +78,20 @@ CURRENT CONTENT:
             with open(readme_path, 'w') as f:
                 f.write(readme_content)
             
-            print(f"📝 Created README for {bucket} bucket")
+            print(f" Created README for {bucket} bucket")
 
 def list_bucket_content():
     """List content in all buckets"""
     working_dir = "./lightrag_working_dir"
     buckets = ["books", "plays", "scripts"]
     
-    print("\n📚 CURRENT BUCKET CONTENT")
+    print("\n CURRENT BUCKET CONTENT")
     print("=" * 50)
     
     for bucket in buckets:
         bucket_path = os.path.join(working_dir, bucket)
         if not os.path.exists(bucket_path):
-            print(f"❌ {bucket.upper()}: Bucket not found")
+            print(f" {bucket.upper()}: Bucket not found")
             continue
         
         files = []
@@ -102,7 +102,7 @@ def list_bucket_content():
                 if not file.endswith(('.json', '.graphml')):
                     files.append(file)
         
-        print(f"\n📦 {bucket.upper()} ({len(files)} files):")
+        print(f"\n {bucket.upper()} ({len(files)} files):")
         if files:
             for file in sorted(files):
                 print(f"   - {file}")
@@ -115,25 +115,25 @@ def ingest_bucket_content(bucket_name):
         from lightrag import LightRAG
         from lightrag.llm import gpt_4o_mini_complete
     except ImportError:
-        print("❌ LightRAG not installed!")
-        print("💡 Install with: pip install lightrag")
+        print(" LightRAG not installed!")
+        print(" Install with: pip install lightrag")
         return False
     
     working_dir = "./lightrag_working_dir"
     bucket_path = os.path.join(working_dir, bucket_name)
     
     if not os.path.exists(bucket_path):
-        print(f"❌ Bucket '{bucket_name}' not found!")
+        print(f" Bucket '{bucket_name}' not found!")
         return False
     
     # Check for API key
     if not os.getenv('OPENAI_API_KEY'):
-        print("❌ OpenAI API key not found!")
-        print("💡 Set your API key: export OPENAI_API_KEY=your_key_here")
+        print(" OpenAI API key not found!")
+        print(" Set your API key: export OPENAI_API_KEY=your_key_here")
         return False
     
     # Initialize LightRAG for this bucket
-    print(f"🔍 Initializing LightRAG for {bucket_name} bucket...")
+    print(f" Initializing LightRAG for {bucket_name} bucket...")
     rag = LightRAG(
         working_dir=bucket_path,
         llm_model_func=gpt_4o_mini_complete
@@ -146,11 +146,11 @@ def ingest_bucket_content(bucket_name):
             content_files.append(os.path.join(bucket_path, file))
     
     if not content_files:
-        print(f"⚠️  No content files found in {bucket_name} bucket")
-        print("💡 Add .txt or .md files to the bucket directory")
+        print(f"  No content files found in {bucket_name} bucket")
+        print(" Add .txt or .md files to the bucket directory")
         return False
     
-    print(f"📖 Found {len(content_files)} content files to ingest...")
+    print(f" Found {len(content_files)} content files to ingest...")
     
     # Ingest each file
     for file_path in content_files:
@@ -163,17 +163,17 @@ def ingest_bucket_content(bucket_name):
             
             # Insert content into LightRAG
             rag.insert(content)
-            print(f"   ✅ Ingested: {filename}")
+            print(f"    Ingested: {filename}")
             
         except Exception as e:
-            print(f"   ❌ Failed to ingest {filename}: {e}")
+            print(f"    Failed to ingest {filename}: {e}")
     
     print(f"🎉 Bucket '{bucket_name}' ingestion complete!")
     return True
 
 def main():
     """Main function for bucket setup"""
-    print("📦 LIZZY FRAMEWORK - CONTENT BUCKET SETUP")
+    print(" LIZZY FRAMEWORK - CONTENT BUCKET SETUP")
     print("=" * 50)
     
     if len(sys.argv) > 1:
@@ -182,7 +182,7 @@ def main():
             if bucket_name in ["books", "plays", "scripts"]:
                 ingest_bucket_content(bucket_name)
             else:
-                print("❌ Invalid bucket name. Use: books, plays, or scripts")
+                print(" Invalid bucket name. Use: books, plays, or scripts")
             return
         elif sys.argv[1] == "--list":
             list_bucket_content()
@@ -209,10 +209,10 @@ def main():
             if bucket in ["books", "plays", "scripts"]:
                 ingest_bucket_content(bucket)
             else:
-                print("❌ Invalid bucket name")
+                print(" Invalid bucket name")
         elif choice == "4":
             print("""
-📖 USAGE INSTRUCTIONS
+ USAGE INSTRUCTIONS
 ==================
 
 1. SETUP BUCKETS:
@@ -240,10 +240,10 @@ COMMAND LINE USAGE:
    python setup_buckets.py --ingest books   # Ingest books bucket
             """)
         elif choice == "0":
-            print("👋 Setup complete!")
+            print(" Setup complete!")
             break
         else:
-            print("❌ Invalid choice")
+            print(" Invalid choice")
 
 if __name__ == "__main__":
     main()

@@ -596,7 +596,7 @@ Mastering realistic dialogue requires balancing authenticity with theatrical eff
         with open(os.path.join(working_dir, "plays", filename), 'w') as f:
             f.write(content)
     
-    print("✅ Created comprehensive source material in buckets")
+    print(" Created comprehensive source material in buckets")
     return True
 
 def create_sample_project():
@@ -772,11 +772,11 @@ def create_sample_project():
     conn.commit()
     conn.close()
     
-    print(f"✅ Created complete project: {project_name}")
+    print(f" Created complete project: {project_name}")
     return project_name
 
 if __name__ == "__main__":
-    print("🎬 Creating Complete Sample Project for Backend Documentation")
+    print(" Creating Complete Sample Project for Backend Documentation")
     print("=" * 60)
     
     # Step 1: Create source material
@@ -785,8 +785,8 @@ if __name__ == "__main__":
     # Step 2: Create project
     project_name = create_sample_project()
     
-    print(f"\n✅ Sample project '{project_name}' created successfully!")
-    print("\n📋 Next steps:")
+    print(f"\n Sample project '{project_name}' created successfully!")
+    print("\n Next steps:")
     print("1. Run: python lizzy.py")
     print("2. Select the project: the_last_coffee_shop")
     print("3. Go to Buckets Manager and ingest source material")

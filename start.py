@@ -20,7 +20,7 @@ def create_project_database(project_name):
     # Create project-specific directory
     project_dir = os.path.join(projects_dir, project_name)
     if os.path.exists(project_dir):
-        print(f"❌ Project '{project_name}' already exists!")
+        print(f" Project '{project_name}' already exists!")
         return False
     
     os.makedirs(project_dir)
@@ -106,9 +106,9 @@ def create_project_database(project_name):
     conn.commit()
     conn.close()
     
-    print(f"✅ Project '{project_name}' created successfully!")
-    print(f"📁 Database: {db_path}")
-    print(f"📋 Tables created: characters, story_outline, brainstorming_log, finalized_draft_v1, project_metadata")
+    print(f" Project '{project_name}' created successfully!")
+    print(f" Database: {db_path}")
+    print(f" Tables created: characters, story_outline, brainstorming_log, finalized_draft_v1, project_metadata")
     
     return True
 
@@ -116,7 +116,7 @@ def list_existing_projects():
     """List all existing projects"""
     projects_dir = "projects"
     if not os.path.exists(projects_dir):
-        print("📂 No projects directory found.")
+        print(" No projects directory found.")
         return []
     
     projects = []
@@ -130,7 +130,7 @@ def list_existing_projects():
 
 def main():
     """Main function for the Start module"""
-    print("🎬 LIZZY FRAMEWORK - START MODULE")
+    print(" LIZZY FRAMEWORK - START MODULE")
     print("=" * 50)
     print("Initialize new writing projects with structured databases")
     print()
@@ -138,32 +138,32 @@ def main():
     # Show existing projects
     existing_projects = list_existing_projects()
     if existing_projects:
-        print("📚 Existing Projects:")
+        print(" Existing Projects:")
         for i, project in enumerate(existing_projects, 1):
             print(f"  {i}. {project}")
         print()
     
     # Get project name from user
     while True:
-        project_name = input("💭 Enter new project name (or 'quit' to exit): ").strip()
+        project_name = input(" Enter new project name (or 'quit' to exit): ").strip()
         
         if project_name.lower() == 'quit':
-            print("👋 Goodbye!")
+            print(" Goodbye!")
             sys.exit(0)
         
         if not project_name:
-            print("❌ Project name cannot be empty!")
+            print(" Project name cannot be empty!")
             continue
         
         # Sanitize project name (remove special characters)
         import re
         sanitized_name = re.sub(r'[^\w\-_]', '_', project_name)
         if sanitized_name != project_name:
-            print(f"📝 Project name sanitized to: {sanitized_name}")
+            print(f" Project name sanitized to: {sanitized_name}")
             project_name = sanitized_name
         
         if project_name in existing_projects:
-            print(f"❌ Project '{project_name}' already exists!")
+            print(f" Project '{project_name}' already exists!")
             continue
         
         break
@@ -179,7 +179,7 @@ def main():
         print("   3. Use brainstorm.py for creative ideation")
         print("   4. Generate final drafts with write.py")
         print()
-        print("💡 Tip: Each module can be run independently for iterative refinement!")
+        print(" Tip: Each module can be run independently for iterative refinement!")
 
 if __name__ == "__main__":
     main()

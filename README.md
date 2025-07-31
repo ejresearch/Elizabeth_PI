@@ -16,7 +16,7 @@ LIZZY is an intelligent screenwriting CLI that transforms your creative ideas in
 ║                    ███████╗██║███████╗███████╗   ██║                        ║
 ║                    ╚══════╝╚═╝╚══════╝╚══════╝   ╚═╝                        ║
 ║                                                                              ║
-║              🎬 AI-ASSISTED SCREENWRITING SYSTEM 🎬                          ║
+║               AI-ASSISTED SCREENWRITING SYSTEM                           ║
 ║                     ~ Structure • Intelligence • Craft ~                     ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -28,22 +28,22 @@ LIZZY is an intelligent screenwriting CLI that transforms your creative ideas in
 
 ---
 
-## 🎯 What LIZZY Does
+##  What LIZZY Does
 
 LIZZY guides you through the complete screenwriting process using a proven workflow:
 
 **Your Input** → **AI Enhancement** → **Professional Output**
 
-- **🧠 Story Development**: Build rich characters and compelling scene outlines
-- **📚 Knowledge Integration**: Access curated screenwriting wisdom and techniques  
-- **🤖 AI Brainstorming**: Generate creative ideas contextual to YOUR specific story
-- **✍️ Screenplay Writing**: Produce properly formatted scenes with authentic dialogue
-- **📈 Version Management**: Track every iteration with complete revision history
-- **📤 Professional Export**: Output industry-standard formats ready for production
+- ** Story Development**: Build rich characters and compelling scene outlines
+- ** Knowledge Integration**: Access curated screenwriting wisdom and techniques  
+- ** AI Brainstorming**: Generate creative ideas contextual to YOUR specific story
+- ** Screenplay Writing**: Produce properly formatted scenes with authentic dialogue
+- ** Version Management**: Track every iteration with complete revision history
+- ** Professional Export**: Output industry-standard formats ready for production
 
 ---
 
-## 🚀 Quick Start for Screenwriters
+##  Quick Start for Screenwriters
 
 ### Prerequisites
 - **Python 3.8+** (check with `python3 --version`)
@@ -68,7 +68,7 @@ On first run, LIZZY will ask for your OpenAI API key and create your workspace.
 
 ---
 
-## 🎬 How Screenwriters Use LIZZY
+##  How Screenwriters Use LIZZY
 
 ### The LIZZY Workflow
 
@@ -245,7 +245,7 @@ Get your screenplay in multiple formats ready for producers, directors, or conte
 
 ---
 
-## 🧠 The AI Advantage
+##  The AI Advantage
 
 ### Context-Aware Intelligence
 Unlike generic AI writing tools, LIZZY knows YOUR story:
@@ -266,7 +266,7 @@ Draft 3: Sharper, more authentic voices
 
 ---
 
-## 💡 For Professional Screenwriters
+##  For Professional Screenwriters
 
 ### Time Efficiency
 - **Research Phase**: Upload reference scripts → instant knowledge base
@@ -288,7 +288,7 @@ Draft 3: Sharper, more authentic voices
 
 ---
 
-## 🛠️ Technical Architecture
+##  Technical Architecture
 
 ### Project Isolation
 ```
@@ -316,11 +316,11 @@ lightrag_working_dir/
 
 ---
 
-## 📚 Templates & Expansion
+##  Templates & Expansion
 
 LIZZY currently specializes in **screenwriting** with a romantic comedy foundation, but the architecture supports unlimited story types.
 
-**🚧 Coming Soon:**
+** Coming Soon:**
 - **Genre Templates**: Thriller, Drama, Sci-Fi, Horror, Documentary
 - **Format Templates**: TV Episodes, Web Series, Short Films
 - **Style Templates**: Indie, Studio, International markets
@@ -330,7 +330,7 @@ The modular design means new templates plug directly into the existing workflow�
 
 ---
 
-## 🎭 Example: From Idea to Script
+##  Example: From Idea to Script
 
 **Start**: "I want to write a romantic comedy about two people who keep having terrible first dates"
 
@@ -345,7 +345,7 @@ The modular design means new templates plug directly into the existing workflow�
 
 ---
 
-## 🚀 Get Started Now
+##  Get Started Now
 
 ```bash
 git clone https://github.com/ejresearch/Elizabeth_PI.git

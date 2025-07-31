@@ -34,7 +34,7 @@ def validate_filename(filename):
 class LizzyFileDropGUI:
     def __init__(self):
         if not GUI_AVAILABLE:
-            print("❌ GUI not available - tkinter not installed")
+            print(" GUI not available - tkinter not installed")
             return
             
         self.root = tk.Tk()
@@ -87,7 +87,7 @@ class LizzyFileDropGUI:
         main_frame.pack(fill='both', expand=True, padx=20, pady=20)
         
         # Title
-        title_label = ttk.Label(main_frame, text="🎬 LIZZY Content Manager", style='Title.TLabel')
+        title_label = ttk.Label(main_frame, text=" LIZZY Content Manager", style='Title.TLabel')
         title_label.pack(pady=(0, 10))
         
         subtitle_label = ttk.Label(main_frame, text="Drag & drop files to add content to LightRAG buckets", style='Subtitle.TLabel')
@@ -114,7 +114,7 @@ class LizzyFileDropGUI:
         self.paned_window.add(buckets_frame, weight=1)
         
         # Buckets title
-        buckets_title = ttk.Label(buckets_frame, text="📦 Content Buckets", style='Subtitle.TLabel')
+        buckets_title = ttk.Label(buckets_frame, text=" Content Buckets", style='Subtitle.TLabel')
         buckets_title.pack(pady=(0, 10))
         
         # Buckets listbox with scrollbar
@@ -142,9 +142,9 @@ class LizzyFileDropGUI:
         buttons_frame = ttk.Frame(buckets_frame)
         buttons_frame.pack(fill='x', pady=(10, 0))
         
-        ttk.Button(buttons_frame, text="🆕 New Bucket", command=self.create_bucket).pack(side='left', padx=(0, 5))
-        ttk.Button(buttons_frame, text="🔄 Refresh", command=self.load_buckets).pack(side='left', padx=5)
-        ttk.Button(buttons_frame, text="📁 Browse", command=self.browse_files).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text=" New Bucket", command=self.create_bucket).pack(side='left', padx=(0, 5))
+        ttk.Button(buttons_frame, text=" Refresh", command=self.load_buckets).pack(side='left', padx=5)
+        ttk.Button(buttons_frame, text=" Browse", command=self.browse_files).pack(side='left', padx=5)
         
     def setup_drop_panel(self):
         """Setup file drop panel"""
@@ -152,7 +152,7 @@ class LizzyFileDropGUI:
         self.paned_window.add(drop_frame, weight=2)
         
         # Drop area title
-        drop_title = ttk.Label(drop_frame, text="🎯 Drop Zone", style='Subtitle.TLabel')
+        drop_title = ttk.Label(drop_frame, text=" Drop Zone", style='Subtitle.TLabel')
         drop_title.pack(pady=(0, 10))
         
         # Main drop area
@@ -167,7 +167,7 @@ class LizzyFileDropGUI:
         
         # Drop instructions
         self.drop_label = tk.Label(self.drop_area,
-                                  text="📂 Drag files here\n\nSupported formats:\n• .txt files\n• .md files\n• .pdf files\n\nOr click 'Browse' to select files",
+                                  text=" Drag files here\n\nSupported formats:\n• .txt files\n• .md files\n• .pdf files\n\nOr click 'Browse' to select files",
                                   bg='#16213e',
                                   fg='#00d4aa',
                                   font=('Arial', 14),
@@ -178,7 +178,7 @@ class LizzyFileDropGUI:
         preview_frame = ttk.Frame(drop_frame)
         preview_frame.pack(fill='x', padx=10, pady=(10, 0))
         
-        preview_label = ttk.Label(preview_frame, text="📋 Files to Add:", style='Subtitle.TLabel')
+        preview_label = ttk.Label(preview_frame, text=" Files to Add:", style='Subtitle.TLabel')
         preview_label.pack(anchor='w')
         
         self.files_text = ScrolledText(preview_frame, height=6, 
@@ -191,9 +191,9 @@ class LizzyFileDropGUI:
         action_frame = ttk.Frame(drop_frame)
         action_frame.pack(fill='x', padx=10, pady=(10, 0))
         
-        ttk.Button(action_frame, text="➕ Add Files to Bucket", command=self.add_files_to_bucket).pack(side='left')
-        ttk.Button(action_frame, text="🗑️ Clear List", command=self.clear_files).pack(side='left', padx=(10, 0))
-        ttk.Button(action_frame, text="🔄 Process Bucket", command=self.process_bucket).pack(side='right')
+        ttk.Button(action_frame, text=" Add Files to Bucket", command=self.add_files_to_bucket).pack(side='left')
+        ttk.Button(action_frame, text=" Clear List", command=self.clear_files).pack(side='left', padx=(10, 0))
+        ttk.Button(action_frame, text=" Process Bucket", command=self.process_bucket).pack(side='right')
         
         self.selected_bucket = None
         self.pending_files = []
@@ -241,7 +241,7 @@ class LizzyFileDropGUI:
             has_index = any(f.endswith('.json') for f in os.listdir(bucket_path) 
                           if os.path.isfile(os.path.join(bucket_path, f)))
             
-            status = "✅" if has_index else "⚠️"
+            status = "" if has_index else ""
             display_text = f"{status} {bucket} ({content_count} files)"
             self.buckets_listbox.insert('end', display_text)
             
@@ -269,13 +269,13 @@ class LizzyFileDropGUI:
         """Update drop area based on selected bucket"""
         if self.selected_bucket:
             self.drop_label.config(
-                text=f"📂 Drop files for bucket: {self.selected_bucket}\n\nSupported formats:\n• .txt files\n• .md files\n• .pdf files\n\nFiles will be added to:\nlightrag_working_dir/{self.selected_bucket}/",
+                text=f" Drop files for bucket: {self.selected_bucket}\n\nSupported formats:\n• .txt files\n• .md files\n• .pdf files\n\nFiles will be added to:\nlightrag_working_dir/{self.selected_bucket}/",
                 fg='#00d4aa'
             )
             self.drop_area.config(highlightcolor='#00d4aa')
         else:
             self.drop_label.config(
-                text="📂 Select a bucket first\n\nThen drag files here or click Browse",
+                text=" Select a bucket first\n\nThen drag files here or click Browse",
                 fg='#ff6b6b'
             )
             self.drop_area.config(highlightcolor='#ff6b6b')
@@ -350,7 +350,7 @@ class LizzyFileDropGUI:
         self.files_text.delete(1.0, 'end')
         
         if self.pending_files:
-            self.files_text.insert('end', f"📋 {len(self.pending_files)} files ready to add:\n\n")
+            self.files_text.insert('end', f" {len(self.pending_files)} files ready to add:\n\n")
             
             for i, file_path in enumerate(self.pending_files, 1):
                 filename = os.path.basename(file_path)
@@ -431,10 +431,10 @@ class LizzyFileDropGUI:
         # Show results
         if success_count > 0:
             messagebox.showinfo("Success", 
-                              f"✅ Added {success_count} files to bucket '{self.selected_bucket}'")
+                              f" Added {success_count} files to bucket '{self.selected_bucket}'")
             
         if error_files:
-            error_msg = "❌ Failed to add some files:\n\n" + "\n".join(error_files)
+            error_msg = " Failed to add some files:\n\n" + "\n".join(error_files)
             messagebox.showerror("Errors", error_msg)
             
         # Clear pending files and refresh
@@ -507,7 +507,7 @@ Created via LIZZY GUI File Manager
                 with open(os.path.join(bucket_path, "README.md"), 'w') as f:
                     f.write(readme_content)
                 
-                messagebox.showinfo("Success", f"✅ Bucket '{bucket_name}' created successfully!")
+                messagebox.showinfo("Success", f" Bucket '{bucket_name}' created successfully!")
                 self.load_buckets()
                 
             except Exception as e:
@@ -516,7 +516,7 @@ Created via LIZZY GUI File Manager
     def run(self):
         """Run the GUI"""
         if not GUI_AVAILABLE:
-            print("❌ GUI not available - install tkinter")
+            print(" GUI not available - install tkinter")
             return
             
         self.root.mainloop()
@@ -524,7 +524,12 @@ Created via LIZZY GUI File Manager
 def launch_gui():
     """Launch the GUI interface"""
     if not GUI_AVAILABLE:
-        print("❌ GUI requires tkinter - install with: pip install tk")
+        print(" GUI requires tkinter - install with: pip install tk")
+        return False
+    
+    # Ensure GUI runs on main thread (required for macOS)
+    if threading.current_thread() != threading.main_thread():
+        print(" GUI must be launched from main thread")
         return False
         
     try:
@@ -532,7 +537,7 @@ def launch_gui():
         gui.run()
         return True
     except Exception as e:
-        print(f"❌ GUI error: {e}")
+        print(f" GUI error: {e}")
         return False
 
 if __name__ == "__main__":

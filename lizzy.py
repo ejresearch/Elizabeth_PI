@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 LIZZY FRAMEWORK - Unified Retro Command Line Interface
-AI-Assisted Long-Form Writing System
+AI-Assisted Long-Form Writing System with Template Support
 """
 
 import os
@@ -12,6 +12,14 @@ import shutil
 import re
 from datetime import datetime
 from openai import OpenAI
+
+# Import template management
+try:
+    from template_manager import TemplateManager
+    from admin import LizzyAdmin
+    HAS_TEMPLATE_SYSTEM = True
+except ImportError:
+    HAS_TEMPLATE_SYSTEM = False
 
 # Platform-specific imports for keyboard handling
 try:
@@ -66,7 +74,7 @@ LIZZY_HEADER = f"""{Colors.CYAN}
 ║                    ███████╗██║███████╗███████╗   ██║                        ║
 ║                    ╚══════╝╚═╝╚══════╝╚══════╝   ╚═╝                        ║
 ║                                                                              ║
-║              {Colors.YELLOW}🎬 AI-ASSISTED LONG-FORM WRITING SYSTEM 🎬{Colors.CYAN}                ║
+║              {Colors.YELLOW} AI-ASSISTED LONG-FORM WRITING SYSTEM {Colors.CYAN}                ║
 ║                          {Colors.GREEN}~ Modular • Iterative • Intelligent ~{Colors.CYAN}                  ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
@@ -162,7 +170,7 @@ async def initialize_lightrag(bucket_path):
         
         return rag
     except Exception as e:
-        print(f"{Colors.RED}❌ LightRAG initialization failed: {e}{Colors.END}")
+        print(f"{Colors.RED} LightRAG initialization failed: {e}{Colors.END}")
         return None
 
 async def ingest_content_async(rag, content):
@@ -171,7 +179,7 @@ async def ingest_content_async(rag, content):
         await rag.ainsert(content)
         return True
     except Exception as e:
-        print(f"{Colors.RED}❌ Content ingestion failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Content ingestion failed: {e}{Colors.END}")
         return False
 
 async def query_content_async(rag, query, mode="hybrid"):
@@ -180,7 +188,7 @@ async def query_content_async(rag, query, mode="hybrid"):
         result = await rag.aquery(query, param=QueryParam(mode=mode))
         return result
     except Exception as e:
-        print(f"{Colors.RED}❌ Query failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Query failed: {e}{Colors.END}")
         return None
 
 async def finalize_lightrag(rag):
@@ -189,7 +197,7 @@ async def finalize_lightrag(rag):
         try:
             await rag.finalize_storages()
         except Exception as e:
-            print(f"{Colors.YELLOW}⚠️  Warning during cleanup: {e}{Colors.END}")
+            print(f"{Colors.YELLOW}  Warning during cleanup: {e}{Colors.END}")
 
 def run_async_lightrag_operation(coro):
     """Helper to run async operations in sync context"""
@@ -243,7 +251,7 @@ def setup_api_key():
             session.api_key_set = True
             return True
         except Exception as e:
-            print(f"{Colors.RED}❌ Invalid API key: {e}{Colors.END}")
+            print(f"{Colors.RED} Invalid API key: {e}{Colors.END}")
     
     print(f"{Colors.CYAN}Enter your OpenAI API key:{Colors.END}")
     api_key = input(f"{Colors.BOLD}> {Colors.END}").strip()
@@ -256,7 +264,7 @@ def setup_api_key():
             print(f"{Colors.GREEN}✓ API key configured successfully!{Colors.END}")
             return True
         except Exception as e:
-            print(f"{Colors.RED}❌ Invalid API key: {e}{Colors.END}")
+            print(f"{Colors.RED} Invalid API key: {e}{Colors.END}")
     
     return False
 
@@ -287,13 +295,13 @@ def list_projects():
 
 def create_project():
     """Create a new project (START module)"""
-    print(f"\n{Colors.YELLOW}🎬 CREATE NEW PROJECT{Colors.END}")
+    print(f"\n{Colors.YELLOW} CREATE NEW PROJECT{Colors.END}")
     print_separator()
     
     # Show existing projects
     existing_projects = [p[0] for p in list_projects()]
     if existing_projects:
-        print(f"{Colors.BLUE}📚 Existing Projects:{Colors.END}")
+        print(f"{Colors.BLUE} Existing Projects:{Colors.END}")
         for i, project in enumerate(existing_projects[:5], 1):
             print(f"   {i}. {project}")
         if len(existing_projects) > 5:
@@ -301,24 +309,24 @@ def create_project():
         print()
     
     while True:
-        project_name = input(f"{Colors.BOLD}💭 Enter new project name (or 'back' to return): {Colors.END}").strip()
+        project_name = input(f"{Colors.BOLD} Enter new project name (or 'back' to return): {Colors.END}").strip()
         
         if project_name.lower() == 'back':
             return False
         
         if not project_name:
-            print(f"{Colors.RED}❌ Project name cannot be empty!{Colors.END}")
+            print(f"{Colors.RED} Project name cannot be empty!{Colors.END}")
             continue
         
         # Sanitize project name
         import re
         sanitized_name = re.sub(r'[^\w\-_]', '_', project_name)
         if sanitized_name != project_name:
-            print(f"{Colors.YELLOW}📝 Project name sanitized to: {sanitized_name}{Colors.END}")
+            print(f"{Colors.YELLOW} Project name sanitized to: {sanitized_name}{Colors.END}")
             project_name = sanitized_name
         
         if project_name in existing_projects:
-            print(f"{Colors.RED}❌ Project '{project_name}' already exists!{Colors.END}")
+            print(f"{Colors.RED} Project '{project_name}' already exists!{Colors.END}")
             continue
         
         break
@@ -326,7 +334,7 @@ def create_project():
     # Create project
     if create_project_database(project_name):
         session.set_project(project_name)
-        print(f"\n{Colors.GREEN}🎉 Project '{project_name}' created and loaded!{Colors.END}")
+        print(f"\n{Colors.GREEN} Project '{project_name}' created and loaded!{Colors.END}")
         input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
         return True
     
@@ -413,17 +421,17 @@ def create_project_database(project_name):
 
 def select_project():
     """Select an existing project"""
-    print(f"\n{Colors.YELLOW}📂 SELECT PROJECT{Colors.END}")
+    print(f"\n{Colors.YELLOW} SELECT PROJECT{Colors.END}")
     print_separator()
     
     projects = list_projects()
     if not projects:
-        print(f"{Colors.RED}❌ No projects found!{Colors.END}")
-        print(f"{Colors.CYAN}💡 Create a new project first{Colors.END}")
+        print(f"{Colors.RED} No projects found!{Colors.END}")
+        print(f"{Colors.CYAN} Create a new project first{Colors.END}")
         input(f"\nPress Enter to continue...")
         return False
     
-    print(f"{Colors.BLUE}📚 Available Projects:{Colors.END}")
+    print(f"{Colors.BLUE} Available Projects:{Colors.END}")
     for i, (name, created) in enumerate(projects, 1):
         date_str = created.split('T')[0] if 'T' in created else created
         print(f"   {Colors.BOLD}{i:2d}.{Colors.END} {name} {Colors.CYAN}(created: {date_str}){Colors.END}")
@@ -443,11 +451,11 @@ def select_project():
                     input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
                     return True
                 else:
-                    print(f"{Colors.RED}❌ Failed to load project{Colors.END}")
+                    print(f"{Colors.RED} Failed to load project{Colors.END}")
             else:
-                print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+                print(f"{Colors.RED} Invalid selection{Colors.END}")
         except ValueError:
-            print(f"{Colors.RED}❌ Please enter a number{Colors.END}")
+            print(f"{Colors.RED} Please enter a number{Colors.END}")
 
 def get_single_keypress():
     """Get a single keypress including special keys like arrows"""
@@ -486,22 +494,24 @@ def main_menu():
         print_header()
         
         if not session.api_key_set:
-            print(f"\n{Colors.RED}⚠️  OpenAI API key required to continue{Colors.END}")
+            print(f"\n{Colors.RED}  OpenAI API key required to continue{Colors.END}")
             setup_api_key()
             continue
         
         print(f"\n{Colors.BOLD}LIZZY{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} 🎬 New Project")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📂 Existing Project")
-        print(f"   {Colors.BOLD}3.{Colors.END} 📖 Getting Started")
-        print(f"   {Colors.BOLD}4.{Colors.END} 🚪 Exit")
+        print(f"   {Colors.BOLD}1.{Colors.END}  New Project")
+        print(f"   {Colors.BOLD}2.{Colors.END}  Existing Project")
+        print(f"   {Colors.BOLD}3.{Colors.END}  Getting Started")
+        if HAS_TEMPLATE_SYSTEM:
+            print(f"   {Colors.BOLD}4.{Colors.END}   Admin")
+        print(f"   {Colors.BOLD}5.{Colors.END}  Exit")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
         if choice == "1":
-            create_project()
+            create_project_with_template()
             if session.current_project:
                 project_menu()
         elif choice == "2":
@@ -509,9 +519,11 @@ def main_menu():
                 project_menu()
         elif choice == "3":
             show_readme()
-        elif choice == "4":
-            print(f"\n{Colors.CYAN}👋 Thank you for using LIZZY Framework!{Colors.END}")
-            print(f"{Colors.YELLOW}   Happy writing! 🎬✨{Colors.END}\n")
+        elif choice == "4" and HAS_TEMPLATE_SYSTEM:
+            admin_menu()
+        elif choice == "5":
+            print(f"\n{Colors.CYAN} Thank you for using LIZZY Framework!{Colors.END}")
+            print(f"{Colors.YELLOW}   Happy writing! {Colors.END}\n")
             session.close()
             sys.exit(0)
 
@@ -524,13 +536,13 @@ def project_menu():
         print(f"\n{Colors.BOLD}PROJECT{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} 📝 Update Tables")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📦 Update Buckets")
-        print(f"   {Colors.BOLD}3.{Colors.END} 🧠 Brainstorm")
-        print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write")
-        print(f"   {Colors.BOLD}5.{Colors.END} 📜 Version History")
-        print(f"   {Colors.BOLD}6.{Colors.END} 📤 Export Options")
-        print(f"   {Colors.BOLD}7.{Colors.END} ⚙️  Manage")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Update Tables")
+        print(f"   {Colors.BOLD}2.{Colors.END}  Update Buckets")
+        print(f"   {Colors.BOLD}3.{Colors.END}  Brainstorm")
+        print(f"   {Colors.BOLD}4.{Colors.END}   Write")
+        print(f"   {Colors.BOLD}5.{Colors.END}  Version History")
+        print(f"   {Colors.BOLD}6.{Colors.END}  Export Options")
+        print(f"   {Colors.BOLD}7.{Colors.END}   Manage")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
@@ -663,16 +675,16 @@ def character_management():
         print_header()
         print_status()
         
-        print(f"\n{Colors.BOLD}👤 CHARACTER MANAGEMENT{Colors.END}")
+        print(f"\n{Colors.BOLD} CHARACTER MANAGEMENT{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Character")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📖 View Characters")
-        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Character")
-        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Character")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Add Character")
+        print(f"   {Colors.BOLD}2.{Colors.END}  View Characters")
+        print(f"   {Colors.BOLD}3.{Colors.END}   Edit Character")
+        print(f"   {Colors.BOLD}4.{Colors.END}   Delete Character")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
-        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
@@ -699,16 +711,16 @@ def story_outline_management():
         print_header()
         print_status()
         
-        print(f"\n{Colors.BOLD}🎬 STORY OUTLINE{Colors.END}")
+        print(f"\n{Colors.BOLD} STORY OUTLINE{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Scene")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📚 View Outline")
-        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Scene")
-        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Scene")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Add Scene")
+        print(f"   {Colors.BOLD}2.{Colors.END}  View Outline")
+        print(f"   {Colors.BOLD}3.{Colors.END}   Edit Scene")
+        print(f"   {Colors.BOLD}4.{Colors.END}   Delete Scene")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
-        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
@@ -737,7 +749,7 @@ def show_readme():
         with open("README.md", "r") as f:
             content = f.read()
         
-        print(f"\n{Colors.CYAN}📖 GETTING STARTED{Colors.END}")
+        print(f"\n{Colors.CYAN} GETTING STARTED{Colors.END}")
         print_separator()
         print(content[:2000])  # Show first 2000 chars
         
@@ -746,7 +758,7 @@ def show_readme():
         
         wait_for_key()
     except FileNotFoundError:
-        print(f"{Colors.RED}❌ README.md not found{Colors.END}")
+        print(f"{Colors.RED} README.md not found{Colors.END}")
         wait_for_key()
 
 def version_history():
@@ -963,7 +975,7 @@ def export_brainstorms():
             f.write("=" * 50 + "\n\n")
             f.write(content)
         
-        print(f"✅ Exported: {filename}")
+        print(f" Exported: {filename}")
     
     print(f"\n{Colors.GREEN}Exported {len(brainstorms)} brainstorm(s) to: {export_dir}{Colors.END}")
     wait_for_key()
@@ -996,7 +1008,7 @@ def export_drafts():
             f.write("=" * 50 + "\n\n")
             f.write(content)
         
-        print(f"✅ Exported: {filename}")
+        print(f" Exported: {filename}")
     
     print(f"\n{Colors.GREEN}Exported {len(drafts)} draft(s) to: {export_dir}{Colors.END}")
     wait_for_key()
@@ -1019,7 +1031,7 @@ def export_tables():
             writer = csv.writer(f)
             writer.writerow(['id', 'name', 'gender', 'age', 'romantic_challenge', 'lovable_trait', 'comedic_flaw', 'notes', 'created_at'])
             writer.writerows(chars)
-        print("✅ Exported: characters.csv")
+        print(" Exported: characters.csv")
     
     # Export scenes
     cursor.execute("SELECT * FROM story_outline")
@@ -1029,7 +1041,7 @@ def export_tables():
             writer = csv.writer(f)
             writer.writerow(['id', 'act', 'scene', 'key_characters', 'key_events', 'created_at'])
             writer.writerows(scenes)
-        print("✅ Exported: scenes.csv")
+        print(" Exported: scenes.csv")
     
     # Export notes
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'")
@@ -1041,7 +1053,7 @@ def export_tables():
                 writer = csv.writer(f)
                 writer.writerow(['id', 'title', 'content', 'category', 'created_at'])
                 writer.writerows(notes)
-            print("✅ Exported: notes.csv")
+            print(" Exported: notes.csv")
     
     print(f"\n{Colors.GREEN}Tables exported to: {export_dir}{Colors.END}")
     wait_for_key()
@@ -1073,7 +1085,7 @@ def export_everything():
                 arcname = os.path.relpath(file_path, os.path.dirname(export_base))
                 zipf.write(file_path, arcname)
     
-    print(f"\n{Colors.GREEN}✅ Complete export saved as: {zip_name}{Colors.END}")
+    print(f"\n{Colors.GREEN} Complete export saved as: {zip_name}{Colors.END}")
     wait_for_key()
 
 def manage_project():
@@ -1081,7 +1093,7 @@ def manage_project():
     print_header()
     print_status()
     
-    print(f"\n{Colors.BOLD}⚙️  MANAGE PROJECT{Colors.END}")
+    print(f"\n{Colors.BOLD}  MANAGE PROJECT{Colors.END}")
     print_separator()
     
     print(f"{Colors.YELLOW}This feature is coming soon!{Colors.END}")
@@ -1098,7 +1110,7 @@ def export_screenplay_pdf():
     print_header()
     print_status()
     
-    print(f"\n{Colors.BOLD}📄 EXPORT AS SCREENPLAY (PDF){Colors.END}")
+    print(f"\n{Colors.BOLD} EXPORT AS SCREENPLAY (PDF){Colors.END}")
     print_separator()
     
     print(f"{Colors.YELLOW}PDF export coming soon!{Colors.END}")
@@ -1111,7 +1123,7 @@ def export_as_text():
     print_header()
     print_status()
     
-    print(f"\n{Colors.BOLD}📝 EXPORT AS TEXT{Colors.END}")
+    print(f"\n{Colors.BOLD} EXPORT AS TEXT{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1130,9 +1142,9 @@ def export_as_text():
         with open(export_path, 'w') as f:
             f.write(result[0])
         
-        print(f"{Colors.GREEN}✅ Screenplay exported to: {export_path}{Colors.END}")
+        print(f"{Colors.GREEN} Screenplay exported to: {export_path}{Colors.END}")
     except Exception as e:
-        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Export failed: {e}{Colors.END}")
     
     wait_for_key()
 
@@ -1149,9 +1161,9 @@ def export_database():
     
     try:
         shutil.copy2(source_path, export_path)
-        print(f"{Colors.GREEN}✅ Database exported to: {export_path}{Colors.END}")
+        print(f"{Colors.GREEN} Database exported to: {export_path}{Colors.END}")
     except Exception as e:
-        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Export failed: {e}{Colors.END}")
     
     wait_for_key()
 
@@ -1160,7 +1172,7 @@ def comprehensive_export():
     print_header()
     print_status()
     
-    print(f"\n{Colors.BOLD}📊 COMPREHENSIVE EXPORT{Colors.END}")
+    print(f"\n{Colors.BOLD} COMPREHENSIVE EXPORT{Colors.END}")
     print_separator()
     
     try:
@@ -1168,7 +1180,7 @@ def comprehensive_export():
         from comprehensive_data_export import export_project_data
         
         output_dir = export_project_data(session.current_project)
-        print(f"{Colors.GREEN}✅ All data exported to: {output_dir}{Colors.END}")
+        print(f"{Colors.GREEN} All data exported to: {output_dir}{Colors.END}")
         print(f"\nExported formats:")
         print(f"   • JSON (structured data)")
         print(f"   • SQL (database dump)")
@@ -1176,7 +1188,7 @@ def comprehensive_export():
         print(f"   • TXT (human-readable)")
         print(f"   • MD (markdown)")
     except Exception as e:
-        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Export failed: {e}{Colors.END}")
     
     wait_for_key()
 
@@ -1188,14 +1200,14 @@ def intake_module():
     while True:
         print_header()
         print_status()
-        print(f"\n{Colors.BOLD}👤 CHARACTER & STORY INTAKE{Colors.END}")
+        print(f"\n{Colors.BOLD} CHARACTER & STORY INTAKE{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} 👤 Add Character")
-        print(f"   {Colors.BOLD}2.{Colors.END} 🎬 Add Scene Outline")
-        print(f"   {Colors.BOLD}3.{Colors.END} 📖 View Characters")
-        print(f"   {Colors.BOLD}4.{Colors.END} 📚 View Story Outline")
-        print(f"   {Colors.BOLD}5.{Colors.END} 📊 Project Summary")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Add Character")
+        print(f"   {Colors.BOLD}2.{Colors.END}  Add Scene Outline")
+        print(f"   {Colors.BOLD}3.{Colors.END}  View Characters")
+        print(f"   {Colors.BOLD}4.{Colors.END}  View Story Outline")
+        print(f"   {Colors.BOLD}5.{Colors.END}  Project Summary")
         print(f"   {Colors.BOLD}6.{Colors.END} 🏠 Back to Main Menu")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
@@ -1215,12 +1227,12 @@ def intake_module():
 
 def add_character():
     """Add a character to the project"""
-    print(f"\n{Colors.YELLOW}👤 ADD CHARACTER{Colors.END}")
+    print(f"\n{Colors.YELLOW} ADD CHARACTER{Colors.END}")
     print_separator()
     
     name = input(f"{Colors.BOLD}Character Name: {Colors.END}").strip()
     if not name:
-        print(f"{Colors.RED}❌ Character name is required!{Colors.END}")
+        print(f"{Colors.RED} Character name is required!{Colors.END}")
         input(f"Press Enter to continue...")
         return
     
@@ -1238,19 +1250,19 @@ def add_character():
     """, (name, gender, age, romantic_challenge, lovable_trait, comedic_flaw, notes))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN}✅ Character '{name}' added successfully!{Colors.END}")
+    print(f"\n{Colors.GREEN} Character '{name}' added successfully!{Colors.END}")
     input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def add_scene():
     """Add a scene to the story outline"""
-    print(f"\n{Colors.YELLOW}🎬 ADD SCENE OUTLINE{Colors.END}")
+    print(f"\n{Colors.YELLOW} ADD SCENE OUTLINE{Colors.END}")
     print_separator()
     
     try:
         act = int(input(f"{Colors.BOLD}Act Number: {Colors.END}").strip())
         scene = int(input(f"{Colors.BOLD}Scene Number: {Colors.END}").strip())
     except ValueError:
-        print(f"{Colors.RED}❌ Act and Scene must be numbers!{Colors.END}")
+        print(f"{Colors.RED} Act and Scene must be numbers!{Colors.END}")
         input(f"Press Enter to continue...")
         return
     
@@ -1258,7 +1270,7 @@ def add_scene():
     key_events = input(f"{Colors.BOLD}Key Events: {Colors.END}").strip()
     
     if not key_events:
-        print(f"{Colors.RED}❌ Key events are required!{Colors.END}")
+        print(f"{Colors.RED} Key events are required!{Colors.END}")
         input(f"Press Enter to continue...")
         return
     
@@ -1269,7 +1281,7 @@ def add_scene():
     """, (act, scene, key_characters, key_events))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN}✅ Scene {act}.{scene} added successfully!{Colors.END}")
+    print(f"\n{Colors.GREEN} Scene {act}.{scene} added successfully!{Colors.END}")
     input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def view_characters():
@@ -1282,11 +1294,11 @@ def view_characters():
     characters = cursor.fetchall()
     
     if not characters:
-        print(f"{Colors.CYAN}📝 No characters defined yet.{Colors.END}")
+        print(f"{Colors.CYAN} No characters defined yet.{Colors.END}")
     else:
         for char in characters:
             name, gender, age, challenge, trait, flaw, notes = char
-            print(f"\n{Colors.BOLD}🎭 {name}{Colors.END}")
+            print(f"\n{Colors.BOLD} {name}{Colors.END}")
             if gender: print(f"   Gender: {gender}")
             if age: print(f"   Age: {age}")
             if challenge: print(f"   Romantic Challenge: {challenge}")
@@ -1298,7 +1310,7 @@ def view_characters():
 
 def view_outline():
     """Display story outline"""
-    print(f"\n{Colors.YELLOW}📚 STORY OUTLINE{Colors.END}")
+    print(f"\n{Colors.YELLOW} STORY OUTLINE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1306,13 +1318,13 @@ def view_outline():
     scenes = cursor.fetchall()
     
     if not scenes:
-        print(f"{Colors.CYAN}📖 No story outline defined yet.{Colors.END}")
+        print(f"{Colors.CYAN} No story outline defined yet.{Colors.END}")
     else:
         current_act = None
         for scene_data in scenes:
             act, scene, characters, events = scene_data
             if act != current_act:
-                print(f"\n{Colors.BOLD}🎭 ACT {act}{Colors.END}")
+                print(f"\n{Colors.BOLD} ACT {act}{Colors.END}")
                 print_separator("─", 20)
                 current_act = act
             
@@ -1324,7 +1336,7 @@ def view_outline():
 
 def edit_character():
     """Edit an existing character"""
-    print(f"\n{Colors.YELLOW}✏️  EDIT CHARACTER{Colors.END}")
+    print(f"\n{Colors.YELLOW}  EDIT CHARACTER{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1365,15 +1377,15 @@ def edit_character():
             """, (new_name, new_gender, new_age, new_challenge, new_trait, new_flaw, new_notes, char_id))
             
             session.db_conn.commit()
-            print(f"\n{Colors.GREEN}✅ Character updated successfully!{Colors.END}")
+            print(f"\n{Colors.GREEN} Character updated successfully!{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
 def delete_character():
     """Delete a character"""
-    print(f"\n{Colors.YELLOW}🗑️  DELETE CHARACTER{Colors.END}")
+    print(f"\n{Colors.YELLOW}  DELETE CHARACTER{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1398,17 +1410,17 @@ def delete_character():
             if confirm == 'y':
                 cursor.execute("DELETE FROM characters WHERE id = ?", (char_id,))
                 session.db_conn.commit()
-                print(f"\n{Colors.GREEN}✅ Character deleted successfully!{Colors.END}")
+                print(f"\n{Colors.GREEN} Character deleted successfully!{Colors.END}")
             else:
                 print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
 def edit_scene():
     """Edit an existing scene"""
-    print(f"\n{Colors.YELLOW}✏️  EDIT SCENE{Colors.END}")
+    print(f"\n{Colors.YELLOW}  EDIT SCENE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1442,7 +1454,7 @@ def edit_scene():
                 new_scene = input(f"Scene [{scene_data[2]}]: ").strip()
                 new_scene = int(new_scene) if new_scene else scene_data[2]
             except ValueError:
-                print(f"{Colors.RED}❌ Act and Scene must be numbers!{Colors.END}")
+                print(f"{Colors.RED} Act and Scene must be numbers!{Colors.END}")
                 wait_for_key()
                 return
             
@@ -1454,15 +1466,15 @@ def edit_scene():
             """, (new_act, new_scene, new_characters, new_events, scene_id))
             
             session.db_conn.commit()
-            print(f"\n{Colors.GREEN}✅ Scene updated successfully!{Colors.END}")
+            print(f"\n{Colors.GREEN} Scene updated successfully!{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
 def delete_scene():
     """Delete a scene"""
-    print(f"\n{Colors.YELLOW}🗑️  DELETE SCENE{Colors.END}")
+    print(f"\n{Colors.YELLOW}  DELETE SCENE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1487,11 +1499,11 @@ def delete_scene():
             if confirm == 'y':
                 cursor.execute("DELETE FROM story_outline WHERE id = ?", (scene_id,))
                 session.db_conn.commit()
-                print(f"\n{Colors.GREEN}✅ Scene deleted successfully!{Colors.END}")
+                print(f"\n{Colors.GREEN} Scene deleted successfully!{Colors.END}")
             else:
                 print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
@@ -1501,16 +1513,16 @@ def notes_management():
         print_header()
         print_status()
         
-        print(f"\n{Colors.BOLD}📝 NOTES MANAGEMENT{Colors.END}")
+        print(f"\n{Colors.BOLD} NOTES MANAGEMENT{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} ➕ Add Note")
-        print(f"   {Colors.BOLD}2.{Colors.END} 📖 View Notes")
-        print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Edit Note")
-        print(f"   {Colors.BOLD}4.{Colors.END} 🗑️  Delete Note")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Add Note")
+        print(f"   {Colors.BOLD}2.{Colors.END}  View Notes")
+        print(f"   {Colors.BOLD}3.{Colors.END}   Edit Note")
+        print(f"   {Colors.BOLD}4.{Colors.END}   Delete Note")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
-        print(f"   {Colors.BOLD}0.{Colors.END} 🔙 Back")
+        print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
@@ -1533,12 +1545,12 @@ def notes_management():
 
 def add_note():
     """Add a new note"""
-    print(f"\n{Colors.YELLOW}📝 ADD NOTE{Colors.END}")
+    print(f"\n{Colors.YELLOW} ADD NOTE{Colors.END}")
     print_separator()
     
     title = input(f"{Colors.BOLD}Note Title: {Colors.END}").strip()
     if not title:
-        print(f"{Colors.RED}❌ Note title is required!{Colors.END}")
+        print(f"{Colors.RED} Note title is required!{Colors.END}")
         wait_for_key()
         return
     
@@ -1571,12 +1583,12 @@ def add_note():
     """, (title, content, category))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN}✅ Note '{title}' added successfully!{Colors.END}")
+    print(f"\n{Colors.GREEN} Note '{title}' added successfully!{Colors.END}")
     wait_for_key()
 
 def view_notes():
     """Display all notes"""
-    print(f"\n{Colors.YELLOW}📝 PROJECT NOTES{Colors.END}")
+    print(f"\n{Colors.YELLOW} PROJECT NOTES{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1588,7 +1600,7 @@ def view_notes():
     """)
     
     if not cursor.fetchone():
-        print(f"{Colors.CYAN}📝 No notes table yet. Add a note to create it.{Colors.END}")
+        print(f"{Colors.CYAN} No notes table yet. Add a note to create it.{Colors.END}")
         wait_for_key()
         return
     
@@ -1596,7 +1608,7 @@ def view_notes():
     notes = cursor.fetchall()
     
     if not notes:
-        print(f"{Colors.CYAN}📝 No notes yet.{Colors.END}")
+        print(f"{Colors.CYAN} No notes yet.{Colors.END}")
     else:
         for note in notes:
             title, content, category, created_at = note
@@ -1611,7 +1623,7 @@ def view_notes():
 
 def edit_note():
     """Edit an existing note"""
-    print(f"\n{Colors.YELLOW}✏️  EDIT NOTE{Colors.END}")
+    print(f"\n{Colors.YELLOW}  EDIT NOTE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1659,15 +1671,15 @@ def edit_note():
             """, (new_title, new_content, new_category, note_id))
             
             session.db_conn.commit()
-            print(f"\n{Colors.GREEN}✅ Note updated successfully!{Colors.END}")
+            print(f"\n{Colors.GREEN} Note updated successfully!{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
 def delete_note():
     """Delete a note"""
-    print(f"\n{Colors.YELLOW}🗑️  DELETE NOTE{Colors.END}")
+    print(f"\n{Colors.YELLOW}  DELETE NOTE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -1704,17 +1716,17 @@ def delete_note():
             if confirm == 'y':
                 cursor.execute("DELETE FROM notes WHERE id = ?", (note_id,))
                 session.db_conn.commit()
-                print(f"\n{Colors.GREEN}✅ Note deleted successfully!{Colors.END}")
+                print(f"\n{Colors.GREEN} Note deleted successfully!{Colors.END}")
             else:
                 print(f"\n{Colors.YELLOW}Deletion cancelled.{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
 def import_csv():
     """Import data from CSV file"""
-    print(f"\n{Colors.YELLOW}📁 IMPORT FROM CSV{Colors.END}")
+    print(f"\n{Colors.YELLOW} IMPORT FROM CSV{Colors.END}")
     print_separator()
     
     print(f"{Colors.YELLOW}This feature is coming soon!{Colors.END}")
@@ -1730,7 +1742,7 @@ def project_summary():
     """Show complete project summary"""
     print_header()
     print_status()
-    print(f"\n{Colors.BOLD}📊 PROJECT SUMMARY{Colors.END}")
+    print(f"\n{Colors.BOLD} PROJECT SUMMARY{Colors.END}")
     print_separator()
     
     view_characters()
@@ -1830,7 +1842,7 @@ def brainstorm_module():
 
 def execute_brainstorm(buckets, tables, versions, guidance):
     """Execute the brainstorming with selected inputs"""
-    print(f"\n{Colors.CYAN}🧠 Generating creative ideas...{Colors.END}")
+    print(f"\n{Colors.CYAN} Generating creative ideas...{Colors.END}")
     
     # Build context from selections
     context_parts = []
@@ -1905,7 +1917,7 @@ Visual Moments:
           ",".join(tables), ",".join(buckets), "", result))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN}✅ Brainstorm saved as session: {session_id}{Colors.END}")
+    print(f"\n{Colors.GREEN} Brainstorm saved as session: {session_id}{Colors.END}")
 
 def write_module():
     """Writing Module - Clean spec version"""
@@ -2008,7 +2020,7 @@ def write_module():
 
 def execute_write(buckets, tables, versions, guidance):
     """Execute the writing with selected inputs"""
-    print(f"\n{Colors.CYAN}✍️  Generating screenplay content...{Colors.END}")
+    print(f"\n{Colors.CYAN}  Generating screenplay content...{Colors.END}")
     
     # Build context from selections
     context_parts = []
@@ -2107,14 +2119,14 @@ FADE OUT."""
     """, (version_number, result, len(result.split()), datetime.now().isoformat()))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN}✅ Draft saved as version {version_number}{Colors.END}")
+    print(f"\n{Colors.GREEN} Draft saved as version {version_number}{Colors.END}")
     wait_for_key()
 
 def write_single_scene():
     """Write a single scene"""
     print_header()
     print_status()
-    print(f"\n{Colors.BOLD}✍️  WRITE SINGLE SCENE{Colors.END}")
+    print(f"\n{Colors.BOLD}  WRITE SINGLE SCENE{Colors.END}")
     print_separator()
     
     # Show available scenes from outline
@@ -2123,12 +2135,12 @@ def write_single_scene():
     outline = cursor.fetchall()
     
     if not outline:
-        print(f"{Colors.RED}❌ No story outline found!{Colors.END}")
-        print(f"{Colors.CYAN}💡 Add scenes in Character & Story Intake first{Colors.END}")
+        print(f"{Colors.RED} No story outline found!{Colors.END}")
+        print(f"{Colors.CYAN} Add scenes in Character & Story Intake first{Colors.END}")
         input("Press Enter to continue...")
         return
     
-    print(f"{Colors.BLUE}📋 Available Scenes from Outline:{Colors.END}")
+    print(f"{Colors.BLUE} Available Scenes from Outline:{Colors.END}")
     for scene_data in outline:
         act, scene, chars, events = scene_data
         print(f"   Act {act}, Scene {scene}: {events} ({Colors.YELLOW}Characters: {chars}{Colors.END})")
@@ -2138,7 +2150,7 @@ def write_single_scene():
         act = int(input(f"\n{Colors.BOLD}Select Act Number to write: {Colors.END}").strip())
         scene = int(input(f"{Colors.BOLD}Select Scene Number to write: {Colors.END}").strip())
     except ValueError:
-        print(f"{Colors.RED}❌ Please enter valid numbers{Colors.END}")
+        print(f"{Colors.RED} Please enter valid numbers{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2150,7 +2162,7 @@ def write_single_scene():
             break
     
     if not scene_data:
-        print(f"{Colors.RED}❌ Scene {act}.{scene} not found in story outline!{Colors.END}")
+        print(f"{Colors.RED} Scene {act}.{scene} not found in story outline!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2164,18 +2176,18 @@ def write_single_scene():
     brainstorm_data = cursor.fetchall()
     
     if not brainstorm_data:
-        print(f"{Colors.YELLOW}⚠️  No brainstorming data found for Act {act}, Scene {scene}{Colors.END}")
-        print(f"{Colors.CYAN}💡 Consider running Creative Brainstorming first{Colors.END}")
+        print(f"{Colors.YELLOW}  No brainstorming data found for Act {act}, Scene {scene}{Colors.END}")
+        print(f"{Colors.CYAN} Consider running Creative Brainstorming first{Colors.END}")
         
         continue_choice = input("Continue writing without brainstorming data? (y/n): ").strip().lower()
         if continue_choice != 'y':
             return
         brainstorm_data = []
     else:
-        print(f"{Colors.GREEN}✅ Found {len(brainstorm_data)} brainstorming session(s) for this scene{Colors.END}")
+        print(f"{Colors.GREEN} Found {len(brainstorm_data)} brainstorming session(s) for this scene{Colors.END}")
     
     # Generate the draft
-    print(f"\n{Colors.CYAN}🤖 Generating draft for Act {act}, Scene {scene}...{Colors.END}")
+    print(f"\n{Colors.CYAN} Generating draft for Act {act}, Scene {scene}...{Colors.END}")
     
     # Get project context
     cursor.execute("SELECT name, gender, age, romantic_challenge, lovable_trait, comedic_flaw, notes FROM characters")
@@ -2256,7 +2268,7 @@ Write the scene as a complete, production-ready screenplay segment. Focus on vis
         
         draft_text = response.choices[0].message.content
         
-        print(f"\n{Colors.GREEN}✨ GENERATED DRAFT - Act {act}, Scene {scene}{Colors.END}")
+        print(f"\n{Colors.GREEN} GENERATED DRAFT - Act {act}, Scene {scene}{Colors.END}")
         print_separator()
         print(draft_text)
         print_separator()
@@ -2277,13 +2289,13 @@ Write the scene as a complete, production-ready screenplay segment. Focus on vis
         error_msg = str(e)
         if 'api' in error_msg.lower() and ('key' in error_msg.lower() or 'auth' in error_msg.lower()):
             error_msg = "Authentication failed - please check your API key"
-        print(f"{Colors.RED}❌ OpenAI API error: {error_msg}{Colors.END}")
+        print(f"{Colors.RED} OpenAI API error: {error_msg}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def write_full_script():
     """Generate drafts for all scenes in the outline"""
-    print(f"\n{Colors.YELLOW}📖 WRITE FULL SCRIPT{Colors.END}")
+    print(f"\n{Colors.YELLOW} WRITE FULL SCRIPT{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -2291,13 +2303,13 @@ def write_full_script():
     outline = cursor.fetchall()
     
     if not outline:
-        print(f"{Colors.RED}❌ No story outline found!{Colors.END}")
-        print(f"{Colors.CYAN}💡 Add scenes in Character & Story Intake first{Colors.END}")
+        print(f"{Colors.RED} No story outline found!{Colors.END}")
+        print(f"{Colors.CYAN} Add scenes in Character & Story Intake first{Colors.END}")
         input("Press Enter to continue...")
         return
     
-    print(f"{Colors.CYAN}📖 Writing full script for {len(outline)} scenes...{Colors.END}")
-    print(f"{Colors.YELLOW}⚠️  This may take several minutes and use significant API credits{Colors.END}")
+    print(f"{Colors.CYAN} Writing full script for {len(outline)} scenes...{Colors.END}")
+    print(f"{Colors.YELLOW}  This may take several minutes and use significant API credits{Colors.END}")
     
     confirm = input(f"\n{Colors.BOLD}Continue? (y/n): {Colors.END}").strip().lower()
     if confirm != 'y':
@@ -2308,24 +2320,24 @@ def write_full_script():
     
     for scene_data in outline:
         act, scene, chars, events = scene_data
-        print(f"\n{Colors.CYAN}🎬 Writing Act {act}, Scene {scene}: {events}{Colors.END}")
+        print(f"\n{Colors.CYAN} Writing Act {act}, Scene {scene}: {events}{Colors.END}")
         
         # This would use the same logic as write_single_scene but automated
         # For brevity, showing simplified version
         successful_scenes += 1
-        print(f"{Colors.GREEN}✅ Act {act}, Scene {scene} completed{Colors.END}")
+        print(f"{Colors.GREEN} Act {act}, Scene {scene} completed{Colors.END}")
     
-    print(f"\n{Colors.GREEN}📊 SCRIPT GENERATION COMPLETE{Colors.END}")
+    print(f"\n{Colors.GREEN} SCRIPT GENERATION COMPLETE{Colors.END}")
     print_separator("─", 40)
-    print(f"{Colors.GREEN}✅ Successful: {successful_scenes} scenes{Colors.END}")
+    print(f"{Colors.GREEN} Successful: {successful_scenes} scenes{Colors.END}")
     if failed_scenes:
-        print(f"{Colors.RED}❌ Failed: {len(failed_scenes)} scenes{Colors.END}")
+        print(f"{Colors.RED} Failed: {len(failed_scenes)} scenes{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def view_existing_drafts():
     """Display existing drafts"""
-    print(f"\n{Colors.YELLOW}📚 EXISTING DRAFTS{Colors.END}")
+    print(f"\n{Colors.YELLOW} EXISTING DRAFTS{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -2337,12 +2349,12 @@ def view_existing_drafts():
     drafts = cursor.fetchall()
     
     if not drafts:
-        print(f"{Colors.CYAN}📝 No drafts written yet.{Colors.END}")
+        print(f"{Colors.CYAN} No drafts written yet.{Colors.END}")
     else:
         for draft in drafts:
             act, scene, preview, created = draft
             date_str = created.split(' ')[0] if ' ' in created else created
-            print(f"{Colors.BOLD}🎬 Act {act}, Scene {scene}{Colors.END} {Colors.CYAN}(Created: {date_str}){Colors.END}")
+            print(f"{Colors.BOLD} Act {act}, Scene {scene}{Colors.END} {Colors.CYAN}(Created: {date_str}){Colors.END}")
             print(f"   Preview: {preview}...")
             print()
     
@@ -2350,7 +2362,7 @@ def view_existing_drafts():
 
 def export_script_to_file():
     """Export the complete script to a text file"""
-    print(f"\n{Colors.YELLOW}📄 EXPORT SCRIPT TO FILE{Colors.END}")
+    print(f"\n{Colors.YELLOW} EXPORT SCRIPT TO FILE{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -2362,7 +2374,7 @@ def export_script_to_file():
     scenes = cursor.fetchall()
     
     if not scenes:
-        print(f"{Colors.RED}❌ No drafts found to export!{Colors.END}")
+        print(f"{Colors.RED} No drafts found to export!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2384,11 +2396,11 @@ def export_script_to_file():
                 f.write(text)
                 f.write("\n\n")
         
-        print(f"{Colors.GREEN}✅ Script exported to: {filename}{Colors.END}")
-        print(f"{Colors.CYAN}📄 {len(scenes)} scenes exported{Colors.END}")
+        print(f"{Colors.GREEN} Script exported to: {filename}{Colors.END}")
+        print(f"{Colors.CYAN} {len(scenes)} scenes exported{Colors.END}")
         
     except Exception as e:
-        print(f"{Colors.RED}❌ Export failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Export failed: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
@@ -2400,18 +2412,18 @@ def tables_manager():
     while True:
         print_header()
         print_status()
-        print(f"\n{Colors.BOLD}🗄️  SQL TABLES MANAGER{Colors.END}")
+        print(f"\n{Colors.BOLD}  SQL TABLES MANAGER{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} 📊 View All Tables")
-        print(f"   {Colors.BOLD}2.{Colors.END} 🔍 Browse Table Data")
-        print(f"   {Colors.BOLD}3.{Colors.END} ➕ Insert New Record")
-        print(f"   {Colors.BOLD}4.{Colors.END} ✏️  Edit Record")
-        print(f"   {Colors.BOLD}5.{Colors.END} 🗑️  Delete Record")
-        print(f"   {Colors.BOLD}6.{Colors.END} 📈 Table Statistics")
-        print(f"   {Colors.BOLD}7.{Colors.END} 🔧 Custom SQL Query")
-        print(f"   {Colors.BOLD}8.{Colors.END} 📤 Export Table Data")
-        print(f"   {Colors.BOLD}9.{Colors.END} 🧹 Clean/Optimize Tables")
+        print(f"   {Colors.BOLD}1.{Colors.END}  View All Tables")
+        print(f"   {Colors.BOLD}2.{Colors.END}  Browse Table Data")
+        print(f"   {Colors.BOLD}3.{Colors.END}  Insert New Record")
+        print(f"   {Colors.BOLD}4.{Colors.END}   Edit Record")
+        print(f"   {Colors.BOLD}5.{Colors.END}   Delete Record")
+        print(f"   {Colors.BOLD}6.{Colors.END}  Table Statistics")
+        print(f"   {Colors.BOLD}7.{Colors.END}  Custom SQL Query")
+        print(f"   {Colors.BOLD}8.{Colors.END}  Export Table Data")
+        print(f"   {Colors.BOLD}9.{Colors.END}  Clean/Optimize Tables")
         print(f"   {Colors.BOLD}10.{Colors.END} 🏠 Back to Main Menu")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
@@ -2439,7 +2451,7 @@ def tables_manager():
 
 def view_all_tables():
     """View all tables in the database"""
-    print(f"\n{Colors.YELLOW}📊 DATABASE TABLES{Colors.END}")
+    print(f"\n{Colors.YELLOW} DATABASE TABLES{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -2452,7 +2464,7 @@ def view_all_tables():
     for i, (table_name,) in enumerate(tables, 1):
         # Validate table name before using it
         if not validate_table_name(table_name):
-            print(f"{Colors.RED}❌ Invalid table name: {table_name}{Colors.END}")
+            print(f"{Colors.RED} Invalid table name: {table_name}{Colors.END}")
             continue
             
         # Get record count
@@ -2472,7 +2484,7 @@ def view_all_tables():
 
 def browse_table_data():
     """Browse data from a selected table"""
-    print(f"\n{Colors.YELLOW}🔍 BROWSE TABLE DATA{Colors.END}")
+    print(f"\n{Colors.YELLOW} BROWSE TABLE DATA{Colors.END}")
     print_separator()
     
     # Select table
@@ -2490,12 +2502,12 @@ def browse_table_data():
         
         # Validate table name
         if not validate_table_name(table_name):
-            print(f"{Colors.RED}❌ Invalid table name{Colors.END}")
+            print(f"{Colors.RED} Invalid table name{Colors.END}")
             input("Press Enter to continue...")
             return
             
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2507,7 +2519,7 @@ def browse_table_data():
     cursor.execute("PRAGMA table_info(" + table_name + ")")
     columns = [col[1] for col in cursor.fetchall()]
     
-    print(f"\n{Colors.GREEN}📋 Table: {table_name} ({len(rows)} records){Colors.END}")
+    print(f"\n{Colors.GREEN} Table: {table_name} ({len(rows)} records){Colors.END}")
     print_separator()
     
     if not rows:
@@ -2533,7 +2545,7 @@ def browse_table_data():
 
 def insert_new_record():
     """Insert a new record into a table"""
-    print(f"\n{Colors.YELLOW}➕ INSERT NEW RECORD{Colors.END}")
+    print(f"\n{Colors.YELLOW} INSERT NEW RECORD{Colors.END}")
     print_separator()
     
     # Select table
@@ -2551,12 +2563,12 @@ def insert_new_record():
         
         # Validate table name
         if not validate_table_name(table_name):
-            print(f"{Colors.RED}❌ Invalid table name{Colors.END}")
+            print(f"{Colors.RED} Invalid table name{Colors.END}")
             input("Press Enter to continue...")
             return
             
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2574,7 +2586,7 @@ def insert_new_record():
         if not (is_pk and 'INTEGER' in col_type.upper()) and 'created_at' not in col_name.lower():
             insertable_columns.append((col_name, col_type))
     
-    print(f"\n{Colors.GREEN}📝 Enter data for table: {table_name}{Colors.END}")
+    print(f"\n{Colors.GREEN} Enter data for table: {table_name}{Colors.END}")
     print_separator("─", 40)
     
     values = []
@@ -2600,7 +2612,7 @@ def insert_new_record():
     safe_column_names = []
     for col_name in column_names:
         if not re.match(r'^[a-zA-Z0-9_]+$', col_name):
-            print(f"{Colors.RED}❌ Invalid column name: {col_name}{Colors.END}")
+            print(f"{Colors.RED} Invalid column name: {col_name}{Colors.END}")
             input("Press Enter to continue...")
             return
         safe_column_names.append(col_name)
@@ -2613,29 +2625,29 @@ def insert_new_record():
         sql = f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
         cursor.execute(sql, values)
         session.db_conn.commit()
-        print(f"\n{Colors.GREEN}✅ Record inserted successfully!{Colors.END}")
+        print(f"\n{Colors.GREEN} Record inserted successfully!{Colors.END}")
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Insert failed: {e}{Colors.END}")
+        print(f"\n{Colors.RED} Insert failed: {e}{Colors.END}")
     
     input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def edit_record():
     """Edit an existing record"""
-    print(f"\n{Colors.YELLOW}✏️  EDIT RECORD{Colors.END}")
+    print(f"\n{Colors.YELLOW}  EDIT RECORD{Colors.END}")
     print_separator()
     print(f"{Colors.CYAN}Feature coming soon - Advanced record editing with search and update capabilities{Colors.END}")
     input("Press Enter to continue...")
 
 def delete_record():
     """Delete a record from a table"""
-    print(f"\n{Colors.YELLOW}🗑️  DELETE RECORD{Colors.END}")
+    print(f"\n{Colors.YELLOW}  DELETE RECORD{Colors.END}")
     print_separator()
     print(f"{Colors.CYAN}Feature coming soon - Safe record deletion with confirmation{Colors.END}")
     input("Press Enter to continue...")
 
 def table_statistics():
     """Show detailed table statistics"""
-    print(f"\n{Colors.YELLOW}📈 TABLE STATISTICS{Colors.END}")
+    print(f"\n{Colors.YELLOW} TABLE STATISTICS{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -2648,7 +2660,7 @@ def table_statistics():
     for table_name in tables:
         # Validate table name
         if not validate_table_name(table_name):
-            print(f"{Colors.RED}❌ Skipping invalid table name: {table_name}{Colors.END}")
+            print(f"{Colors.RED} Skipping invalid table name: {table_name}{Colors.END}")
             continue
             
         cursor.execute("SELECT COUNT(*) FROM " + table_name)
@@ -2666,13 +2678,13 @@ def table_statistics():
         except:
             last_activity = "N/A"
         
-        print(f"{Colors.BOLD}📊 {table_name}{Colors.END}")
+        print(f"{Colors.BOLD} {table_name}{Colors.END}")
         print(f"   Records: {Colors.GREEN}{count:,}{Colors.END}")
         print(f"   Columns: {Colors.CYAN}{columns}{Colors.END}")
         print(f"   Last Activity: {Colors.YELLOW}{last_activity}{Colors.END}")
         print()
     
-    print(f"{Colors.BOLD}📈 Summary:{Colors.END}")
+    print(f"{Colors.BOLD} Summary:{Colors.END}")
     print(f"   Total Tables: {Colors.GREEN}{len(tables)}{Colors.END}")
     print(f"   Total Records: {Colors.GREEN}{total_records:,}{Colors.END}")
     
@@ -2688,7 +2700,7 @@ def table_statistics():
 
 def custom_sql_query():
     """DISABLED - Execute custom SQL queries (SECURITY RISK)"""
-    print(f"\n{Colors.YELLOW}🔧 CUSTOM SQL QUERY{Colors.END}")
+    print(f"\n{Colors.YELLOW} CUSTOM SQL QUERY{Colors.END}")
     print_separator()
     
     print(f"{Colors.RED}🚫 FEATURE DISABLED FOR SECURITY{Colors.END}")
@@ -2707,10 +2719,10 @@ def custom_sql_query_old_unsafe():
     """OLD UNSAFE VERSION - DO NOT USE - Execute custom SQL queries"""
     # This function is preserved but not called to show the security risk
     # NEVER re-enable this without proper SQL query validation
-    print(f"\n{Colors.YELLOW}🔧 CUSTOM SQL QUERY{Colors.END}")
+    print(f"\n{Colors.YELLOW} CUSTOM SQL QUERY{Colors.END}")
     print_separator()
     
-    print(f"{Colors.RED}⚠️  Advanced Feature - Use with caution!{Colors.END}")
+    print(f"{Colors.RED}  Advanced Feature - Use with caution!{Colors.END}")
     print(f"{Colors.CYAN}Available tables: {Colors.END}", end="")
     
     cursor = session.db_conn.cursor()
@@ -2739,7 +2751,7 @@ def custom_sql_query_old_unsafe():
                 # Get column names from description
                 col_names = [description[0] for description in cursor.description]
                 
-                print(f"\n{Colors.GREEN}📋 Query Results ({len(results)} rows):{Colors.END}")
+                print(f"\n{Colors.GREEN} Query Results ({len(results)} rows):{Colors.END}")
                 print_separator("─", 60)
                 
                 # Headers
@@ -2758,16 +2770,16 @@ def custom_sql_query_old_unsafe():
                 print(f"\n{Colors.CYAN}Query executed successfully - No results returned{Colors.END}")
         else:
             session.db_conn.commit()
-            print(f"\n{Colors.GREEN}✅ Query executed successfully!{Colors.END}")
+            print(f"\n{Colors.GREEN} Query executed successfully!{Colors.END}")
             
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Query failed: {e}{Colors.END}")
+        print(f"\n{Colors.RED} Query failed: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def export_table_data():
     """Export table data to various formats"""
-    print(f"\n{Colors.YELLOW}📤 EXPORT TABLE DATA{Colors.END}")
+    print(f"\n{Colors.YELLOW} EXPORT TABLE DATA{Colors.END}")
     print_separator()
     
     # Select table
@@ -2787,7 +2799,7 @@ def export_table_data():
         else:
             export_tables = tables
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -2809,7 +2821,7 @@ def export_table_data():
     for table_name in export_tables:
         # Validate table name before using it
         if not validate_table_name(table_name):
-            print(f"{Colors.RED}❌ Skipping invalid table name: {table_name}{Colors.END}")
+            print(f"{Colors.RED} Skipping invalid table name: {table_name}{Colors.END}")
             continue
             
         filename = f"{session.current_project}_{table_name}_{timestamp}.{export_format}"
@@ -2850,23 +2862,23 @@ def export_table_data():
                         values = ', '.join([f"'{str(v)}'" if v is not None else 'NULL' for v in row])
                         f.write(f"INSERT INTO {table_name} VALUES ({values});\n")
             
-            print(f"{Colors.GREEN}✅ Exported {table_name} to {filename}{Colors.END}")
+            print(f"{Colors.GREEN} Exported {table_name} to {filename}{Colors.END}")
             
         except Exception as e:
-            print(f"{Colors.RED}❌ Export failed for {table_name}: {e}{Colors.END}")
+            print(f"{Colors.RED} Export failed for {table_name}: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def clean_optimize_tables():
     """Clean and optimize database tables"""
-    print(f"\n{Colors.YELLOW}🧹 CLEAN & OPTIMIZE TABLES{Colors.END}")
+    print(f"\n{Colors.YELLOW} CLEAN & OPTIMIZE TABLES{Colors.END}")
     print_separator()
     
     print(f"{Colors.BLUE}Database Maintenance Options:{Colors.END}")
-    print(f"   {Colors.BOLD}1.{Colors.END} 🧹 VACUUM (Reclaim unused space)")
-    print(f"   {Colors.BOLD}2.{Colors.END} 📊 ANALYZE (Update query planner statistics)")
-    print(f"   {Colors.BOLD}3.{Colors.END} 🔍 INTEGRITY CHECK")
-    print(f"   {Colors.BOLD}4.{Colors.END} 🚀 Full Optimization (All above)")
+    print(f"   {Colors.BOLD}1.{Colors.END}  VACUUM (Reclaim unused space)")
+    print(f"   {Colors.BOLD}2.{Colors.END}  ANALYZE (Update query planner statistics)")
+    print(f"   {Colors.BOLD}3.{Colors.END}  INTEGRITY CHECK")
+    print(f"   {Colors.BOLD}4.{Colors.END}  Full Optimization (All above)")
     
     choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
     
@@ -2874,36 +2886,36 @@ def clean_optimize_tables():
     
     try:
         if choice in ["1", "4"]:
-            print(f"{Colors.CYAN}🧹 Running VACUUM...{Colors.END}")
+            print(f"{Colors.CYAN} Running VACUUM...{Colors.END}")
             cursor.execute("VACUUM")
-            print(f"{Colors.GREEN}✅ VACUUM completed{Colors.END}")
+            print(f"{Colors.GREEN} VACUUM completed{Colors.END}")
         
         if choice in ["2", "4"]:
-            print(f"{Colors.CYAN}📊 Running ANALYZE...{Colors.END}")
+            print(f"{Colors.CYAN} Running ANALYZE...{Colors.END}")
             cursor.execute("ANALYZE")
-            print(f"{Colors.GREEN}✅ ANALYZE completed{Colors.END}")
+            print(f"{Colors.GREEN} ANALYZE completed{Colors.END}")
         
         if choice in ["3", "4"]:
-            print(f"{Colors.CYAN}🔍 Running INTEGRITY CHECK...{Colors.END}")
+            print(f"{Colors.CYAN} Running INTEGRITY CHECK...{Colors.END}")
             cursor.execute("PRAGMA integrity_check")
             result = cursor.fetchone()[0]
             if result == "ok":
-                print(f"{Colors.GREEN}✅ Database integrity: OK{Colors.END}")
+                print(f"{Colors.GREEN} Database integrity: OK{Colors.END}")
             else:
-                print(f"{Colors.RED}⚠️  Database integrity issues: {result}{Colors.END}")
+                print(f"{Colors.RED}  Database integrity issues: {result}{Colors.END}")
         
         session.db_conn.commit()
-        print(f"\n{Colors.GREEN}🎉 Database optimization completed!{Colors.END}")
+        print(f"\n{Colors.GREEN} Database optimization completed!{Colors.END}")
         
     except Exception as e:
-        print(f"{Colors.RED}❌ Optimization failed: {e}{Colors.END}")
+        print(f"{Colors.RED} Optimization failed: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def buckets_manager():
     """Update Buckets - Clean workflow for LightRAG management"""
     if not session.api_key_set:
-        print(f"\n{Colors.RED}❌ OpenAI API key required for bucket operations{Colors.END}")
+        print(f"\n{Colors.RED} OpenAI API key required for bucket operations{Colors.END}")
         wait_for_key()
         return
     
@@ -2971,7 +2983,7 @@ def edit_bucket_menu():
             selected_bucket = buckets[bucket_idx]
             manage_bucket_contents(selected_bucket)
     except ValueError:
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         wait_for_key()
 
 def new_bucket_menu():
@@ -3055,7 +3067,7 @@ def add_content_to_specific_bucket(bucket_name):
             break
         
         if not os.path.exists(file_path):
-            print(f"{Colors.RED}❌ File not found: {file_path}{Colors.END}")
+            print(f"{Colors.RED} File not found: {file_path}{Colors.END}")
             continue
         
         # Copy file to bucket with path validation
@@ -3063,7 +3075,7 @@ def add_content_to_specific_bucket(bucket_name):
         
         # Validate filename to prevent path traversal
         if not validate_filename(filename):
-            print(f"{Colors.RED}❌ Invalid filename: {filename}{Colors.END}")
+            print(f"{Colors.RED} Invalid filename: {filename}{Colors.END}")
             continue
         
         dest_path = os.path.join(bucket_path, filename)
@@ -3072,14 +3084,14 @@ def add_content_to_specific_bucket(bucket_name):
         dest_path = os.path.abspath(dest_path)
         bucket_path_abs = os.path.abspath(bucket_path)
         if not dest_path.startswith(bucket_path_abs):
-            print(f"{Colors.RED}❌ Invalid destination path{Colors.END}")
+            print(f"{Colors.RED} Invalid destination path{Colors.END}")
             continue
         
         try:
             shutil.copy2(file_path, dest_path)
-            print(f"{Colors.GREEN}✅ Added: {filename}{Colors.END}")
+            print(f"{Colors.GREEN} Added: {filename}{Colors.END}")
         except Exception as e:
-            print(f"{Colors.RED}❌ Error: {e}{Colors.END}")
+            print(f"{Colors.RED} Error: {e}{Colors.END}")
 
 def delete_bucket_content_specific(bucket_name):
     """Delete files from a specific bucket"""
@@ -3108,7 +3120,7 @@ def delete_bucket_content_specific(bucket_name):
             
             # Validate filename to prevent path traversal
             if not validate_filename(filename):
-                print(f"{Colors.RED}❌ Invalid filename: {filename}{Colors.END}")
+                print(f"{Colors.RED} Invalid filename: {filename}{Colors.END}")
                 wait_for_key()
                 return
             
@@ -3121,16 +3133,16 @@ def delete_bucket_content_specific(bucket_name):
                 file_path_abs = os.path.abspath(file_path)
                 bucket_path_abs = os.path.abspath(bucket_path)
                 if not file_path_abs.startswith(bucket_path_abs):
-                    print(f"{Colors.RED}❌ Invalid file path{Colors.END}")
+                    print(f"{Colors.RED} Invalid file path{Colors.END}")
                     wait_for_key()
                     return
                 
                 os.remove(file_path)
-                print(f"{Colors.GREEN}✅ Deleted: {filename}{Colors.END}")
+                print(f"{Colors.GREEN} Deleted: {filename}{Colors.END}")
             else:
                 print(f"{Colors.YELLOW}Deletion cancelled.{Colors.END}")
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
     
     wait_for_key()
 
@@ -3149,7 +3161,7 @@ def ingest_specific_bucket(bucket_name):
         print(f"   Processing... {20 * (i+1)}%")
         time.sleep(0.5)
     
-    print(f"\n{Colors.GREEN}✅ Bucket processing complete!{Colors.END}")
+    print(f"\n{Colors.GREEN} Bucket processing complete!{Colors.END}")
     wait_for_key()
 
 def browse_specific_bucket(bucket_name):
@@ -3189,7 +3201,7 @@ def ensure_lightrag_setup():
     working_dir = "./lightrag_working_dir"
     if not os.path.exists(working_dir):
         os.makedirs(working_dir)
-        print(f"{Colors.GREEN}✅ Created LightRAG working directory{Colors.END}")
+        print(f"{Colors.GREEN} Created LightRAG working directory{Colors.END}")
         
         # Create default buckets for new users
         default_buckets = ["books", "plays", "scripts"]
@@ -3219,26 +3231,26 @@ Created by LIZZY Framework
             with open(os.path.join(bucket_path, "README.md"), 'w') as f:
                 f.write(readme_content)
         
-        print(f"{Colors.CYAN}📦 Created default buckets: {', '.join(default_buckets)}{Colors.END}")
+        print(f"{Colors.CYAN} Created default buckets: {', '.join(default_buckets)}{Colors.END}")
         return True
     return False
 
 def view_all_buckets():
     """View all LightRAG buckets"""
-    print(f"\n{Colors.YELLOW}📊 LIGHTRAG BUCKETS{Colors.END}")
+    print(f"\n{Colors.YELLOW} LIGHTRAG BUCKETS{Colors.END}")
     print_separator()
     
     working_dir = "./lightrag_working_dir"
     buckets = get_bucket_list()
     
     if not buckets:
-        print(f"{Colors.YELLOW}📦 No buckets found yet!{Colors.END}")
-        print(f"\n{Colors.CYAN}🚀 Getting Started:{Colors.END}")
+        print(f"{Colors.YELLOW} No buckets found yet!{Colors.END}")
+        print(f"\n{Colors.CYAN} Getting Started:{Colors.END}")
         print(f"   1. Use '{Colors.BOLD}Create New Bucket{Colors.END}' to make content categories")
         print(f"   2. Use '{Colors.BOLD}Add Content to Bucket{Colors.END}' to add files")
         print(f"   3. Use '{Colors.BOLD}GUI File Manager{Colors.END}' for drag & drop")
         print(f"   4. Use '{Colors.BOLD}Ingest/Reindex Bucket{Colors.END}' to process content")
-        print(f"\n{Colors.GREEN}💡 Tip: Default buckets (books, plays, scripts) are created automatically!{Colors.END}")
+        print(f"\n{Colors.GREEN} Tip: Default buckets (books, plays, scripts) are created automatically!{Colors.END}")
         input("\nPress Enter to continue...")
         return
     
@@ -3259,7 +3271,7 @@ def view_all_buckets():
         # Check if indexed (has LightRAG metadata files)
         has_index = any(f.endswith('.json') for f in os.listdir(bucket_path) if os.path.isfile(os.path.join(bucket_path, f)))
         
-        print(f"{Colors.BOLD}{i:2d}. 📦 {bucket_name.upper()}{Colors.END}")
+        print(f"{Colors.BOLD}{i:2d}.  {bucket_name.upper()}{Colors.END}")
         print(f"    Content Files: {Colors.GREEN}{len(content_files)}{Colors.END}")
         print(f"    Status: {Colors.GREEN if has_index else Colors.YELLOW}{'Indexed' if has_index else 'Not Indexed'}{Colors.END}")
         print(f"    Path: {Colors.CYAN}{bucket_path}{Colors.END}")
@@ -3269,12 +3281,12 @@ def view_all_buckets():
 
 def browse_bucket_contents():
     """Browse contents of a specific bucket"""
-    print(f"\n{Colors.YELLOW}📚 BROWSE BUCKET CONTENTS{Colors.END}")
+    print(f"\n{Colors.YELLOW} BROWSE BUCKET CONTENTS{Colors.END}")
     print_separator()
     
     buckets = get_bucket_list()
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3286,18 +3298,18 @@ def browse_bucket_contents():
         bucket_idx = int(input(f"\n{Colors.BOLD}Select bucket number: {Colors.END}").strip()) - 1
         bucket_name = buckets[bucket_idx]
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
     working_dir = "./lightrag_working_dir"
     bucket_path = os.path.join(working_dir, bucket_name)
     
-    print(f"\n{Colors.GREEN}📋 Bucket: {bucket_name}{Colors.END}")
+    print(f"\n{Colors.GREEN} Bucket: {bucket_name}{Colors.END}")
     print_separator()
     
     if not os.path.exists(bucket_path):
-        print(f"{Colors.RED}❌ Bucket path not found: {bucket_path}{Colors.END}")
+        print(f"{Colors.RED} Bucket path not found: {bucket_path}{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3315,29 +3327,29 @@ def browse_bucket_contents():
             elif file.endswith(('.json', '.graphml')):
                 metadata_files.append(file)
     
-    print(f"{Colors.BOLD}📄 Content Files ({len(content_files)}):{Colors.END}")
+    print(f"{Colors.BOLD} Content Files ({len(content_files)}):{Colors.END}")
     if content_files:
         for file in sorted(content_files):
             file_path = os.path.join(bucket_path, file)
             size = os.path.getsize(file_path)
             size_str = f"{size:,} bytes" if size < 1024 else f"{size/1024:.1f} KB"
-            print(f"   📄 {file} ({size_str})")
+            print(f"    {file} ({size_str})")
     else:
         print(f"   {Colors.CYAN}No content files found{Colors.END}")
     
-    print(f"\n{Colors.BOLD}🗂️  Metadata Files ({len(metadata_files)}):{Colors.END}")
+    print(f"\n{Colors.BOLD}  Metadata Files ({len(metadata_files)}):{Colors.END}")
     if metadata_files:
         for file in sorted(metadata_files):
             if 'chunks' in file:
-                print(f"   📊 {file} (Text chunks)")
+                print(f"    {file} (Text chunks)")
             elif 'entities' in file:
-                print(f"   🏷️  {file} (Entities)")
+                print(f"     {file} (Entities)")
             elif 'relationships' in file:
                 print(f"   🔗 {file} (Relationships)")
             elif 'graph' in file:
-                print(f"   📈 {file} (Knowledge graph)")
+                print(f"    {file} (Knowledge graph)")
             else:
-                print(f"   📁 {file}")
+                print(f"    {file}")
     else:
         print(f"   {Colors.YELLOW}No metadata files - bucket not indexed{Colors.END}")
     
@@ -3345,13 +3357,13 @@ def browse_bucket_contents():
 
 def add_content_to_bucket():
     """Add new content to a bucket"""
-    print(f"\n{Colors.YELLOW}➕ ADD CONTENT TO BUCKET{Colors.END}")
+    print(f"\n{Colors.YELLOW} ADD CONTENT TO BUCKET{Colors.END}")
     print_separator()
     
     buckets = get_bucket_list()
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
-        print(f"{Colors.CYAN}💡 Create a bucket first{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
+        print(f"{Colors.CYAN} Create a bucket first{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3363,19 +3375,19 @@ def add_content_to_bucket():
         bucket_idx = int(input(f"\n{Colors.BOLD}Select bucket number: {Colors.END}").strip()) - 1
         bucket_name = buckets[bucket_idx]
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
     working_dir = "./lightrag_working_dir"
     bucket_path = os.path.join(working_dir, bucket_name)
     
-    print(f"\n{Colors.GREEN}📝 Add Content to: {bucket_name}{Colors.END}")
+    print(f"\n{Colors.GREEN} Add Content to: {bucket_name}{Colors.END}")
     print_separator("─", 40)
     
     print(f"{Colors.BLUE}Content Input Methods:{Colors.END}")
-    print(f"   {Colors.BOLD}1.{Colors.END} ✏️  Type/Paste Text Content")
-    print(f"   {Colors.BOLD}2.{Colors.END} 📁 Copy File from Path")
+    print(f"   {Colors.BOLD}1.{Colors.END}   Type/Paste Text Content")
+    print(f"   {Colors.BOLD}2.{Colors.END}  Copy File from Path")
     print(f"   {Colors.BOLD}3.{Colors.END} 🌐 Download from URL")
     
     method = input(f"\n{Colors.BOLD}Select method: {Colors.END}").strip()
@@ -3401,9 +3413,9 @@ def add_content_to_bucket():
             file_path = os.path.join(bucket_path, filename)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            print(f"\n{Colors.GREEN}✅ Content saved to {filename}{Colors.END}")
+            print(f"\n{Colors.GREEN} Content saved to {filename}{Colors.END}")
         else:
-            print(f"\n{Colors.RED}❌ No content provided{Colors.END}")
+            print(f"\n{Colors.RED} No content provided{Colors.END}")
     
     elif method == "2":
         # File copy
@@ -3414,29 +3426,29 @@ def add_content_to_bucket():
             
             try:
                 shutil.copy2(source_path, dest_path)
-                print(f"\n{Colors.GREEN}✅ File copied to bucket: {filename}{Colors.END}")
+                print(f"\n{Colors.GREEN} File copied to bucket: {filename}{Colors.END}")
             except Exception as e:
-                print(f"\n{Colors.RED}❌ Copy failed: {e}{Colors.END}")
+                print(f"\n{Colors.RED} Copy failed: {e}{Colors.END}")
         else:
-            print(f"\n{Colors.RED}❌ Source file not found: {source_path}{Colors.END}")
+            print(f"\n{Colors.RED} Source file not found: {source_path}{Colors.END}")
     
     elif method == "3":
         # URL download (placeholder)
         print(f"\n{Colors.CYAN}URL download feature coming soon...{Colors.END}")
     
     else:
-        print(f"\n{Colors.RED}❌ Invalid method selection{Colors.END}")
+        print(f"\n{Colors.RED} Invalid method selection{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def ingest_bucket():
     """Ingest/reindex a bucket with LightRAG"""
-    print(f"\n{Colors.YELLOW}🔄 INGEST/REINDEX BUCKET{Colors.END}")
+    print(f"\n{Colors.YELLOW} INGEST/REINDEX BUCKET{Colors.END}")
     print_separator()
     
     buckets = get_bucket_list()
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3448,7 +3460,7 @@ def ingest_bucket():
         bucket_idx = int(input(f"\n{Colors.BOLD}Select bucket number: {Colors.END}").strip()) - 1
         bucket_name = buckets[bucket_idx]
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3462,27 +3474,27 @@ def ingest_bucket():
             content_files.append(os.path.join(bucket_path, file))
     
     if not content_files:
-        print(f"\n{Colors.RED}❌ No content files found in bucket{Colors.END}")
-        print(f"{Colors.CYAN}💡 Add .txt or .md files first{Colors.END}")
+        print(f"\n{Colors.RED} No content files found in bucket{Colors.END}")
+        print(f"{Colors.CYAN} Add .txt or .md files first{Colors.END}")
         input("Press Enter to continue...")
         return
     
-    print(f"\n{Colors.CYAN}🔍 Found {len(content_files)} content files to ingest{Colors.END}")
-    print(f"{Colors.YELLOW}⚠️  This will reprocess all content and may take time{Colors.END}")
+    print(f"\n{Colors.CYAN} Found {len(content_files)} content files to ingest{Colors.END}")
+    print(f"{Colors.YELLOW}  This will reprocess all content and may take time{Colors.END}")
     
     confirm = input(f"\n{Colors.BOLD}Continue with ingestion? (y/n): {Colors.END}").strip().lower()
     if confirm != 'y':
         return
     
     if not HAS_LIGHTRAG or HAS_LIGHTRAG == "partial":
-        print(f"\n{Colors.RED}❌ LightRAG installation issue!{Colors.END}")
-        print(f"{Colors.CYAN}🔧 Fix with:{Colors.END}")
+        print(f"\n{Colors.RED} LightRAG installation issue!{Colors.END}")
+        print(f"{Colors.CYAN} Fix with:{Colors.END}")
         print(f"   pip uninstall lightrag -y && pip install lightrag-hku")
         input("Press Enter to continue...")
         return
     
     async def do_ingestion():
-        print(f"\n{Colors.CYAN}🤖 Initializing LightRAG for {bucket_name}...{Colors.END}")
+        print(f"\n{Colors.CYAN} Initializing LightRAG for {bucket_name}...{Colors.END}")
         rag = await initialize_lightrag(bucket_path)
         
         if not rag:
@@ -3492,7 +3504,7 @@ def ingest_bucket():
             successful = 0
             failed = 0
             
-            print(f"{Colors.CYAN}📖 Processing {len(content_files)} files...{Colors.END}")
+            print(f"{Colors.CYAN} Processing {len(content_files)} files...{Colors.END}")
             
             for file_path in content_files:
                 filename = os.path.basename(file_path)
@@ -3505,19 +3517,19 @@ def ingest_bucket():
                     success = await ingest_content_async(rag, content)
                     if success:
                         successful += 1
-                        print(f"{Colors.GREEN}   ✅ {filename}{Colors.END}")
+                        print(f"{Colors.GREEN}    {filename}{Colors.END}")
                     else:
                         failed += 1
-                        print(f"{Colors.RED}   ❌ {filename}{Colors.END}")
+                        print(f"{Colors.RED}    {filename}{Colors.END}")
                         
                 except Exception as e:
                     failed += 1
-                    print(f"{Colors.RED}   ❌ {filename}: {e}{Colors.END}")
+                    print(f"{Colors.RED}    {filename}: {e}{Colors.END}")
             
-            print(f"\n{Colors.GREEN}🎉 Ingestion completed!{Colors.END}")
-            print(f"   ✅ Successful: {Colors.GREEN}{successful}{Colors.END}")
+            print(f"\n{Colors.GREEN} Ingestion completed!{Colors.END}")
+            print(f"    Successful: {Colors.GREEN}{successful}{Colors.END}")
             if failed:
-                print(f"   ❌ Failed: {Colors.RED}{failed}{Colors.END}")
+                print(f"    Failed: {Colors.RED}{failed}{Colors.END}")
                 
         finally:
             await finalize_lightrag(rag)
@@ -3525,25 +3537,25 @@ def ingest_bucket():
     try:
         run_async_lightrag_operation(do_ingestion())
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Ingestion failed: {e}{Colors.END}")
+        print(f"\n{Colors.RED} Ingestion failed: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def query_bucket():
     """Query a bucket using LightRAG"""
-    print(f"\n{Colors.YELLOW}🔍 QUERY BUCKET{Colors.END}")
+    print(f"\n{Colors.YELLOW} QUERY BUCKET{Colors.END}")
     print_separator()
     
     if not HAS_LIGHTRAG or HAS_LIGHTRAG == "partial":
-        print(f"\n{Colors.RED}❌ LightRAG installation issue!{Colors.END}")
-        print(f"{Colors.CYAN}🔧 Fix with:{Colors.END}")
+        print(f"\n{Colors.RED} LightRAG installation issue!{Colors.END}")
+        print(f"{Colors.CYAN} Fix with:{Colors.END}")
         print(f"   pip uninstall lightrag -y && pip install lightrag-hku")
         input("Press Enter to continue...")
         return
     
     buckets = get_bucket_list()
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3555,7 +3567,7 @@ def query_bucket():
         bucket_idx = int(input(f"\n{Colors.BOLD}Select bucket number: {Colors.END}").strip()) - 1
         bucket_name = buckets[bucket_idx]
     except (ValueError, IndexError):
-        print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+        print(f"{Colors.RED} Invalid selection{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3566,8 +3578,8 @@ def query_bucket():
     has_index = any(f.endswith('.json') for f in os.listdir(bucket_path) if os.path.isfile(os.path.join(bucket_path, f)))
     
     if not has_index:
-        print(f"\n{Colors.RED}❌ Bucket not indexed!{Colors.END}")
-        print(f"{Colors.CYAN}💡 Run 'Ingest/Reindex Bucket' first{Colors.END}")
+        print(f"\n{Colors.RED} Bucket not indexed!{Colors.END}")
+        print(f"{Colors.CYAN} Run 'Ingest/Reindex Bucket' first{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3579,15 +3591,15 @@ def query_bucket():
         from lightrag import LightRAG, QueryParam
         from lightrag.llm import gpt_4o_mini_complete
         
-        print(f"\n{Colors.CYAN}🔍 Querying {bucket_name} bucket...{Colors.END}")
+        print(f"\n{Colors.CYAN} Querying {bucket_name} bucket...{Colors.END}")
         
         # Try different query modes
         print(f"\n{Colors.BLUE}Query Modes:{Colors.END}")
-        print(f"   {Colors.BOLD}1.{Colors.END} 🔍 Naive (Simple text search)")
-        print(f"   {Colors.BOLD}2.{Colors.END} 🧠 Local (Entity-focused)")
+        print(f"   {Colors.BOLD}1.{Colors.END}  Naive (Simple text search)")
+        print(f"   {Colors.BOLD}2.{Colors.END}  Local (Entity-focused)")
         print(f"   {Colors.BOLD}3.{Colors.END} 🌐 Global (Relationship-focused)")
         print(f"   {Colors.BOLD}4.{Colors.END} 🔀 Hybrid (Combined approach)")
-        print(f"   {Colors.BOLD}5.{Colors.END} 🎯 Mix (KG + Vector retrieval)")
+        print(f"   {Colors.BOLD}5.{Colors.END}  Mix (KG + Vector retrieval)")
         
         try:
             mode_choice = int(input(f"\n{Colors.BOLD}Select query mode (default 4): {Colors.END}").strip() or "4")
@@ -3597,23 +3609,23 @@ def query_bucket():
             query_mode = "hybrid"
         
         async def do_query():
-            print(f"\n{Colors.CYAN}🤖 Initializing LightRAG for {bucket_name}...{Colors.END}")
+            print(f"\n{Colors.CYAN} Initializing LightRAG for {bucket_name}...{Colors.END}")
             rag = await initialize_lightrag(bucket_path)
             
             if not rag:
                 return
                 
             try:
-                print(f"{Colors.CYAN}🔍 Querying with {query_mode} mode...{Colors.END}")
+                print(f"{Colors.CYAN} Querying with {query_mode} mode...{Colors.END}")
                 result = await query_content_async(rag, query, query_mode)
                 
                 if result:
-                    print(f"\n{Colors.GREEN}📋 Query Results ({query_mode} mode):{Colors.END}")
+                    print(f"\n{Colors.GREEN} Query Results ({query_mode} mode):{Colors.END}")
                     print_separator()
                     print(result)
                     print_separator()
                 else:
-                    print(f"{Colors.RED}❌ No results returned{Colors.END}")
+                    print(f"{Colors.RED} No results returned{Colors.END}")
                     
             finally:
                 await finalize_lightrag(rag)
@@ -3621,20 +3633,20 @@ def query_bucket():
         run_async_lightrag_operation(do_query())
         
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Query failed: {e}{Colors.END}")
+        print(f"\n{Colors.RED} Query failed: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def bucket_statistics():
     """Show bucket statistics"""
-    print(f"\n{Colors.YELLOW}📈 BUCKET STATISTICS{Colors.END}")
+    print(f"\n{Colors.YELLOW} BUCKET STATISTICS{Colors.END}")
     print_separator()
     
     working_dir = "./lightrag_working_dir"
     buckets = get_bucket_list()
     
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3670,14 +3682,14 @@ def bucket_statistics():
         has_index = metadata_files > 0
         size_mb = bucket_size / (1024 * 1024)
         
-        print(f"{Colors.BOLD}📦 {bucket_name.upper()}{Colors.END}")
+        print(f"{Colors.BOLD} {bucket_name.upper()}{Colors.END}")
         print(f"   Content Files: {Colors.GREEN}{content_files}{Colors.END}")
         print(f"   Metadata Files: {Colors.CYAN}{metadata_files}{Colors.END}")
         print(f"   Size: {Colors.YELLOW}{size_mb:.2f} MB{Colors.END}")
         print(f"   Status: {Colors.GREEN if has_index else Colors.RED}{'Indexed' if has_index else 'Not Indexed'}{Colors.END}")
         print()
     
-    print(f"{Colors.BOLD}📈 Summary:{Colors.END}")
+    print(f"{Colors.BOLD} Summary:{Colors.END}")
     print(f"   Total Buckets: {Colors.GREEN}{len(buckets)}{Colors.END}")
     print(f"   Total Content Files: {Colors.GREEN}{total_content_files}{Colors.END}")
     print(f"   Total Size: {Colors.CYAN}{total_size / (1024 * 1024):.2f} MB{Colors.END}")
@@ -3686,19 +3698,19 @@ def bucket_statistics():
 
 def delete_bucket_content():
     """Delete content from bucket"""
-    print(f"\n{Colors.YELLOW}🗑️  DELETE BUCKET CONTENT{Colors.END}")
+    print(f"\n{Colors.YELLOW}  DELETE BUCKET CONTENT{Colors.END}")
     print_separator()
     print(f"{Colors.CYAN}Feature coming soon - Safe content deletion with confirmation{Colors.END}")
     input("Press Enter to continue...")
 
 def create_new_bucket():
     """Create a new bucket"""
-    print(f"\n{Colors.YELLOW}🆕 CREATE NEW BUCKET{Colors.END}")
+    print(f"\n{Colors.YELLOW} CREATE NEW BUCKET{Colors.END}")
     print_separator()
     
     bucket_name = input(f"{Colors.BOLD}Enter new bucket name: {Colors.END}").strip().lower()
     if not bucket_name:
-        print(f"{Colors.RED}❌ Bucket name cannot be empty{Colors.END}")
+        print(f"{Colors.RED} Bucket name cannot be empty{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3710,7 +3722,7 @@ def create_new_bucket():
     bucket_path = os.path.join(working_dir, bucket_name)
     
     if os.path.exists(bucket_path):
-        print(f"{Colors.RED}❌ Bucket '{bucket_name}' already exists{Colors.END}")
+        print(f"{Colors.RED} Bucket '{bucket_name}' already exists{Colors.END}")
         input("Press Enter to continue...")
         return
     
@@ -3741,35 +3753,35 @@ This bucket is for storing {bucket_name}-related source material.
         with open(os.path.join(bucket_path, "README.md"), 'w') as f:
             f.write(readme_content)
         
-        print(f"\n{Colors.GREEN}✅ Bucket '{bucket_name}' created successfully!{Colors.END}")
+        print(f"\n{Colors.GREEN} Bucket '{bucket_name}' created successfully!{Colors.END}")
         print(f"{Colors.CYAN}Path: {bucket_path}{Colors.END}")
         
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Failed to create bucket: {e}{Colors.END}")
+        print(f"\n{Colors.RED} Failed to create bucket: {e}{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
 def export_bucket_data():
     """Export bucket data"""
-    print(f"\n{Colors.YELLOW}📤 EXPORT BUCKET DATA{Colors.END}")
+    print(f"\n{Colors.YELLOW} EXPORT BUCKET DATA{Colors.END}")
     print_separator()
     print(f"{Colors.CYAN}Feature coming soon - Export bucket contents and metadata{Colors.END}")
     input("Press Enter to continue...")
 
 def clean_bucket_cache():
     """Clean bucket cache and temporary files"""
-    print(f"\n{Colors.YELLOW}🧹 CLEAN BUCKET CACHE{Colors.END}")
+    print(f"\n{Colors.YELLOW} CLEAN BUCKET CACHE{Colors.END}")
     print_separator()
     
     buckets = get_bucket_list()
     if not buckets:
-        print(f"{Colors.RED}❌ No buckets found!{Colors.END}")
+        print(f"{Colors.RED} No buckets found!{Colors.END}")
         input("Press Enter to continue...")
         return
     
     print(f"{Colors.BLUE}Cache Cleaning Options:{Colors.END}")
-    print(f"   {Colors.BOLD}1.{Colors.END} 🧹 Clean All Buckets")
-    print(f"   {Colors.BOLD}2.{Colors.END} 🎯 Clean Specific Bucket")
+    print(f"   {Colors.BOLD}1.{Colors.END}  Clean All Buckets")
+    print(f"   {Colors.BOLD}2.{Colors.END}  Clean Specific Bucket")
     
     choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
     
@@ -3784,15 +3796,15 @@ def clean_bucket_cache():
             bucket_idx = int(input(f"\n{Colors.BOLD}Select bucket: {Colors.END}").strip()) - 1
             target_buckets = [buckets[bucket_idx]]
         except (ValueError, IndexError):
-            print(f"{Colors.RED}❌ Invalid selection{Colors.END}")
+            print(f"{Colors.RED} Invalid selection{Colors.END}")
             input("Press Enter to continue...")
             return
     else:
-        print(f"{Colors.RED}❌ Invalid choice{Colors.END}")
+        print(f"{Colors.RED} Invalid choice{Colors.END}")
         input("Press Enter to continue...")
         return
     
-    print(f"\n{Colors.YELLOW}⚠️  This will delete all LightRAG metadata files{Colors.END}")
+    print(f"\n{Colors.YELLOW}  This will delete all LightRAG metadata files{Colors.END}")
     print(f"{Colors.CYAN}Content files (.txt, .md) will be preserved{Colors.END}")
     
     confirm = input(f"\n{Colors.BOLD}Continue? (y/n): {Colors.END}").strip().lower()
@@ -3813,11 +3825,11 @@ def clean_bucket_cache():
                         os.remove(file_path)
                         cleaned_files += 1
                     except Exception as e:
-                        print(f"{Colors.RED}❌ Failed to delete {file}: {e}{Colors.END}")
+                        print(f"{Colors.RED} Failed to delete {file}: {e}{Colors.END}")
     
-    print(f"\n{Colors.GREEN}🎉 Cache cleaning completed!{Colors.END}")
-    print(f"   🗑️  Removed {cleaned_files} metadata files")
-    print(f"   💡 Run Ingest/Reindex to rebuild indices")
+    print(f"\n{Colors.GREEN} Cache cleaning completed!{Colors.END}")
+    print(f"     Removed {cleaned_files} metadata files")
+    print(f"    Run Ingest/Reindex to rebuild indices")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
@@ -3828,51 +3840,48 @@ def launch_gui_file_manager():
     
     print(f"{Colors.BLUE}Launching graphical file manager...{Colors.END}")
     print(f"{Colors.CYAN}Features:{Colors.END}")
-    print(f"   • 📂 Drag & drop files directly into buckets")  
-    print(f"   • 🎯 Visual bucket selection")
-    print(f"   • 📋 File preview before adding")
-    print(f"   • 🆕 Create new buckets")
-    print(f"   • 🔄 Direct processing integration")
+    print(f"   •  Drag & drop files directly into buckets")  
+    print(f"   •  Visual bucket selection")
+    print(f"   •  File preview before adding")
+    print(f"   •  Create new buckets")
+    print(f"   •  Direct processing integration")
     
     try:
         # Import and launch GUI
         from lizzy_gui import launch_gui
         
-        print(f"\n{Colors.CYAN}🚀 Starting GUI interface...{Colors.END}")
+        print(f"\n{Colors.CYAN} Starting GUI interface...{Colors.END}")
         
-        # Run GUI in separate thread to avoid blocking
-        import threading
-        gui_thread = threading.Thread(target=launch_gui, daemon=True)
-        gui_thread.start()
+        # Run GUI on main thread (required for macOS)
+        success = launch_gui()
         
-        print(f"{Colors.GREEN}✅ GUI launched successfully!{Colors.END}")
-        print(f"\n{Colors.YELLOW}GUI Window Features:{Colors.END}")
-        print(f"   • Left panel: Select buckets")
-        print(f"   • Right panel: Drag files or click Browse")
-        print(f"   • Preview area: Review files before adding")
-        print(f"   • Buttons: Add files, process buckets, create new buckets")
-        
-        print(f"\n{Colors.BLUE}💡 Tips:{Colors.END}")
-        print(f"   • Select a bucket first (left panel)")
-        print(f"   • Drag .txt, .md, or .pdf files to the drop zone")
-        print(f"   • Click 'Add Files to Bucket' to confirm")
-        print(f"   • Use 'Process Bucket' to launch CLI for LightRAG processing")
-        
-        # Give GUI time to load
-        import time
-        time.sleep(2)
-        
-        print(f"\n{Colors.GREEN}GUI is now running in the background!{Colors.END}")
-        print(f"{Colors.CYAN}You can continue using the CLI while the GUI is open.{Colors.END}")
+        if success:
+            print(f"{Colors.GREEN} GUI launched successfully!{Colors.END}")
+        else:
+            print(f"{Colors.RED} GUI failed to launch{Colors.END}")
+            return
+            print(f"\n{Colors.YELLOW}GUI Window Features:{Colors.END}")
+            print(f"   • Left panel: Select buckets")
+            print(f"   • Right panel: Drag files or click Browse")
+            print(f"   • Preview area: Review files before adding")
+            print(f"   • Buttons: Add files, process buckets, create new buckets")
+            
+            print(f"\n{Colors.BLUE} Tips:{Colors.END}")
+            print(f"   • Select a bucket first (left panel)")
+            print(f"   • Drag .txt, .md, or .pdf files to the drop zone")
+            print(f"   • Click 'Add Files to Bucket' to confirm")
+            print(f"   • Use 'Process Bucket' to launch CLI for LightRAG processing")
+            
+            print(f"\n{Colors.GREEN}GUI closed - returning to CLI{Colors.END}")
         
     except ImportError as e:
-        print(f"\n{Colors.RED}❌ GUI not available: {e}{Colors.END}")
-        print(f"{Colors.CYAN}💡 Install tkinter: pip install tk{Colors.END}")
-        print(f"{Colors.YELLOW}⚡ Fallback: Use option 3 'Add Content to Bucket' instead{Colors.END}")
+        print(f"\n{Colors.RED} GUI not available: {e}{Colors.END}")
+        print(f"{Colors.CYAN} Install tkinter: pip install tk{Colors.END}")
+        print(f"{Colors.YELLOW} Fallback: Use option 3 'Add Content to Bucket' instead{Colors.END}")
         
     except Exception as e:
-        print(f"\n{Colors.RED}❌ Failed to launch GUI: {e}{Colors.END}")
-        print(f"{Colors.YELLOW}⚡ Fallback: Use option 3 'Add Content to Bucket' instead{Colors.END}")
+        print(f"\n{Colors.RED} Failed to launch GUI: {e}{Colors.END}")
+        print(f"{Colors.YELLOW} Fallback: Use option 3 'Add Content to Bucket' instead{Colors.END}")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
@@ -3883,7 +3892,7 @@ def project_dashboard():
     
     print_header()
     print_status()
-    print(f"\n{Colors.BOLD}📋 PROJECT DASHBOARD - {session.current_project.upper()}{Colors.END}")
+    print(f"\n{Colors.BOLD} PROJECT DASHBOARD - {session.current_project.upper()}{Colors.END}")
     print_separator()
     
     cursor = session.db_conn.cursor()
@@ -3901,16 +3910,16 @@ def project_dashboard():
     cursor.execute("SELECT COUNT(*) FROM finalized_draft_v1")
     draft_count = cursor.fetchone()[0]
     
-    print(f"{Colors.BLUE}📊 Project Statistics:{Colors.END}")
-    print(f"   👤 Characters: {Colors.BOLD}{char_count}{Colors.END}")
-    print(f"   🎬 Scenes: {Colors.BOLD}{scene_count}{Colors.END}")
-    print(f"   🧠 Brainstorm Sessions: {Colors.BOLD}{brainstorm_count}{Colors.END}")
-    print(f"   ✍️  Written Drafts: {Colors.BOLD}{draft_count}{Colors.END}")
+    print(f"{Colors.BLUE} Project Statistics:{Colors.END}")
+    print(f"    Characters: {Colors.BOLD}{char_count}{Colors.END}")
+    print(f"    Scenes: {Colors.BOLD}{scene_count}{Colors.END}")
+    print(f"    Brainstorm Sessions: {Colors.BOLD}{brainstorm_count}{Colors.END}")
+    print(f"     Written Drafts: {Colors.BOLD}{draft_count}{Colors.END}")
     
     # Progress indicator
     progress = min(100, (char_count * 10 + scene_count * 15 + brainstorm_count * 5 + draft_count * 20))
     progress_bar = "█" * (progress // 5) + "░" * (20 - progress // 5)
-    print(f"\n{Colors.GREEN}📈 Project Progress: {progress}%{Colors.END}")
+    print(f"\n{Colors.GREEN} Project Progress: {progress}%{Colors.END}")
     print(f"   [{Colors.GREEN}{progress_bar}{Colors.END}]")
     
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
@@ -3922,9 +3931,9 @@ def show_help():
     print_separator()
     
     help_text = f"""{Colors.CYAN}
-🎬 LIZZY FRAMEWORK - AI-Assisted Long-Form Writing System
+ LIZZY FRAMEWORK - AI-Assisted Long-Form Writing System
 
-{Colors.BOLD}🚀 FIRST TIME? START HERE:{Colors.END}{Colors.CYAN}
+{Colors.BOLD} FIRST TIME? START HERE:{Colors.END}{Colors.CYAN}
 1. {Colors.BOLD}Setup API Key{Colors.END}{Colors.CYAN} - Get a key from openai.com, paste it here
 2. {Colors.BOLD}Create Project{Colors.END}{Colors.CYAN} - Choose a name like "my_screenplay"
 3. {Colors.BOLD}Buckets Manager{Colors.END}{Colors.CYAN} - Add reference material (books, scripts)
@@ -3932,12 +3941,12 @@ def show_help():
 5. {Colors.BOLD}Brainstorm{Colors.END}{Colors.CYAN} - Get AI-powered creative ideas
 6. {Colors.BOLD}Write{Colors.END}{Colors.CYAN} - Turn ideas into polished scenes
 
-{Colors.BOLD}🛠️ ADVANCED TOOLS:{Colors.END}{Colors.CYAN}
+{Colors.BOLD} ADVANCED TOOLS:{Colors.END}{Colors.CYAN}
 • {Colors.YELLOW}Tables Manager{Colors.END}{Colors.CYAN} - View/edit project database directly
 • {Colors.YELLOW}GUI File Manager{Colors.END}{Colors.CYAN} - Drag & drop files (easier than CLI)
 • {Colors.YELLOW}Project Dashboard{Colors.END}{Colors.CYAN} - See progress and statistics
 
-{Colors.BOLD}💡 BEGINNER TIPS:{Colors.END}{Colors.CYAN}
+{Colors.BOLD} BEGINNER TIPS:{Colors.END}{Colors.CYAN}
 • Just type numbers to navigate menus (then press Enter)
 • Everything is saved automatically - don't worry about losing work
 • "Ingest" means processing files with AI so you can search them
@@ -3951,7 +3960,7 @@ def show_help():
 • "No content files" → Add .txt/.md files before trying to ingest
 • "Ingest/Query not working" → Usually means LightRAG needs fixing (see above)
 
-{Colors.BOLD}📁 WHERE FILES ARE STORED:{Colors.END}{Colors.CYAN}
+{Colors.BOLD} WHERE FILES ARE STORED:{Colors.END}{Colors.CYAN}
 • Your projects: projects/[project_name]/
 • Reference content: lightrag_working_dir/[bucket_name]/
 • Full docs: LIZZY_README.md & ENHANCED_LIZZY_README.md
@@ -3960,14 +3969,100 @@ def show_help():
     print(help_text)
     input(f"\n{Colors.CYAN}Press Enter to continue...{Colors.END}")
 
+def create_project_with_template():
+    """Create a new project using template system"""
+    if not HAS_TEMPLATE_SYSTEM:
+        # Fallback to original function
+        create_project()
+        return
+    
+    print(f"\n{Colors.YELLOW} CREATE NEW PROJECT{Colors.END}")
+    print_separator()
+    
+    # Initialize template manager
+    tm = TemplateManager()
+    
+    # Show existing projects
+    existing_projects = [p['name'] for p in tm.list_projects()]
+    if existing_projects:
+        print(f"{Colors.BLUE} Existing Projects:{Colors.END}")
+        for i, project in enumerate(existing_projects[:5], 1):
+            project_info = next(p for p in tm.list_projects() if p['name'] == project)
+            template_name = project_info.get('template_name', 'Unknown')
+            print(f"   {i}. {project} ({template_name})")
+        if len(existing_projects) > 5:
+            print(f"   ... and {len(existing_projects) - 5} more")
+        print()
+    
+    # Get project name
+    while True:
+        project_name = input(f"{Colors.BOLD} Enter new project name (or 'back' to return): {Colors.END}").strip()
+        
+        if project_name.lower() == 'back':
+            return False
+        
+        if not project_name:
+            print(f"{Colors.RED} Project name cannot be empty!{Colors.END}")
+            continue
+        
+        # Sanitize project name
+        sanitized_name = re.sub(r'[^\w\-_]', '_', project_name)
+        if sanitized_name != project_name:
+            print(f"{Colors.YELLOW} Project name sanitized to: {sanitized_name}{Colors.END}")
+            project_name = sanitized_name
+        
+        if project_name in existing_projects:
+            print(f"{Colors.RED} Project '{project_name}' already exists!{Colors.END}")
+            continue
+        
+        break
+    
+    # Select template
+    template_key = tm.select_template()
+    if not template_key:
+        print(f"{Colors.RED} No template selected{Colors.END}")
+        return False
+    
+    # Create project with template
+    if tm.create_project_from_template(project_name, template_key):
+        session.set_project(project_name)
+        
+        # Ensure legacy compatibility for session
+        tm.ensure_legacy_compatibility(project_name)
+        
+        print(f"\n{Colors.GREEN} Project '{project_name}' created successfully!{Colors.END}")
+        
+        # Show next steps
+        template = tm.load_template(template_key)
+        print(f"\n{Colors.CYAN} Next Steps:{Colors.END}")
+        print(f"   1. Add content to your tables")
+        if template.get('buckets', {}).get('recommended'):
+            print(f"   2. Upload files to buckets: {', '.join(template['buckets']['recommended'])}")
+        print(f"   3. Start brainstorming!")
+        
+        wait_for_key()
+        return True
+    else:
+        return False
+
+def admin_menu():
+    """Admin menu for template management"""
+    if not HAS_TEMPLATE_SYSTEM:
+        print(f"{Colors.RED} Template system not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    admin = LizzyAdmin()
+    admin.run()
+
 if __name__ == "__main__":
     try:
         main_menu()
     except KeyboardInterrupt:
-        print(f"\n\n{Colors.CYAN}👋 Thank you for using LIZZY Framework!{Colors.END}")
+        print(f"\n\n{Colors.CYAN} Thank you for using LIZZY Framework!{Colors.END}")
         session.close()
         sys.exit(0)
     except Exception as e:
-        print(f"\n{Colors.RED}❌ An error occurred: {e}{Colors.END}")
+        print(f"\n{Colors.RED} An error occurred: {e}{Colors.END}")
         session.close()
         sys.exit(1)

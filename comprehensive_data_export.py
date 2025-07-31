@@ -16,7 +16,7 @@ def export_complete_project():
     db_path = f"projects/{project_name}/{project_name}.sqlite"
     
     if not os.path.exists(db_path):
-        print(f"❌ Project database not found: {db_path}")
+        print(f" Project database not found: {db_path}")
         return
     
     conn = sqlite3.connect(db_path)
@@ -346,7 +346,7 @@ def export_complete_project():
 
 ---
 
-## 📊 PROJECT STATISTICS
+##  PROJECT STATISTICS
 
 - **Characters Developed:** {len(export_data['characters']['data'])}
 - **Scenes Outlined:** {len(export_data['story_outline']['data'])}  
@@ -357,7 +357,7 @@ def export_complete_project():
 
 ---
 
-## 🎬 STORY OVERVIEW
+##  STORY OVERVIEW
 
 **Genre:** {next((item['value'] for item in export_data['project_metadata']['data'] if item['key'] == 'genre'), 'Modern Drama')}
 
@@ -383,7 +383,7 @@ def export_complete_project():
     summary_content += f"""
 ---
 
-## 📝 SCENE STRUCTURE
+##  SCENE STRUCTURE
 
 """
     
@@ -416,7 +416,7 @@ def export_complete_project():
     summary_content += f"""
 ---
 
-## 📚 SOURCE MATERIAL INTEGRATION
+##  SOURCE MATERIAL INTEGRATION
 
 """
     
@@ -453,7 +453,7 @@ def export_complete_project():
 
 ---
 
-## 📈 PERFORMANCE METRICS
+##  PERFORMANCE METRICS
 
 - **Database Size:** {os.path.getsize(f'projects/{project_name}/{project_name}.sqlite') / 1024:.1f} KB
 - **Content Processing:** {sum(bucket_data['content_files'] for bucket_data in export_data['lightrag_buckets']['buckets'].values())} source files indexed
@@ -462,7 +462,7 @@ def export_complete_project():
 
 ---
 
-## ✅ BACKEND DEMONSTRATION COMPLETE
+##  BACKEND DEMONSTRATION COMPLETE
 
 This export demonstrates the complete Lizzy Framework backend capabilities:
 
@@ -484,10 +484,10 @@ The framework successfully handles complex creative workflows while maintaining 
     with open(summary_filename, 'w') as f:
         f.write(summary_content)
     
-    print(f"✅ Complete backend export created:")
-    print(f"   📊 Technical Data: {export_filename}")
-    print(f"   📋 Executive Summary: {summary_filename}")
-    print(f"\n📈 Export Statistics:")
+    print(f" Complete backend export created:")
+    print(f"    Technical Data: {export_filename}")
+    print(f"    Executive Summary: {summary_filename}")
+    print(f"\n Export Statistics:")
     print(f"   • Database Records: {sum(len(data.get('data', [])) for data in export_data.values() if isinstance(data, dict) and 'data' in data)}")
     print(f"   • Content Files: {sum(bucket_data.get('content_files', 0) for bucket_data in export_data.get('lightrag_buckets', {}).get('buckets', {}).values())}")
     print(f"   • Total Words: {export_data['finalized_draft_v1']['screenplay_analysis']['word_count']:,}")
@@ -496,16 +496,16 @@ The framework successfully handles complex creative workflows while maintaining 
     return export_filename, summary_filename
 
 if __name__ == "__main__":
-    print("🎬 COMPREHENSIVE BACKEND DOCUMENTATION EXPORT")
+    print(" COMPREHENSIVE BACKEND DOCUMENTATION EXPORT")
     print("=" * 60)
     
     export_complete_project()
     
-    print("\n🎉 BACKEND DEMONSTRATION COMPLETE!")
+    print("\n BACKEND DEMONSTRATION COMPLETE!")
     print("\nThis export demonstrates:")
-    print("   ✅ Complete data architecture with relationships")
-    print("   ✅ AI integration with contextual retrieval")
-    print("   ✅ Professional content development workflow")
-    print("   ✅ Scalable project management system")
-    print("   ✅ Full export/backup capabilities")
-    print("   ✅ Comprehensive metadata preservation")
+    print("    Complete data architecture with relationships")
+    print("    AI integration with contextual retrieval")
+    print("    Professional content development workflow")
+    print("    Scalable project management system")
+    print("    Full export/backup capabilities")
+    print("    Comprehensive metadata preservation")

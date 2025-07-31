@@ -40,6 +40,54 @@ TONE_PRESETS = {
         "name": "Classic Hollywood",
         "description": "Golden age cinema with sophisticated dialogue",
         "prompt_modifier": "Write in classic Hollywood style with sophisticated, rapid-fire dialogue, glamorous settings, and timeless romantic tension reminiscent of 1940s cinema."
+    },
+    "academic_discovery": {
+        "name": "Academic Discovery",
+        "description": "Research-focused discovery for educational content",
+        "prompt_modifier": """ACADEMIC CONTENT DISCOVERY AND RESEARCH PHASE
+
+RESEARCH METHODOLOGY:
+Your job is to DISCOVER and ORGANIZE the most important information from academic sources. Focus on:
+
+1. KEY FIGURES AND INNOVATORS
+   - Who were the most important people in this period?
+   - What made them significant to cinema history?
+   - What specific contributions did they make?
+
+2. BREAKTHROUGH MOMENTS AND INNOVATIONS  
+   - What were the major technological developments?
+   - What business model innovations occurred?
+   - What artistic/narrative breakthroughs happened?
+
+3. CAUSE-AND-EFFECT RELATIONSHIPS
+   - How did technical capabilities enable business opportunities?
+   - How did competition drive innovation?
+   - How did economic factors influence artistic development?
+
+4. SPECIFIC EXAMPLES AND EVIDENCE
+   - Concrete dates, names, and events students can anchor learning to
+   - Primary source evidence and contemporary accounts
+   - Technical specifications and business details
+
+5. BROADER PATTERNS AND SIGNIFICANCE
+   - How do these developments connect to larger industry changes?
+   - What patterns would repeat in later periods?
+   - Why does this matter for understanding cinema history?
+
+RESEARCH OUTPUT FORMAT:
+Organize findings into:
+• Key People (with roles and significance)
+• Major Innovations (technical, business, artistic)
+• Important Events (with dates and context)
+• Cause-Effect Relationships
+• Primary Source Evidence
+• Teaching Examples (concrete cases students can visualize)
+
+ACADEMIC STANDARDS:
+- Prioritize scholarly sources and verified historical information
+- Include specific dates, names, and technical details
+- Balance technical accuracy with accessibility
+- Focus on developments that shaped the industry long-term"""
     }
 }
 
@@ -47,7 +95,7 @@ def get_project_database(project_name):
     """Get database connection for the specified project"""
     db_path = f"projects/{project_name}/{project_name}.sqlite"
     if not os.path.exists(db_path):
-        print(f"❌ Project '{project_name}' not found!")
+        print(f" Project '{project_name}' not found!")
         return None
     return sqlite3.connect(db_path)
 
@@ -85,10 +133,10 @@ def setup_lightrag():
         
         return rag
     except ImportError:
-        print("⚠️  LightRAG not available. Using fallback content retrieval.")
+        print("  LightRAG not available. Using fallback content retrieval.")
         return None
     except Exception as e:
-        print(f"⚠️  LightRAG setup failed: {e}")
+        print(f"  LightRAG setup failed: {e}")
         return None
 
 def query_lightrag(rag, bucket_name, scene_context):
@@ -103,7 +151,7 @@ def query_lightrag(rag, bucket_name, scene_context):
         result = rag.query(query, param=QueryParam(mode="hybrid"))
         return result
     except Exception as e:
-        print(f"⚠️  LightRAG query failed: {e}")
+        print(f"  LightRAG query failed: {e}")
         return fallback_content_retrieval(bucket_name, scene_context)
 
 def fallback_content_retrieval(bucket_name, scene_context):
@@ -174,7 +222,7 @@ Keep the tone consistent with the {tone_preset['name']} style. Be specific and c
         error_msg = str(e)
         if 'api' in error_msg.lower() and ('key' in error_msg.lower() or 'auth' in error_msg.lower()):
             error_msg = "Authentication failed - please check your API key"
-        print(f"❌ OpenAI API error: {error_msg}")
+        print(f" OpenAI API error: {error_msg}")
         return None
 
 def save_brainstorm_log(conn, act, scene, description, bucket_name, tone_preset, response):
@@ -193,14 +241,14 @@ def interactive_brainstorm(conn, project_name):
     project_context = get_project_context(conn)
     
     # Initialize LightRAG
-    print("🔍 Initializing LightRAG...")
+    print(" Initializing LightRAG...")
     rag = setup_lightrag()
     
     # Available content buckets
     buckets = ["books", "plays", "scripts"]
     
     while True:
-        print(f"\n🧠 BRAINSTORM SESSION - Project: {project_name}")
+        print(f"\n BRAINSTORM SESSION - Project: {project_name}")
         print("=" * 50)
         
         # Get scene information
@@ -208,16 +256,16 @@ def interactive_brainstorm(conn, project_name):
             act = int(input("Act Number: ").strip())
             scene = int(input("Scene Number: ").strip())
         except ValueError:
-            print("❌ Please enter valid numbers for act and scene")
+            print(" Please enter valid numbers for act and scene")
             continue
         
         description = input("Scene Description: ").strip()
         if not description:
-            print("❌ Scene description is required!")
+            print(" Scene description is required!")
             continue
         
         # Select tone preset
-        print("\n🎭 Available Tone Presets:")
+        print("\n Available Tone Presets:")
         for i, (key, preset) in enumerate(TONE_PRESETS.items(), 1):
             print(f"  {i}. {preset['name']} - {preset['description']}")
         
@@ -226,11 +274,11 @@ def interactive_brainstorm(conn, project_name):
             tone_key = list(TONE_PRESETS.keys())[tone_choice - 1]
             tone_preset = TONE_PRESETS[tone_key]
         except (ValueError, IndexError):
-            print("❌ Invalid tone selection, using Romantic Dramedy")
+            print(" Invalid tone selection, using Romantic Dramedy")
             tone_preset = TONE_PRESETS["romantic_dramedy"]
         
         # Select content bucket
-        print("\n📚 Available Content Buckets:")
+        print("\n Available Content Buckets:")
         for i, bucket in enumerate(buckets, 1):
             print(f"  {i}. {bucket}")
         
@@ -238,11 +286,11 @@ def interactive_brainstorm(conn, project_name):
             bucket_choice = int(input("Select content bucket (number): ").strip())
             bucket_name = buckets[bucket_choice - 1]
         except (ValueError, IndexError):
-            print("❌ Invalid bucket selection, using 'books'")
+            print(" Invalid bucket selection, using 'books'")
             bucket_name = "books"
         
         # Query LightRAG for relevant content
-        print(f"\n🔍 Querying {bucket_name} for relevant content...")
+        print(f"\n Querying {bucket_name} for relevant content...")
         scene_info = {"act": act, "scene": scene, "description": description}
         rag_content = query_lightrag(rag, bucket_name, description)
         
@@ -253,7 +301,7 @@ def interactive_brainstorm(conn, project_name):
         )
         
         if brainstorm_response:
-            print(f"\n✨ BRAINSTORM RESULTS - Act {act}, Scene {scene}")
+            print(f"\n BRAINSTORM RESULTS - Act {act}, Scene {scene}")
             print("=" * 60)
             print(brainstorm_response)
             print("=" * 60)
@@ -263,10 +311,10 @@ def interactive_brainstorm(conn, project_name):
                               tone_preset["name"], brainstorm_response)
             print(f"💾 Brainstorm session saved to database")
         else:
-            print("❌ Failed to generate brainstorming content")
+            print(" Failed to generate brainstorming content")
         
         # Continue or exit
-        continue_choice = input("\n🔄 Continue brainstorming? (y/n): ").strip().lower()
+        continue_choice = input("\n Continue brainstorming? (y/n): ").strip().lower()
         if continue_choice != 'y':
             print(f"\n🚀 Ready for writing!")
             print(f"   Next: python write.py {project_name}")
@@ -275,15 +323,15 @@ def interactive_brainstorm(conn, project_name):
 def main():
     """Main function for the Brainstorm module"""
     if len(sys.argv) != 2:
-        print("🧠 LIZZY FRAMEWORK - BRAINSTORM MODULE")
+        print(" LIZZY FRAMEWORK - BRAINSTORM MODULE")
         print("=" * 50)
         print("Usage: python brainstorm.py <project_name>")
         sys.exit(1)
     
     # Check for OpenAI API key
     if not os.getenv('OPENAI_API_KEY'):
-        print("❌ OpenAI API key not found!")
-        print("💡 Set your API key: export OPENAI_API_KEY=your_key_here")
+        print(" OpenAI API key not found!")
+        print(" Set your API key: export OPENAI_API_KEY=your_key_here")
         sys.exit(1)
     
     project_name = sys.argv[1]

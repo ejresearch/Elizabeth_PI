@@ -65,7 +65,7 @@ def create_tables(db_path):
     
     conn.commit()
     conn.close()
-    print(f"✅ Database initialized: {db_path}")
+    print(f" Database initialized: {db_path}")
 
 def main():
     """Initialize all project databases"""
