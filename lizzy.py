@@ -330,8 +330,109 @@ class Session:
         if os.path.exists(db_path):
             self.current_project = project_name
             self.db_conn = sqlite3.connect(db_path)
+            
+            # Ensure all required tables exist
+            self.ensure_all_tables_exist()
+            
             return True
         return False
+    
+    def ensure_all_tables_exist(self):
+        """Ensure all required tables exist in the database"""
+        if not self.db_conn:
+            return
+        
+        cursor = self.db_conn.cursor()
+        
+        # Define all required tables with their creation SQL
+        required_tables = {
+            'brainstorming_log': """CREATE TABLE brainstorming_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                tone_preset TEXT,
+                scenes_selected TEXT,
+                bucket_selection TEXT,
+                lightrag_context TEXT,
+                ai_suggestions TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            'finalized_draft_v1': """CREATE TABLE finalized_draft_v1 (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                version_number INTEGER NOT NULL,
+                content TEXT,
+                word_count INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""",
+            'project_metadata': """CREATE TABLE project_metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key TEXT UNIQUE NOT NULL,
+                value TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )"""
+        }
+        
+        # Check and create missing tables
+        tables_created = []
+        for table_name, create_sql in required_tables.items():
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+            if not cursor.fetchone():
+                cursor.execute(create_sql)
+                tables_created.append(table_name)
+        
+        if tables_created:
+            self.db_conn.commit()
+            for table in tables_created:
+                print(f"{Colors.GREEN}✓ Created missing table: {table}{Colors.END}")
+        
+        # Check and apply schema migrations
+        self.apply_schema_migrations()
+    
+    def apply_schema_migrations(self):
+        """Apply necessary schema migrations to existing tables"""
+        if not self.db_conn:
+            return
+        
+        cursor = self.db_conn.cursor()
+        
+        # Check if finalized_draft_v1 needs version_number column
+        cursor.execute("PRAGMA table_info(finalized_draft_v1)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        
+        if 'finalized_draft_v1' in [row[0] for row in cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+            if 'version_number' not in column_names:
+                print(f"{Colors.YELLOW}⚡ Migrating finalized_draft_v1 table schema...{Colors.END}")
+                
+                # Create new table with correct schema
+                cursor.execute("""
+                    CREATE TABLE finalized_draft_v1_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        version_number INTEGER NOT NULL,
+                        content TEXT,
+                        word_count INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                
+                # Copy existing data
+                cursor.execute("""
+                    INSERT INTO finalized_draft_v1_new (version_number, content, word_count, created_at)
+                    SELECT 
+                        ROW_NUMBER() OVER (ORDER BY created_at) as version_number,
+                        content,
+                        LENGTH(content) - LENGTH(REPLACE(content, ' ', '')) + 1 as word_count,
+                        created_at
+                    FROM finalized_draft_v1
+                """)
+                
+                # Drop old table and rename new one
+                cursor.execute("DROP TABLE finalized_draft_v1")
+                cursor.execute("ALTER TABLE finalized_draft_v1_new RENAME TO finalized_draft_v1")
+                
+                self.db_conn.commit()
+                print(f"{Colors.GREEN}✓ Migration completed successfully{Colors.END}")
     
     def close(self):
         if self.db_conn:
@@ -701,18 +802,39 @@ def get_single_keypress():
         key = sys.stdin.read(1)
         # Check for escape sequences (arrow keys)
         if key == '\x1b':
-            key += sys.stdin.read(2)
-            if key == '\x1b[D':  # Left arrow
-                return 'LEFT'
-            elif key == '\x1b[C':  # Right arrow
-                return 'RIGHT'
-            elif key == '\x1b[A':  # Up arrow
-                return 'UP'
-            elif key == '\x1b[B':  # Down arrow
-                return 'DOWN'
+            # Try to read next chars for arrow keys
+            old_settings_inner = termios.tcgetattr(fd)
+            try:
+                # Set non-blocking read with timeout
+                import select
+                if select.select([sys.stdin], [], [], 0.1)[0]:
+                    key += sys.stdin.read(2)
+                    if key == '\x1b[D':  # Left arrow
+                        return 'LEFT'
+                    elif key == '\x1b[C':  # Right arrow
+                        return 'RIGHT'
+                    elif key == '\x1b[A':  # Up arrow
+                        return 'UP'
+                    elif key == '\x1b[B':  # Down arrow
+                        return 'DOWN'
+                else:
+                    # Just ESC key pressed
+                    return 'ESC'
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings_inner)
         return key
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+def cancelable_input(prompt, required=False):
+    """Get input from user with option to cancel (type 'back' or 'cancel')"""
+    value = input(prompt).strip()
+    if value.lower() in ['back', 'cancel', 'exit']:
+        return None
+    if required and not value:
+        print(f"{Colors.RED} This field is required. Type 'back' to cancel.{Colors.END}")
+        return cancelable_input(prompt, required)
+    return value
 
 def wait_for_key(prompt="Press any key to continue..."):
     """Wait for any key press"""
@@ -778,7 +900,7 @@ def project_menu():
         print(f"   {Colors.BOLD}6.{Colors.END}  Export Options")
         print(f"   {Colors.BOLD}7.{Colors.END}   Manage")
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
@@ -786,7 +908,7 @@ def project_menu():
         # Check for arrow key navigation
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -826,13 +948,17 @@ def update_tables_menu():
         print(f"   {Colors.BOLD}3.{Colors.END} View")
         
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         
         choice = input(f"\n[ ] Enter choice: ").strip()
         
+        if HAS_TERMIOS and choice.startswith('\x1b'):
+            # Handle escape sequences that got into the input
+            break
+        
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -842,6 +968,8 @@ def update_tables_menu():
             new_table_menu()
         elif choice == "3":
             view_table_menu()
+        elif choice == "0" or choice.lower() == "back":
+            break
 
 def edit_table_menu():
     """Select and edit a table inline"""
@@ -917,14 +1045,14 @@ def character_management():
         print(f"   {Colors.BOLD}3.{Colors.END}   Edit Character")
         print(f"   {Colors.BOLD}4.{Colors.END}   Delete Character")
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -953,14 +1081,14 @@ def story_outline_management():
         print(f"   {Colors.BOLD}3.{Colors.END}   Edit Scene")
         print(f"   {Colors.BOLD}4.{Colors.END}   Delete Scene")
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -1169,7 +1297,7 @@ def export_options():
     
     if not choice and HAS_TERMIOS:
         key = get_single_keypress()
-        if key == 'LEFT':
+        if key in ['LEFT', 'ESC']:
             return
     
     if choice == "1":
@@ -1463,19 +1591,35 @@ def add_character():
     """Add a character to the project"""
     print(f"\n{Colors.YELLOW} ADD CHARACTER{Colors.END}")
     print_separator()
+    print(f"{Colors.CYAN}Type 'back' at any time to cancel{Colors.END}\n")
     
-    name = input(f"{Colors.BOLD}Character Name: {Colors.END}").strip()
-    if not name:
-        print(f"{Colors.RED} Character name is required!{Colors.END}")
-        input(f"Press Enter to continue...")
+    name = cancelable_input(f"{Colors.BOLD}Character Name: {Colors.END}", required=True)
+    if name is None:
         return
     
-    gender = input(f"{Colors.BOLD}Gender (optional): {Colors.END}").strip()
-    age = input(f"{Colors.BOLD}Age (optional): {Colors.END}").strip()
-    romantic_challenge = input(f"{Colors.BOLD}Romantic Challenge: {Colors.END}").strip()
-    lovable_trait = input(f"{Colors.BOLD}Lovable Trait: {Colors.END}").strip()
-    comedic_flaw = input(f"{Colors.BOLD}Comedic Flaw: {Colors.END}").strip()
-    notes = input(f"{Colors.BOLD}Additional Notes: {Colors.END}").strip()
+    gender = cancelable_input(f"{Colors.BOLD}Gender (optional): {Colors.END}")
+    if gender is None:
+        return
+    
+    age = cancelable_input(f"{Colors.BOLD}Age (optional): {Colors.END}")
+    if age is None:
+        return
+    
+    romantic_challenge = cancelable_input(f"{Colors.BOLD}Romantic Challenge: {Colors.END}")
+    if romantic_challenge is None:
+        return
+    
+    lovable_trait = cancelable_input(f"{Colors.BOLD}Lovable Trait: {Colors.END}")
+    if lovable_trait is None:
+        return
+    
+    comedic_flaw = cancelable_input(f"{Colors.BOLD}Comedic Flaw: {Colors.END}")
+    if comedic_flaw is None:
+        return
+    
+    notes = cancelable_input(f"{Colors.BOLD}Additional Notes: {Colors.END}")
+    if notes is None:
+        return
     
     cursor = session.db_conn.cursor()
     cursor.execute("""
@@ -1491,21 +1635,34 @@ def add_scene():
     """Add a scene to the story outline"""
     print(f"\n{Colors.YELLOW} ADD SCENE OUTLINE{Colors.END}")
     print_separator()
+    print(f"{Colors.CYAN}Type 'back' at any time to cancel{Colors.END}\n")
     
+    act_str = cancelable_input(f"{Colors.BOLD}Act Number: {Colors.END}", required=True)
+    if act_str is None:
+        return
     try:
-        act = int(input(f"{Colors.BOLD}Act Number: {Colors.END}").strip())
-        scene = int(input(f"{Colors.BOLD}Scene Number: {Colors.END}").strip())
+        act = int(act_str)
     except ValueError:
-        print(f"{Colors.RED} Act and Scene must be numbers!{Colors.END}")
-        input(f"Press Enter to continue...")
+        print(f"{Colors.RED} Act must be a number!{Colors.END}")
+        wait_for_key()
         return
     
-    key_characters = input(f"{Colors.BOLD}Key Characters (comma-separated): {Colors.END}").strip()
-    key_events = input(f"{Colors.BOLD}Key Events: {Colors.END}").strip()
+    scene_str = cancelable_input(f"{Colors.BOLD}Scene Number: {Colors.END}", required=True)
+    if scene_str is None:
+        return
+    try:
+        scene = int(scene_str)
+    except ValueError:
+        print(f"{Colors.RED} Scene must be a number!{Colors.END}")
+        wait_for_key()
+        return
     
-    if not key_events:
-        print(f"{Colors.RED} Key events are required!{Colors.END}")
-        input(f"Press Enter to continue...")
+    key_characters = cancelable_input(f"{Colors.BOLD}Key Characters (comma-separated): {Colors.END}")
+    if key_characters is None:
+        return
+    
+    key_events = cancelable_input(f"{Colors.BOLD}Key Events: {Colors.END}", required=True)
+    if key_events is None:
         return
     
     cursor = session.db_conn.cursor()
@@ -1755,14 +1912,14 @@ def notes_management():
         print(f"   {Colors.BOLD}3.{Colors.END}   Edit Note")
         print(f"   {Colors.BOLD}4.{Colors.END}   Delete Note")
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END}  Back")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -1781,15 +1938,19 @@ def add_note():
     """Add a new note"""
     print(f"\n{Colors.YELLOW} ADD NOTE{Colors.END}")
     print_separator()
+    print(f"{Colors.CYAN}Type 'back' at any time to cancel{Colors.END}\n")
     
-    title = input(f"{Colors.BOLD}Note Title: {Colors.END}").strip()
-    if not title:
-        print(f"{Colors.RED} Note title is required!{Colors.END}")
-        wait_for_key()
+    title = cancelable_input(f"{Colors.BOLD}Note Title: {Colors.END}", required=True)
+    if title is None:
         return
     
-    content = input(f"{Colors.BOLD}Note Content: {Colors.END}").strip()
-    category = input(f"{Colors.BOLD}Category (optional): {Colors.END}").strip()
+    content = cancelable_input(f"{Colors.BOLD}Note Content: {Colors.END}")
+    if content is None:
+        return
+    
+    category = cancelable_input(f"{Colors.BOLD}Category (optional): {Colors.END}")
+    if category is None:
+        return
     
     # First check if notes table exists
     cursor = session.db_conn.cursor()
@@ -2076,68 +2237,142 @@ def brainstorm_module():
 
 def execute_brainstorm(buckets, tables, versions, guidance):
     """Execute the brainstorming with selected inputs"""
-    print(f"\n{Colors.CYAN} Generating creative ideas...{Colors.END}")
+    print(f"\n{Colors.CYAN}🧠 Generating creative ideas...{Colors.END}")
+    print_separator()
     
     # Build context from selections
     context_parts = []
     
+    print(f"\n{Colors.YELLOW}📊 ASSEMBLING CONTEXT:{Colors.END}")
+    
     # Add table data
     if "characters" in tables:
+        print(f"  • Loading characters...")
         cursor = session.db_conn.cursor()
         cursor.execute("SELECT name, romantic_challenge, lovable_trait, comedic_flaw FROM characters")
         chars = cursor.fetchall()
         if chars:
-            context_parts.append("CHARACTERS:\n" + "\n".join([f"- {c[0]}: {c[1]}, {c[2]}, {c[3]}" for c in chars]))
+            char_context = "CHARACTERS:\n" + "\n".join([f"- {c[0]}: {c[1]}, {c[2]}, {c[3]}" for c in chars])
+            context_parts.append(char_context)
+            print(f"    ✓ {len(chars)} characters loaded")
     
     if "scenes" in tables:
+        print(f"  • Loading scenes...")
         cursor = session.db_conn.cursor()
         cursor.execute("SELECT act, scene, key_events FROM story_outline ORDER BY act, scene")
         scenes = cursor.fetchall()
         if scenes:
-            context_parts.append("SCENES:\n" + "\n".join([f"- Act {s[0]}, Scene {s[1]}: {s[2]}" for s in scenes]))
+            scene_context = "SCENES:\n" + "\n".join([f"- Act {s[0]}, Scene {s[1]}: {s[2]}" for s in scenes])
+            context_parts.append(scene_context)
+            print(f"    ✓ {len(scenes)} scenes loaded")
     
     if "notes" in tables:
+        print(f"  • Loading notes...")
         cursor = session.db_conn.cursor()
         cursor.execute("SELECT title, content FROM notes")
         notes = cursor.fetchall()
         if notes:
-            context_parts.append("NOTES:\n" + "\n".join([f"- {n[0]}: {n[1]}" for n in notes]))
+            notes_context = "NOTES:\n" + "\n".join([f"- {n[0]}: {n[1]}" for n in notes])
+            context_parts.append(notes_context)
+            print(f"    ✓ {len(notes)} notes loaded")
+    
+    # Add bucket data
+    if buckets:
+        print(f"  • Loading buckets...")
+        for bucket in buckets:
+            bucket_file = f"buckets/{bucket}.txt"
+            if os.path.exists(bucket_file):
+                with open(bucket_file, 'r') as f:
+                    bucket_content = f.read()
+                    context_parts.append(f"BUCKET ({bucket}):\n{bucket_content}")
+                    print(f"    ✓ Bucket '{bucket}' loaded")
     
     # Build prompt
-    prompt = "Generate creative brainstorming ideas for a screenplay.\n\n"
+    prompt = "You are a creative screenwriting assistant. Generate brainstorming ideas for a screenplay.\n\n"
     if context_parts:
-        prompt += "\n".join(context_parts) + "\n\n"
+        prompt += "CONTEXT:\n" + "\n\n".join(context_parts) + "\n\n"
     if guidance:
         prompt += f"USER GUIDANCE: {guidance}\n\n"
-    prompt += "Provide creative suggestions, dialogue ideas, and scene concepts."
+    prompt += """Please provide:
+1. Scene Concepts - Creative scene ideas with specific details
+2. Dialogue Ideas - Actual dialogue snippets that could be used
+3. Visual Moments - Cinematic shots and visual storytelling ideas
+4. Character Development - Ways to deepen character arcs
+5. Plot Twists - Unexpected turns the story could take
+
+Be specific and creative, providing actionable ideas."""
     
-    # Simulate API call
-    print(f"{Colors.YELLOW}Processing with AI...{Colors.END}")
-    import time
-    time.sleep(2)
+    # Display assembled prompt for debugging
+    print(f"\n{Colors.CYAN}📝 PROMPT PREVIEW:{Colors.END}")
+    print_separator()
+    print(f"{prompt[:500]}..." if len(prompt) > 500 else prompt)
+    print_separator()
     
-    # Generate result
-    result = f"""
+    # Call actual OpenAI API
+    print(f"\n{Colors.YELLOW}🤖 Processing with OpenAI API...{Colors.END}")
+    
+    try:
+        # Use the global client that was set up during API key configuration
+        global client
+        
+        if not client:
+            print(f"{Colors.RED}⚠️  OpenAI client not initialized. Please set up API key first.{Colors.END}")
+            wait_for_key()
+            return
+        
+        # Make API call
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a creative screenwriting assistant specializing in romantic comedies."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.8,
+            max_tokens=2000
+        )
+        
+        result = response.choices[0].message.content
+        
+    except Exception as e:
+        print(f"\n{Colors.RED}⚠️  API Error: {str(e)}{Colors.END}")
+        print(f"{Colors.YELLOW}Falling back to example output...{Colors.END}")
+        
+        # Fallback result
+        result = """
 BRAINSTORMING RESULTS
-{'-' * 40}
+=====================================
 
-Scene Concepts:
-• Opening with a dramatic misunderstanding
-• Character reveals hidden talent unexpectedly
-• Comedic chase sequence through unusual location
+SCENE CONCEPTS:
+• Opening with a dramatic misunderstanding at a wedding venue
+• Character reveals hidden talent for salsa dancing during company party
+• Comedic chase sequence through farmers market with produce obstacles
 
-Dialogue Ideas:
-• "I never thought I'd say this, but..."
-• Witty banter about modern dating
-• Heartfelt confession with comedic interruption
+DIALOGUE IDEAS:
+• "I never thought I'd say this, but your spreadsheet organization is... oddly attractive"
+• Witty banter about dating apps: "Your profile said you like long walks..." "To the fridge, yes."
+• Heartfelt confession interrupted by sprinkler system malfunction
 
-Visual Moments:
-• Slow-motion romantic moment gone wrong
-• Parallel scenes showing different perspectives
-• Creative use of props for comedy
+VISUAL MOMENTS:
+• Slow-motion romantic moment ruined by pigeon attack
+• Split-screen showing both characters having the same realization
+• Creative use of office supplies to build elaborate apology display
+
+CHARACTER DEVELOPMENT:
+• Protagonist learns to embrace spontaneity through failed plans
+• Love interest reveals vulnerability beneath confident exterior
+• Supporting character's subplot mirrors main romance theme
+
+PLOT TWISTS:
+• The wedding they're planning isn't theirs - it's for their exes
+• Secret identity reveal: the anonymous advice columnist is the janitor
+• The company merger threatens to separate them geographically
 """
     
+    # Display result
+    print(f"\n{Colors.GREEN}✨ BRAINSTORM OUTPUT:{Colors.END}")
+    print_separator()
     print(result)
+    print_separator()
     
     # Save to database
     cursor = session.db_conn.cursor()
@@ -2148,10 +2383,13 @@ Visual Moments:
                                       bucket_selection, lightrag_context, ai_suggestions)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (session_id, datetime.now().isoformat(), "custom", 
-          ",".join(tables), ",".join(buckets), "", result))
+          ",".join(tables), ",".join(buckets), prompt[:1000], result))
     
     session.db_conn.commit()
-    print(f"\n{Colors.GREEN} Brainstorm saved as session: {session_id}{Colors.END}")
+    print(f"\n{Colors.GREEN}✅ Brainstorm saved as session: {session_id}{Colors.END}")
+    
+    # Wait for user before returning to menu
+    wait_for_key()
 
 def write_module():
     """Writing Module - Clean spec version"""
@@ -2658,9 +2896,18 @@ def tables_manager():
         print(f"   {Colors.BOLD}7.{Colors.END}  Custom SQL Query")
         print(f"   {Colors.BOLD}8.{Colors.END}  Export Table Data")
         print(f"   {Colors.BOLD}9.{Colors.END}  Clean/Optimize Tables")
+        if HAS_TERMIOS:
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}10.{Colors.END} 🏠 Back to Main Menu")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
+        
+        # Check for arrow key navigation
+        if not choice and HAS_TERMIOS:
+            key = get_single_keypress()
+            if key in ['LEFT', 'ESC']:
+                break
+            continue
         
         if choice == "1":
             view_all_tables()
@@ -3177,13 +3424,17 @@ def buckets_manager():
         print(f"   {Colors.BOLD}3.{Colors.END} View")
         
         if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow to go back{Colors.END}")
+            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         
         choice = input(f"\n[ ] Enter choice: ").strip()
         
+        if HAS_TERMIOS and choice.startswith('\x1b'):
+            # Handle escape sequences that got into the input
+            break
+        
         if not choice and HAS_TERMIOS:
             key = get_single_keypress()
-            if key == 'LEFT':
+            if key in ['LEFT', 'ESC']:
                 break
             continue
         
@@ -3193,6 +3444,8 @@ def buckets_manager():
             new_bucket_menu()
         elif choice == "3":
             view_bucket_menu()
+        elif choice == "0" or choice.lower() == "back":
+            break
 
 def edit_bucket_menu():
     """Edit bucket contents"""

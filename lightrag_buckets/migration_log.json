@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-08-13T14:27:31.055749",
+  "migrated": [
+    {
+      "original": "books",
+      "new_name": "miranda_books",
+      "path": "/Users/elle/Desktop/Elizabeth_PI/lightrag_buckets/miranda_books"
+    },
+    {
+      "original": "plays",
+      "new_name": "miranda_plays",
+      "path": "/Users/elle/Desktop/Elizabeth_PI/lightrag_buckets/miranda_plays"
+    },
+    {
+      "original": "scripts",
+      "new_name": "miranda_scripts",
+      "path": "/Users/elle/Desktop/Elizabeth_PI/lightrag_buckets/miranda_scripts"
+    }
+  ],
+  "skipped": [],
+  "errors": []
+}
