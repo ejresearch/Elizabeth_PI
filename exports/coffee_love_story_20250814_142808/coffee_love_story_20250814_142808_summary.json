@@ -1,0 +1,17 @@
+{
+  "project_name": "coffee_love_story_20250814_142808",
+  "template": "screenplay",
+  "description": "A romantic comedy about rival coffee shop owners",
+  "created_at": "2025-08-14T14:28:08.694688",
+  "exported_at": "2025-08-14T14:28:08.696678",
+  "statistics": {
+    "total_scenes": 3,
+    "total_characters": 4,
+    "scenes_written": 3
+  },
+  "files_created": [
+    "coffee_love_story_20250814_142808_screenplay.txt",
+    "coffee_love_story_20250814_142808_characters.txt",
+    "coffee_love_story_20250814_142808_summary.json"
+  ]
+}

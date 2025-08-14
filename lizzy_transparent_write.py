@@ -476,75 +476,104 @@ class TransparentWriter:
         return prompts.get(bucket, prompts["scripts"])
     
     def compile_final_prompt(self, context: WriteContext, bucket_suggestions: Dict[str, str]) -> str:
-        """Compile the final generation prompt"""
+        """Compile the enhanced Write Tab prompt with full Lizzy specification"""
         step_id = f"prompt_compile_{context.act}_{context.scene}_{datetime.now().strftime('%H%M%S')}"
         
-        # Format character details
+        # Format character details  
         char_details = []
         for char in context.character_details:
             char_details.append(
                 f"{char['name'].upper()} ({char['age']}, {char['gender']}): "
-                f"{char['romantic_challenge']}. "
+                f"Romantic challenge: {char['romantic_challenge']}. "
                 f"Lovable trait: {char['lovable_trait']}. "
                 f"Comic flaw: {char['comedic_flaw']}."
             )
         
-        # Build comprehensive prompt
-        prompt_parts = [
-            "You are writing a Hollywood romantic comedy screenplay in standard format.",
-            "Style: Late 90s/early 2000s romantic comedies - genuine, witty, heartfelt.",
-            "",
-            f"SCENE TO WRITE: Act {context.act}, Scene {context.scene}",
-            "",
-            f"REQUIRED EVENTS:",
-            context.key_events,
-            "",
-            "CHARACTERS IN SCENE:",
-            "\n".join(char_details),
-        ]
-        
-        # Add continuity if available
+        # Format previous scene continuity
+        prev_scene_text = ""
         if context.previous_scene_text:
             continuity_excerpt = context.previous_scene_text[-400:] if len(context.previous_scene_text) > 400 else context.previous_scene_text
-            prompt_parts.extend([
-                "",
-                "CONTINUITY FROM PREVIOUS SCENE:",
-                "..." + continuity_excerpt if len(context.previous_scene_text) > 400 else continuity_excerpt
-            ])
+            prev_scene_text = "..." + continuity_excerpt if len(context.previous_scene_text) > 400 else continuity_excerpt
         
-        # Add brainstorming insights
+        # Format brainstorming insights
+        brainstorming_results = ""
         if context.brainstorm_insights:
-            prompt_parts.extend(["", "BRAINSTORMING INSIGHTS:"])
+            brainstorm_parts = []
             for bucket, insight in context.brainstorm_insights.items():
                 snippet = insight[:250] + "..." if len(insight) > 250 else insight
-                prompt_parts.append(f"[{bucket}]: {snippet}")
+                brainstorm_parts.append(f"[{bucket}]: {snippet}")
+            brainstorming_results = "\n".join(brainstorm_parts)
         
-        # Add bucket suggestions
+        # Format reference insights (bucket suggestions)
+        reference_insights = ""
         if bucket_suggestions:
-            prompt_parts.extend(["", "WRITING GUIDANCE:"])
+            insight_parts = []
             for bucket, suggestion in bucket_suggestions.items():
+                bucket_tag = f"[{bucket.title()}]"
                 snippet = suggestion[:250] + "..." if len(suggestion) > 250 else suggestion
-                prompt_parts.append(f"[{bucket}]: {snippet}")
+                insight_parts.append(f"{bucket_tag} {snippet}")
+            reference_insights = "\n".join(insight_parts)
         
-        # Add user guidance
-        if context.user_guidance:
-            prompt_parts.extend(["", f"SPECIFIC REQUIREMENTS: {context.user_guidance}"])
-        
-        # Final instructions
-        prompt_parts.extend([
-            "",
-            "WRITING REQUIREMENTS:",
-            "- Use standard screenplay format with scene headings, action lines, and dialogue",
-            "- Write natural, witty dialogue with subtext",
-            "- Include visual storytelling and character actions", 
-            "- Balance humor with genuine emotion",
-            "- Maintain continuity with previous scenes",
-            "- Advance both plot and character relationships",
-            "",
-            "WRITE THE COMPLETE SCENE NOW:"
-        ])
-        
-        final_prompt = "\n".join(prompt_parts)
+        # Enhanced Lizzy prompt with full specification
+        final_prompt = f"""# Writing a Screenplay with Lizzy
+
+## General Instructions
+You are **Lizzy**, an expert screenwriter specializing in romantic comedies. Your mission: revitalize the lost art of the rom-com — creating scripts that feel magnetic, romantic, and warm; timeless, witty, and emotionally resonant — while steering clear of formulaic, overproduced content.
+
+Romantic comedies flourished in the 1990s and early 2000s, blending sharp writing, authentic chemistry, and high-stakes emotional arcs. We will return to that craft, balancing humor, sincerity, and romantic tension.
+
+## Dataset Access
+- **Pinnacle Romantic Comedies** – tone & pacing
+- **The Complete Works of William Shakespeare** – plot frameworks & thematic depth  
+- **Essential Screenwriting Craft Guides** – structure & dialogue mastery
+
+## Data Sources & Authority (Read Carefully)
+- **SQL is the source of truth** for plot, characters, locations, and continuity. If LightRAG ideas conflict with SQL, **follow SQL**.
+- If SQL lacks a detail that is necessary to write the scene, state a single brief **ASSUMPTION:** line in action (max 10 words) and keep it consistent thereafter.
+- Do **not** add new named characters unless the outline requires it. If unavoidable, label as **NEW CHARACTER** with minimal footprint.
+
+## Scene Context
+SCENE TO WRITE:
+Act {context.act}, Scene {context.scene}
+
+REQUIRED EVENTS:
+{context.key_events}
+
+CHARACTERS IN SCENE:
+{chr(10).join(char_details)}
+
+CONTINUITY FROM PREVIOUS SCENE:
+{prev_scene_text}
+
+BRAINSTORMING INSIGHTS:
+{brainstorming_results}
+
+WRITING GUIDANCE (from LightRAG Reference Insights):
+{reference_insights}
+
+SPECIFIC REQUIREMENTS (from user):
+{context.user_guidance}
+
+## Writing Requirements
+- Standard Hollywood screenplay format (scene headings, action, dialogue).
+- Natural, witty dialogue with subtext; show, don't explain.
+- Visual storytelling and purposeful character action.
+- Balance humor with genuine emotion.
+- Maintain continuity with prior scenes and character positioning.
+- Advance both plot and relationships.
+- Avoid clichés, corporate formulas, and flat exposition.
+
+## Writing Style Guidelines
+- Clarity & brevity; active voice; concrete detail.
+- No stock phrases, overused words, or filler meta-speech.
+- Keep action lines lean; dialogue feels unscripted.
+- Use subtext over exposition; preserve distinct character voices.
+
+## Conflict Resolution Rules
+- If **RAG** contradicts **SQL** → follow **SQL**.
+- If **user guidance** contradicts RAG or style presets → follow **user guidance** unless it breaks SQL continuity.
+
+WRITE THE COMPLETE SCENE NOW:"""
         
         # Log prompt compilation
         step = WriteStep(

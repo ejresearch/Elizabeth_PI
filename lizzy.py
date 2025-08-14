@@ -24,6 +24,23 @@ except ImportError:
     HAS_TEMPLATE_SYSTEM = False
     HAS_AUTONOMOUS_AGENT = False
 
+# Import enhanced modules for transparent workflows
+try:
+    from lizzy_transparent_brainstorm import TransparentBrainstormer
+    from lizzy_transparent_write import TransparentWriter
+    from lizzy_export_system import ExportSystem
+    from lizzy_lightrag_manager import LightRAGManager
+    HAS_TRANSPARENT_MODULES = True
+except ImportError:
+    HAS_TRANSPARENT_MODULES = False
+
+# Import intake GUI for enhanced data entry
+try:
+    from lizzy_intake_interactive import launch_intake_gui
+    HAS_INTAKE_GUI = True
+except ImportError:
+    HAS_INTAKE_GUI = False
+
 # Platform-specific imports for keyboard handling
 try:
     import termios
@@ -930,7 +947,7 @@ def project_menu():
             manage_project()
 
 def update_tables_menu():
-    """Update Tables - Clean workflow for table management"""
+    """Update Tables - Enhanced table management"""
     while True:
         print_header()
         print_status()
@@ -943,9 +960,19 @@ def update_tables_menu():
         print(f"{Colors.CYAN}Notes{Colors.END}")
         print()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} Edit")
-        print(f"   {Colors.BOLD}2.{Colors.END} New")
-        print(f"   {Colors.BOLD}3.{Colors.END} View")
+        # Show enhanced options if available
+        if HAS_INTAKE_GUI:
+            print(f"{Colors.GREEN}✨ Enhanced Options Available{Colors.END}")
+            print(f"   {Colors.BOLD}1.{Colors.END} 🖥️  GUI Editor (Visual Interface)")
+            print(f"   {Colors.BOLD}2.{Colors.END} 📁 Import CSV")
+            print(f"   {Colors.BOLD}3.{Colors.END} ✏️  Classic Edit")
+            print(f"   {Colors.BOLD}4.{Colors.END} ➕ New Entry")
+            print(f"   {Colors.BOLD}5.{Colors.END} 👁️  View All")
+        else:
+            print(f"   {Colors.BOLD}1.{Colors.END} Edit")
+            print(f"   {Colors.BOLD}2.{Colors.END} New")
+            print(f"   {Colors.BOLD}3.{Colors.END} View")
+            print(f"   {Colors.BOLD}4.{Colors.END} Import CSV")
         
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
@@ -962,14 +989,37 @@ def update_tables_menu():
                 break
             continue
         
-        if choice == "1":
-            edit_table_menu()
-        elif choice == "2":
-            new_table_menu()
-        elif choice == "3":
-            view_table_menu()
-        elif choice == "0" or choice.lower() == "back":
-            break
+        # Handle enhanced options if available
+        if HAS_INTAKE_GUI:
+            if choice == "1":
+                # Launch GUI Editor
+                launch_gui_editor()
+            elif choice == "2":
+                # Import CSV
+                import_csv_enhanced()
+            elif choice == "3":
+                # Classic Edit
+                edit_table_menu()
+            elif choice == "4":
+                # New Entry
+                new_table_menu()
+            elif choice == "5":
+                # View All
+                view_table_menu()
+            elif choice == "0" or choice.lower() == "back":
+                break
+        else:
+            # Standard options
+            if choice == "1":
+                edit_table_menu()
+            elif choice == "2":
+                new_table_menu()
+            elif choice == "3":
+                view_table_menu()
+            elif choice == "4":
+                import_csv_enhanced()
+            elif choice == "0" or choice.lower() == "back":
+                break
 
 def edit_table_menu():
     """Select and edit a table inline"""
@@ -1278,13 +1328,36 @@ def reuse_version():
     wait_for_key()
 
 def export_options():
-    """Export menu - Clean spec version"""
+    """Export menu with Enhanced Options"""
     print_header()
     print_status()
     
     print(f"\n{Colors.BOLD}EXPORT{Colors.END}")
     print_separator()
     
+    # Check if enhanced export is available
+    if HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.GREEN}✨ Enhanced Export Available{Colors.END}")
+        print(f"   {Colors.BOLD}1.{Colors.END} 📦 Complete Package (Everything)")
+        print(f"   {Colors.BOLD}2.{Colors.END} 🎬 Screenplay Only")
+        print(f"   {Colors.BOLD}3.{Colors.END} 📊 Data & Analysis")
+        print(f"   {Colors.BOLD}4.{Colors.END} 📝 All Sessions")
+        print(f"   {Colors.BOLD}5.{Colors.END} 🎭 Standard Exports")
+        print(f"   {Colors.BOLD}0.{Colors.END} Back")
+        
+        choice = input(f"\n[ ] Enter choice: ").strip()
+        
+        if choice in ["1", "2", "3", "4"]:
+            return enhanced_export()
+        elif choice == "5":
+            # Continue with standard exports below
+            pass
+        elif choice == "0":
+            return
+        else:
+            return
+    
+    # Standard export options
     print(f"   {Colors.BOLD}1.{Colors.END} Export brainstorms")
     print(f"   {Colors.BOLD}2.{Colors.END} Export final drafts")
     print(f"   {Colors.BOLD}3.{Colors.END} Export tables")
@@ -2119,19 +2192,145 @@ def delete_note():
     
     wait_for_key()
 
-def import_csv():
-    """Import data from CSV file"""
-    print(f"\n{Colors.YELLOW} IMPORT FROM CSV{Colors.END}")
-    print_separator()
+def launch_gui_editor():
+    """Launch the GUI editor for table management"""
+    if not HAS_INTAKE_GUI:
+        print(f"{Colors.RED}GUI editor not available{Colors.END}")
+        wait_for_key()
+        return
     
-    print(f"{Colors.YELLOW}This feature is coming soon!{Colors.END}")
-    print(f"\nPlanned features:")
-    print(f"   • Import characters from CSV")
-    print(f"   • Import scenes from CSV")
-    print(f"   • Import notes from CSV")
-    print(f"   • Automatic field mapping")
+    print(f"\n{Colors.CYAN}🖥️ Launching GUI Editor...{Colors.END}")
+    print(f"{Colors.YELLOW}A new window will open for visual editing{Colors.END}")
+    
+    try:
+        # Launch the intake GUI
+        project_path = f"projects/{session.current_project}"
+        launch_intake_gui(project_path)
+        print(f"\n{Colors.GREEN}✅ GUI editor closed{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Error launching GUI: {str(e)}{Colors.END}")
     
     wait_for_key()
+
+def import_csv_enhanced():
+    """Enhanced CSV import with field mapping"""
+    print(f"\n{Colors.YELLOW}📁 IMPORT FROM CSV{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.CYAN}Select Table:{Colors.END}")
+    print(f"   {Colors.BOLD}1.{Colors.END} Characters")
+    print(f"   {Colors.BOLD}2.{Colors.END} Story Outline (Scenes)")
+    print(f"   {Colors.BOLD}3.{Colors.END} Notes")
+    print(f"   {Colors.BOLD}0.{Colors.END} Cancel")
+    
+    table_choice = input(f"\n[ ] Select table: ").strip()
+    
+    if table_choice == "0":
+        return
+    
+    table_map = {
+        "1": "characters",
+        "2": "story_outline",
+        "3": "notes"
+    }
+    
+    table_name = table_map.get(table_choice)
+    if not table_name:
+        print(f"{Colors.RED}Invalid selection{Colors.END}")
+        wait_for_key()
+        return
+    
+    # Get CSV file path
+    print(f"\n{Colors.YELLOW}Enter CSV file path:{Colors.END}")
+    print(f"(Drag and drop the file here, or type the path)")
+    csv_path = input(f"[ ] Path: ").strip().strip("'\"")
+    
+    if not os.path.exists(csv_path):
+        print(f"{Colors.RED}File not found: {csv_path}{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        import csv
+        
+        # Read CSV file
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+        if not rows:
+            print(f"{Colors.RED}CSV file is empty{Colors.END}")
+            wait_for_key()
+            return
+        
+        # Show preview
+        print(f"\n{Colors.GREEN}Found {len(rows)} rows{Colors.END}")
+        print(f"Columns: {', '.join(rows[0].keys())}")
+        print(f"\n{Colors.CYAN}Preview (first 3 rows):{Colors.END}")
+        
+        for i, row in enumerate(rows[:3], 1):
+            print(f"\nRow {i}:")
+            for key, value in row.items():
+                print(f"  {key}: {value[:50]}..." if len(value) > 50 else f"  {key}: {value}")
+        
+        # Confirm import
+        confirm = input(f"\n[ ] Import these {len(rows)} rows? (y/n): ").strip().lower()
+        if confirm != 'y':
+            return
+        
+        # Import data
+        cursor = session.db_conn.cursor()
+        imported = 0
+        
+        for row in rows:
+            if table_name == "characters":
+                cursor.execute("""
+                    INSERT INTO characters (name, gender, age, romantic_challenge, 
+                                          lovable_trait, comedic_flaw, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    row.get('name', ''),
+                    row.get('gender', ''),
+                    row.get('age', ''),
+                    row.get('romantic_challenge', ''),
+                    row.get('lovable_trait', ''),
+                    row.get('comedic_flaw', ''),
+                    row.get('notes', '')
+                ))
+                imported += 1
+            elif table_name == "story_outline":
+                cursor.execute("""
+                    INSERT INTO story_outline (act, scene, key_characters, key_events)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    int(row.get('act', 1)),
+                    int(row.get('scene', 1)),
+                    row.get('key_characters', ''),
+                    row.get('key_events', '')
+                ))
+                imported += 1
+            elif table_name == "notes":
+                cursor.execute("""
+                    INSERT INTO notes (title, content, category)
+                    VALUES (?, ?, ?)
+                """, (
+                    row.get('title', 'Untitled'),
+                    row.get('content', ''),
+                    row.get('category', 'General')
+                ))
+                imported += 1
+        
+        session.db_conn.commit()
+        print(f"\n{Colors.GREEN}✅ Successfully imported {imported} rows!{Colors.END}")
+        
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Import error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def import_csv():
+    """Legacy CSV import function - redirects to enhanced version"""
+    import_csv_enhanced()
 
 def project_summary():
     """Show complete project summary"""
@@ -2145,7 +2344,7 @@ def project_summary():
     view_notes()
 
 def brainstorm_module():
-    """Creative Brainstorming Module - Clean spec version"""
+    """Creative Brainstorming Module with Transparency"""
     if not session.current_project or not session.api_key_set:
         return
     
@@ -2154,6 +2353,20 @@ def brainstorm_module():
     print(f"\n{Colors.BOLD}BRAINSTORM MODE{Colors.END}")
     print_separator()
     
+    # Check if we have transparent modules available
+    if HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.GREEN}✨ Using Enhanced Transparent Brainstorming{Colors.END}")
+        print(f"{Colors.CYAN}You'll see:{Colors.END}")
+        print(f"  • What data is being assembled")
+        print(f"  • Which buckets are being queried")
+        print(f"  • How prompts are compiled")
+        print(f"  • Real-time AI responses")
+        print_separator()
+        
+        # Use transparent brainstormer
+        return run_transparent_brainstorm()
+    
+    # Fallback to original implementation
     # Collect selections
     selected_buckets = []
     selected_tables = []
@@ -2392,7 +2605,7 @@ PLOT TWISTS:
     wait_for_key()
 
 def write_module():
-    """Writing Module - Clean spec version"""
+    """Writing Module with Transparency"""
     if not session.current_project or not session.api_key_set:
         return
     
@@ -2401,6 +2614,20 @@ def write_module():
     print(f"\n{Colors.BOLD}WRITE MODE{Colors.END}")
     print_separator()
     
+    # Check if we have transparent modules available
+    if HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.GREEN}✨ Using Enhanced Transparent Writing{Colors.END}")
+        print(f"{Colors.CYAN}You'll see:{Colors.END}")
+        print(f"  • Context from brainstorming sessions")
+        print(f"  • Style guidance from buckets")
+        print(f"  • Prompt assembly in real-time")
+        print(f"  • AI generating your screenplay")
+        print_separator()
+        
+        # Use transparent writer
+        return run_transparent_write()
+    
+    # Fallback to original implementation
     # Collect selections (same as brainstorm)
     selected_buckets = []
     selected_tables = []
@@ -3419,9 +3646,19 @@ def buckets_manager():
             print(f"{Colors.YELLOW}No buckets yet{Colors.END}")
         print()
         
-        print(f"   {Colors.BOLD}1.{Colors.END} Edit")
-        print(f"   {Colors.BOLD}2.{Colors.END} New (GUI to add bucket)")
-        print(f"   {Colors.BOLD}3.{Colors.END} View")
+        # Show enhanced options if LightRAG manager is available
+        if HAS_TRANSPARENT_MODULES:
+            print(f"{Colors.GREEN}✨ Enhanced Bucket Management{Colors.END}")
+            print(f"   {Colors.BOLD}1.{Colors.END} 📄 Upload Documents")
+            print(f"   {Colors.BOLD}2.{Colors.END} 🔍 Query Buckets")
+            print(f"   {Colors.BOLD}3.{Colors.END} 📊 Visualize Knowledge Graph")
+            print(f"   {Colors.BOLD}4.{Colors.END} 🎚️  Toggle Active Buckets")
+            print(f"   {Colors.BOLD}5.{Colors.END} 📁 View Bucket Contents")
+            print(f"   {Colors.BOLD}6.{Colors.END} ➕ Create New Bucket")
+        else:
+            print(f"   {Colors.BOLD}1.{Colors.END} Edit")
+            print(f"   {Colors.BOLD}2.{Colors.END} New (GUI to add bucket)")
+            print(f"   {Colors.BOLD}3.{Colors.END} View")
         
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
@@ -3438,14 +3675,38 @@ def buckets_manager():
                 break
             continue
         
-        if choice == "1":
-            edit_bucket_menu()
-        elif choice == "2":
-            new_bucket_menu()
-        elif choice == "3":
-            view_bucket_menu()
-        elif choice == "0" or choice.lower() == "back":
-            break
+        # Handle enhanced options if available
+        if HAS_TRANSPARENT_MODULES:
+            if choice == "1":
+                # Upload Documents
+                upload_documents_to_bucket()
+            elif choice == "2":
+                # Query Buckets
+                query_buckets_interactive()
+            elif choice == "3":
+                # Visualize Knowledge Graph
+                visualize_knowledge_graph()
+            elif choice == "4":
+                # Toggle Active Buckets
+                toggle_bucket_status()
+            elif choice == "5":
+                # View Bucket Contents
+                view_bucket_menu()
+            elif choice == "6":
+                # Create New Bucket
+                create_new_bucket()
+            elif choice == "0" or choice.lower() == "back":
+                break
+        else:
+            # Standard options
+            if choice == "1":
+                edit_bucket_menu()
+            elif choice == "2":
+                new_bucket_menu()
+            elif choice == "3":
+                view_bucket_menu()
+            elif choice == "0" or choice.lower() == "back":
+                break
 
 def edit_bucket_menu():
     """Edit bucket contents"""
@@ -4616,6 +4877,468 @@ def export_agent_screenplay(project_name):
             print(f"{Colors.RED}❌ Export failed: {result.stderr}{Colors.END}")
     except Exception as e:
         print(f"{Colors.RED}❌ Export error: {str(e)}{Colors.END}")
+
+def run_transparent_brainstorm():
+    """Run brainstorming with full transparency using enhanced module"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        return execute_brainstorm([], [], [], "")
+    
+    try:
+        import asyncio
+        
+        # Initialize transparent brainstormer
+        brainstormer = TransparentBrainstormer(
+            project_path=f"projects/{session.current_project}",
+            api_key=session.api_key
+        )
+        
+        # Get available buckets
+        print(f"\n{Colors.YELLOW}Select Knowledge Buckets:{Colors.END}")
+        buckets = brainstormer.lightrag_manager.get_bucket_list()
+        
+        selected_buckets = []
+        if buckets:
+            for idx, bucket_info in enumerate(buckets, 1):
+                status = "✓" if bucket_info['active'] else "✗"
+                print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket_info['name']} [{status}] - {bucket_info['documents']} docs")
+            print(f"   {Colors.BOLD}0.{Colors.END} None/Skip")
+            
+            bucket_choices = input(f"\n[ ] Enter choices (comma-separated): ").strip()
+            if bucket_choices and bucket_choices != "0":
+                for choice in bucket_choices.split(','):
+                    try:
+                        idx = int(choice.strip()) - 1
+                        if 0 <= idx < len(buckets):
+                            selected_buckets.append(buckets[idx]['name'])
+                    except ValueError:
+                        pass
+        
+        # Get user guidance
+        print(f"\n{Colors.YELLOW}Additional Guidance:{Colors.END}")
+        user_guidance = input(f"[ ] Enter any specific instructions: ").strip()
+        
+        # Show transparency mode options
+        print(f"\n{Colors.YELLOW}Transparency Level:{Colors.END}")
+        print(f"   {Colors.BOLD}1.{Colors.END} Full - See everything in real-time")
+        print(f"   {Colors.BOLD}2.{Colors.END} Summary - See major steps only")
+        print(f"   {Colors.BOLD}3.{Colors.END} Results - Just show final output")
+        
+        transparency_level = input(f"\n[ ] Select level (1-3): ").strip() or "1"
+        
+        # Set up callbacks for real-time display
+        def on_context_assembly(scene, context):
+            if transparency_level == "1":
+                print(f"\n{Colors.CYAN}📊 Assembling context for {scene}...{Colors.END}")
+                print(f"   Characters: {len(context.get('characters', []))}")
+                print(f"   Previous scenes: {len(context.get('previous_scenes', []))}")
+        
+        def on_bucket_query(bucket_name, query, response):
+            if transparency_level in ["1", "2"]:
+                print(f"\n{Colors.YELLOW}🔍 Querying {bucket_name}...{Colors.END}")
+                if transparency_level == "1":
+                    print(f"   Query: {query[:100]}...")
+                    print(f"   Response preview: {response[:200]}...")
+        
+        def on_prompt_compilation(prompt):
+            if transparency_level == "1":
+                print(f"\n{Colors.BLUE}📝 Compiled Prompt:{Colors.END}")
+                print(f"{prompt[:500]}...")
+        
+        def on_ai_response(response):
+            if transparency_level in ["1", "2"]:
+                print(f"\n{Colors.GREEN}🤖 AI Response received{Colors.END}")
+                if transparency_level == "1":
+                    print(f"{response[:500]}...")
+        
+        # Attach callbacks
+        brainstormer.on_context_assembly = on_context_assembly
+        brainstormer.on_bucket_query = on_bucket_query
+        brainstormer.on_prompt_compilation = on_prompt_compilation
+        brainstormer.on_ai_response = on_ai_response
+        
+        # Confirm and run
+        print(f"\n{Colors.BOLD}BRAINSTORM CONFIGURATION{Colors.END}")
+        print_separator()
+        print(f"Buckets: {', '.join(selected_buckets) if selected_buckets else 'None'}")
+        print(f"User Guidance: {'Yes' if user_guidance else 'No'}")
+        print(f"Transparency: {['', 'Full', 'Summary', 'Results'][int(transparency_level)]}")
+        
+        confirm = input(f"\n[ ] Start transparent brainstorm? (y/n): ").strip().lower()
+        if confirm != 'y':
+            return
+        
+        print(f"\n{Colors.CYAN}🧠 Starting Transparent Brainstorm...{Colors.END}")
+        print_separator()
+        
+        # Run brainstorming
+        session_id = asyncio.run(
+            brainstormer.brainstorm_all_scenes(selected_buckets, user_guidance)
+        )
+        
+        print(f"\n{Colors.GREEN}✅ Brainstorm completed!{Colors.END}")
+        print(f"Session ID: {session_id}")
+        
+        # Ask if user wants to see the full results
+        show_results = input(f"\n[ ] View full results? (y/n): ").strip().lower()
+        if show_results == 'y':
+            cursor = session.db_conn.cursor()
+            cursor.execute("""
+                SELECT scene_id, brainstorm_content 
+                FROM brainstorming_log 
+                WHERE session_id = ?
+            """, (session_id,))
+            
+            results = cursor.fetchall()
+            for scene_id, content in results:
+                print(f"\n{Colors.BOLD}Scene: {scene_id}{Colors.END}")
+                print(content[:1000])  # Show first 1000 chars
+                
+    except Exception as e:
+        print(f"\n{Colors.RED}⚠️ Error in transparent brainstorm: {str(e)}{Colors.END}")
+        print(f"{Colors.YELLOW}Falling back to standard brainstorm...{Colors.END}")
+        execute_brainstorm([], [], [], "")
+    
+    wait_for_key()
+
+def run_transparent_write():
+    """Run writing with full transparency using enhanced module"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        return
+    
+    try:
+        import asyncio
+        
+        # Initialize transparent writer
+        writer = TransparentWriter(
+            project_path=f"projects/{session.current_project}",
+            api_key=session.api_key
+        )
+        
+        # Similar setup to brainstorm but for writing
+        print(f"\n{Colors.GREEN}✨ Using Enhanced Transparent Writing{Colors.END}")
+        
+        # Get buckets and guidance
+        buckets = writer.lightrag_manager.get_bucket_list()
+        selected_buckets = []
+        
+        # ... (similar bucket selection as brainstorm)
+        
+        # Run writing
+        session_id = asyncio.run(
+            writer.write_all_scenes(selected_buckets, "")
+        )
+        
+        print(f"\n{Colors.GREEN}✅ Writing completed!{Colors.END}")
+        print(f"Session ID: {session_id}")
+        
+    except Exception as e:
+        print(f"\n{Colors.RED}⚠️ Error in transparent write: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def enhanced_export():
+    """Use enhanced export system for comprehensive exports"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced export not available{Colors.END}")
+        return
+    
+    try:
+        # Initialize export system
+        exporter = ExportSystem(
+            project_path=f"projects/{session.current_project}",
+            project_name=session.current_project
+        )
+        
+        print(f"\n{Colors.BOLD}ENHANCED EXPORT{Colors.END}")
+        print_separator()
+        
+        print(f"{Colors.YELLOW}Export Type:{Colors.END}")
+        print(f"   {Colors.BOLD}1.{Colors.END} Complete Package - Everything")
+        print(f"   {Colors.BOLD}2.{Colors.END} Screenplay Only")
+        print(f"   {Colors.BOLD}3.{Colors.END} Data Package - Tables & Analysis")
+        print(f"   {Colors.BOLD}4.{Colors.END} Sessions - All brainstorm/write sessions")
+        print(f"   {Colors.BOLD}5.{Colors.END} Analysis - Content & writing analysis")
+        
+        export_type = input(f"\n[ ] Select type (1-5): ").strip()
+        
+        type_map = {
+            "1": "complete",
+            "2": "screenplay", 
+            "3": "data",
+            "4": "sessions",
+            "5": "analysis"
+        }
+        
+        selected_type = type_map.get(export_type, "complete")
+        
+        # Format selection
+        print(f"\n{Colors.YELLOW}Export Formats:{Colors.END}")
+        formats = []
+        
+        print(f"   [x] JSON (always included)")
+        if input(f"   [ ] TXT? (y/n): ").strip().lower() == 'y':
+            formats.append("txt")
+        if input(f"   [ ] HTML? (y/n): ").strip().lower() == 'y':
+            formats.append("html")
+        if input(f"   [ ] Fountain? (y/n): ").strip().lower() == 'y':
+            formats.append("fountain")
+        if input(f"   [ ] Markdown? (y/n): ").strip().lower() == 'y':
+            formats.append("markdown")
+        if input(f"   [ ] CSV? (y/n): ").strip().lower() == 'y':
+            formats.append("csv")
+        
+        formats.append("json")  # Always include JSON
+        
+        print(f"\n{Colors.CYAN}📦 Creating export package...{Colors.END}")
+        
+        # Create export
+        zip_path = exporter.create_export_package(
+            export_type=selected_type,
+            formats=formats,
+            include_metadata=True
+        )
+        
+        print(f"\n{Colors.GREEN}✅ Export completed!{Colors.END}")
+        print(f"Package saved to: {zip_path}")
+        
+    except Exception as e:
+        print(f"\n{Colors.RED}⚠️ Export error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def upload_documents_to_bucket():
+    """Upload documents to a LightRAG bucket"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        # Initialize LightRAG manager
+        manager = LightRAGManager()
+        
+        print(f"\n{Colors.YELLOW}📄 UPLOAD DOCUMENTS TO BUCKET{Colors.END}")
+        print_separator()
+        
+        # List available buckets
+        buckets = manager.get_bucket_list()
+        if not buckets:
+            print(f"{Colors.YELLOW}No buckets available. Create one first.{Colors.END}")
+            wait_for_key()
+            return
+        
+        print(f"{Colors.CYAN}Select Bucket:{Colors.END}")
+        for idx, bucket_info in enumerate(buckets, 1):
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket_info['name']} ({bucket_info['documents']} docs)")
+        
+        bucket_choice = input(f"\n[ ] Select bucket: ").strip()
+        
+        try:
+            idx = int(bucket_choice) - 1
+            if 0 <= idx < len(buckets):
+                bucket_name = buckets[idx]['name']
+            else:
+                print(f"{Colors.RED}Invalid selection{Colors.END}")
+                wait_for_key()
+                return
+        except ValueError:
+            print(f"{Colors.RED}Invalid selection{Colors.END}")
+            wait_for_key()
+            return
+        
+        # Get document path
+        print(f"\n{Colors.YELLOW}Enter document path:{Colors.END}")
+        print(f"(Drag and drop file or directory, or type path)")
+        doc_path = input(f"[ ] Path: ").strip().strip("'\"")
+        
+        if not os.path.exists(doc_path):
+            print(f"{Colors.RED}Path not found: {doc_path}{Colors.END}")
+            wait_for_key()
+            return
+        
+        # Process documents
+        print(f"\n{Colors.CYAN}📥 Processing documents...{Colors.END}")
+        
+        if os.path.isfile(doc_path):
+            # Single file
+            with open(doc_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            print(f"Adding {os.path.basename(doc_path)}...")
+            success = manager.add_to_bucket(bucket_name, content)
+            
+            if success:
+                print(f"{Colors.GREEN}✅ Document added successfully!{Colors.END}")
+            else:
+                print(f"{Colors.RED}⚠️ Failed to add document{Colors.END}")
+        
+        elif os.path.isdir(doc_path):
+            # Directory of files
+            files = [f for f in os.listdir(doc_path) 
+                    if f.endswith(('.txt', '.md', '.pdf', '.doc', '.docx'))]
+            
+            print(f"Found {len(files)} documents")
+            
+            for file_name in files:
+                file_path = os.path.join(doc_path, file_name)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                print(f"Adding {file_name}...")
+                manager.add_to_bucket(bucket_name, content)
+            
+            print(f"{Colors.GREEN}✅ Added {len(files)} documents!{Colors.END}")
+        
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def query_buckets_interactive():
+    """Interactive query interface for buckets"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        manager = LightRAGManager()
+        
+        print(f"\n{Colors.YELLOW}🔍 QUERY KNOWLEDGE BUCKETS{Colors.END}")
+        print_separator()
+        
+        # Select buckets to query
+        buckets = manager.get_bucket_list()
+        active_buckets = [b['name'] for b in buckets if b['active']]
+        
+        print(f"{Colors.CYAN}Active Buckets: {', '.join(active_buckets)}{Colors.END}")
+        print(f"\nEnter your query (or 'quit' to exit):")
+        
+        while True:
+            query = input(f"\n[ ] Query: ").strip()
+            
+            if query.lower() in ['quit', 'exit', 'q']:
+                break
+            
+            if not query:
+                continue
+            
+            print(f"\n{Colors.CYAN}🤔 Searching...{Colors.END}")
+            
+            # Query all active buckets
+            results = manager.query_active_buckets(query)
+            
+            if results:
+                for result in results:
+                    print(f"\n{Colors.BOLD}Bucket: {result['bucket']}{Colors.END}")
+                    print(result['response'][:500] + "..." if len(result['response']) > 500 else result['response'])
+            else:
+                print(f"{Colors.YELLOW}No results found{Colors.END}")
+        
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def visualize_knowledge_graph():
+    """Visualize the knowledge graph of a bucket"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    print(f"\n{Colors.YELLOW}📊 VISUALIZE KNOWLEDGE GRAPH{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.YELLOW}This feature will generate an interactive graph visualization.{Colors.END}")
+    print(f"Coming soon: Network graph showing entities and relationships")
+    
+    wait_for_key()
+
+def toggle_bucket_status():
+    """Toggle active/inactive status of buckets"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        manager = LightRAGManager()
+        
+        print(f"\n{Colors.YELLOW}🎚️ TOGGLE BUCKET STATUS{Colors.END}")
+        print_separator()
+        
+        buckets = manager.get_bucket_list()
+        
+        for idx, bucket_info in enumerate(buckets, 1):
+            status = "✓ Active" if bucket_info['active'] else "✗ Inactive"
+            print(f"   {Colors.BOLD}{idx}.{Colors.END} {bucket_info['name']} [{status}]")
+        
+        choice = input(f"\n[ ] Select bucket to toggle: ").strip()
+        
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(buckets):
+                bucket_name = buckets[idx]['name']
+                new_status = not buckets[idx]['active']
+                
+                if new_status:
+                    manager.activate_bucket(bucket_name)
+                    print(f"{Colors.GREEN}✅ {bucket_name} activated{Colors.END}")
+                else:
+                    manager.deactivate_bucket(bucket_name)
+                    print(f"{Colors.YELLOW}✗ {bucket_name} deactivated{Colors.END}")
+            else:
+                print(f"{Colors.RED}Invalid selection{Colors.END}")
+        except ValueError:
+            print(f"{Colors.RED}Invalid selection{Colors.END}")
+        
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def create_new_bucket():
+    """Create a new knowledge bucket"""
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}Enhanced modules not available{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        manager = LightRAGManager()
+        
+        print(f"\n{Colors.YELLOW}➕ CREATE NEW BUCKET{Colors.END}")
+        print_separator()
+        
+        bucket_name = input(f"[ ] Bucket name: ").strip().lower().replace(' ', '_')
+        
+        if not bucket_name:
+            print(f"{Colors.RED}Name required{Colors.END}")
+            wait_for_key()
+            return
+        
+        description = input(f"[ ] Description: ").strip()
+        
+        # Create bucket
+        success = manager.create_bucket(bucket_name, description)
+        
+        if success:
+            print(f"{Colors.GREEN}✅ Bucket '{bucket_name}' created successfully!{Colors.END}")
+            
+            # Ask if user wants to add documents now
+            add_docs = input(f"\n[ ] Add documents now? (y/n): ").strip().lower()
+            if add_docs == 'y':
+                upload_documents_to_bucket()
+        else:
+            print(f"{Colors.RED}⚠️ Failed to create bucket{Colors.END}")
+        
+    except Exception as e:
+        print(f"{Colors.RED}⚠️ Error: {str(e)}{Colors.END}")
+    
+    wait_for_key()
 
 def admin_menu():
     """Admin menu for template management"""

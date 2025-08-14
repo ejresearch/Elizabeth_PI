@@ -269,7 +269,7 @@ class TransparentBrainstormer:
         return context
     
     def compile_prompts(self, context: BrainstormContext) -> Dict[str, Dict]:
-        """Compile prompts for each active bucket"""
+        """Compile enhanced brainstorming prompts with full Lizzy specification"""
         step_id = f"prompts_{context.act}_{context.scene}_{datetime.now().strftime('%H%M%S')}"
         
         self.trigger_callback('step_started', {
@@ -277,38 +277,102 @@ class TransparentBrainstormer:
             'buckets': context.active_buckets
         })
         
+        # Format character details for prompt
+        char_details = []
+        for char in context.character_details:
+            char_details.append(
+                f"{char['name'].upper()} ({char['age']}, {char['gender']}): "
+                f"Romantic challenge: {char['romantic_challenge']}. "
+                f"Lovable trait: {char['lovable_trait']}. "
+                f"Comic flaw: {char['comedic_flaw']}."
+            )
+        
+        # Get project logline/concept from database
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT value FROM project_info WHERE key = 'description'")
+        result = cursor.fetchone()
+        logline = result[0] if result else "A romantic comedy about unexpected love"
+        
+        # Create the enhanced brainstorming prompt
+        enhanced_prompt = f"""# Brainstorming with Lizzy
+
+## General Instructions
+You are **Lizzy**, an expert screenwriter specializing in romantic comedies. The goal of Brainstorm is to bring the ideas in the SQL tables to life and ground them in rich, real-world reference material from LightRAG. Treat this as a collaborative writers' room session — exploring possibilities, testing beats, and gathering inspiration for the Write phase.
+
+## Using SQL
+- **SQL is the foundation** for all brainstorming. Scene descriptions, characters, logline, and concept are the anchor points.
+- From **Outline** (`story_outline`): `act`, `scene`, `key_characters`, `key_events`. These guide what must be considered.
+- From **Characters** (`characters`): draw on `romantic_challenge`, `lovable_trait`, and `comedic_flaw` to shape ideas.
+- Consider the scene's **position in the larger arc** — how it builds from the previous and sets up the next.
+
+## Using LightRAG
+- In Brainstorm, you **may use quotes and explicit references** from LightRAG sources.
+- Purpose: surface tonal, thematic, and structural insights that feel alive, grounded, and relevant.
+- **Two-Pass Strategy**:
+  1. **Sequential Queries**
+     - **Scripts:** find comparable moments, highlight tone, pacing, and humor beats.
+     - **Plays:** uncover dramatic irony, archetypal moves, thematic resonance.
+     - **Books:** extract structural principles, craft techniques, and professional writing advice.
+  2. **Cross-Bucket Reflection**
+     - Compare insights, remove redundancies, and integrate into a coherent set of possibilities.
+- Use `mix` mode for all queries.
+
+## Brainstorming Output Guidelines
+- Output is **idea-rich, not a finished scene**.
+- Suggest possible directions, setups, reversals, emotional beats, and comedic devices.
+- Include concrete examples (quotes, moments, devices) from sources.
+- Organize into a clear, concise "Reference Insights" section.
+- Ensure the ideas respect SQL continuity and character logic.
+
+## Scene Context
+SCENE TO BRAINSTORM:
+Act {context.act}, Scene {context.scene}
+
+REQUIRED EVENTS:
+{context.scene_description}
+
+CHARACTERS IN SCENE:
+{chr(10).join(char_details)}
+
+PROJECT LOGLINE:
+{logline}
+
+PREVIOUS SCENE CONTEXT:
+{context.previous_scene}
+
+USER GUIDANCE:
+{context.user_guidance}
+
+## Output Specification
+1) **SQL Snapshot (Ground Truth)** — 3–5 bullets reiterating must-hit facts from SQL.
+2) **Bucket Notes — Scripts** — 3–5 items; may include short quotes with titles.
+3) **Bucket Notes — Plays** — 3–5 items; may include short quotes with titles.
+4) **Bucket Notes — Books** — 3–5 items; may include short quotes with titles/pages.
+5) **Unified Strategy (≤ 50 words)** — one paragraph merging the above.
+6) **Beat Sketch (6–10 beats)** — numbered list mapping from opening image to button; tag beats with [Tone], [Plot], or [Craft].
+7) **Opportunities & Risks (max 6 bullets)** — list potential payoffs and pitfalls.
+8) **Open Questions (max 5)** — crisp questions to resolve before writing.
+
+## Brainstorming Task
+Generate a set of organized, well-supported creative ideas for this scene. Focus on **possibility and inspiration**, not execution. This will give the Write phase a strong, organized mission to build from."""
+        
+        # Create compiled prompts dict for all buckets
         compiled_prompts = {}
         
         for bucket in context.active_buckets:
-            # Format character details for prompt
-            char_context = "\n".join([
-                f"- {char['name']} ({char['gender']}, {char['age']}): "
-                f"Challenge: {char['romantic_challenge']}, "
-                f"Lovable: {char['lovable_trait']}, "
-                f"Comedic Flaw: {char['comedic_flaw']}"
-                for char in context.character_details
-            ])
-            
-            # Build context dict for template
-            template_context = {
-                "act": context.act,
-                "scene": context.scene,
-                "scene_context": context.scene_description,
-                "character_details": char_context,
-                "previous_scene": context.previous_scene,
-                "user_guidance": context.user_guidance
-            }
-            
-            # Use prompt inspector for transparency
-            inspection = self.prompt_inspector.inspect_prompt(
-                "brainstorm", bucket, template_context
-            )
-            
             compiled_prompts[bucket] = {
-                "template_used": self.template_manager.get_template("brainstorm", bucket),
-                "context": template_context,
-                "compiled_prompt": inspection["compiled_prompt"],
-                "inspection": inspection
+                "template_used": "enhanced_brainstorm",
+                "context": {
+                    "act": context.act,
+                    "scene": context.scene,
+                    "scene_description": context.scene_description,
+                    "character_details": char_details,
+                    "previous_scene": context.previous_scene,
+                    "user_guidance": context.user_guidance,
+                    "logline": logline
+                },
+                "compiled_prompt": enhanced_prompt,
+                "inspection": {"compiled_prompt": enhanced_prompt}
             }
         
         # Log prompt compilation
@@ -317,13 +381,19 @@ class TransparentBrainstormer:
             step_type="prompt",
             timestamp=datetime.now(),
             bucket="all",
-            content=compiled_prompts,
-            metadata={"act": context.act, "scene": context.scene}
+            content={"enhanced_prompt": enhanced_prompt},
+            metadata={
+                "act": context.act, 
+                "scene": context.scene,
+                "prompt_length": len(enhanced_prompt),
+                "enhancement": "SceneBrainstormingAgent_integration"
+            }
         )
         self.log_step(step)
         
         self.trigger_callback('prompt_compiled', {
             'prompts': compiled_prompts,
+            'enhanced_prompt_length': len(enhanced_prompt),
             'step_id': step_id
         })
         
