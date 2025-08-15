@@ -7,6 +7,7 @@ Handles template loading, project creation, and schema management
 import os
 import json
 import sqlite3
+import shutil
 from datetime import datetime
 
 class TemplateManager:
@@ -124,6 +125,15 @@ class TemplateManager:
         cursor = conn.cursor()
         
         try:
+            # Check for template mode selections if template has them
+            character_mode = None
+            outline_mode = None
+            
+            if template.get('initialization', {}).get('on_create') == 'prompt_template_modes':
+                character_mode, outline_mode = self.prompt_template_modes(template)
+            elif template.get('initialization', {}).get('on_create') == 'prompt_outline_mode':
+                outline_mode = self.prompt_outline_mode(template)
+            
             # Create all tables from template
             for table_name, table_info in template['tables'].items():
                 fields = []
@@ -137,6 +147,12 @@ class TemplateManager:
                 fields_sql = ", ".join(fields)
                 create_sql = f"CREATE TABLE {table_name} ({fields_sql})"
                 cursor.execute(create_sql)
+                
+                # Populate default data if specified
+                if table_name == 'story_outline_extended' and outline_mode:
+                    self.populate_outline_table(cursor, template, outline_mode)
+                elif table_name == 'characters' and character_mode:
+                    self.populate_characters_table(cursor, template, character_mode)
             
             # Create project metadata table
             cursor.execute("""
@@ -162,6 +178,19 @@ class TemplateManager:
                 template['name'],
                 datetime.now().isoformat()
             ))
+            
+            # Store template modes if selected
+            if outline_mode:
+                cursor.execute("""
+                    INSERT INTO project_metadata (key, value) VALUES 
+                    ('outline_mode', ?)
+                """, (outline_mode,))
+            
+            if character_mode:
+                cursor.execute("""
+                    INSERT INTO project_metadata (key, value) VALUES 
+                    ('character_mode', ?)
+                """, (character_mode,))
             
             # Store template snapshot for future reference
             cursor.execute("""
@@ -304,6 +333,175 @@ class TemplateManager:
         except Exception as e:
             print(f" Error migrating legacy project: {e}")
             return False
+    
+    def prompt_template_modes(self, template):
+        """Prompt user to select both character and outline modes"""
+        character_mode = None
+        outline_mode = None
+        
+        # Character mode selection
+        char_options = template.get('initialization', {}).get('character_options', {})
+        if char_options:
+            print("\n" + "="*60)
+            print(" CHARACTER TEMPLATE SELECTION")
+            print("="*60)
+            print("\nHow would you like to set up your characters?\n")
+            
+            option_keys = list(char_options.keys())
+            for i, key in enumerate(option_keys, 1):
+                option = char_options[key]
+                print(f"{i}. {option['name']}")
+                print(f"   {option['description']}\n")
+            
+            while True:
+                try:
+                    choice = input(f"Select character mode (1-{len(option_keys)}): ").strip()
+                    choice_idx = int(choice) - 1
+                    if 0 <= choice_idx < len(option_keys):
+                        character_mode = option_keys[choice_idx]
+                        print(f"\n✓ Selected: {char_options[character_mode]['name']}")
+                        break
+                    else:
+                        print(f" Please enter a number between 1 and {len(option_keys)}")
+                except ValueError:
+                    print(" Please enter a valid number")
+        
+        # Outline mode selection
+        outline_options = template.get('initialization', {}).get('outline_options', {})
+        if outline_options:
+            print("\n" + "="*60)
+            print(" STORY OUTLINE MODE SELECTION")
+            print("="*60)
+            print("\nHow would you like to structure your story?\n")
+            
+            option_keys = list(outline_options.keys())
+            for i, key in enumerate(option_keys, 1):
+                option = outline_options[key]
+                print(f"{i}. {option['name']}")
+                print(f"   {option['description']}\n")
+            
+            while True:
+                try:
+                    choice = input(f"Select outline mode (1-{len(option_keys)}): ").strip()
+                    choice_idx = int(choice) - 1
+                    if 0 <= choice_idx < len(option_keys):
+                        outline_mode = option_keys[choice_idx]
+                        print(f"\n✓ Selected: {outline_options[outline_mode]['name']}")
+                        break
+                    else:
+                        print(f" Please enter a number between 1 and {len(option_keys)}")
+                except ValueError:
+                    print(" Please enter a valid number")
+        
+        return character_mode, outline_mode
+    
+    def prompt_outline_mode(self, template):
+        """Prompt user to select outline mode (Template vs DIY) - legacy support"""
+        options = template.get('initialization', {}).get('outline_options', {})
+        
+        if not options:
+            return None
+        
+        print("\n" + "="*60)
+        print(" STORY OUTLINE MODE SELECTION")
+        print("="*60)
+        
+        print("\nHow would you like to structure your romantic comedy?\n")
+        
+        # Display options
+        option_keys = list(options.keys())
+        for i, key in enumerate(option_keys, 1):
+            option = options[key]
+            print(f"{i}. {option['name']}")
+            print(f"   {option['description']}\n")
+        
+        while True:
+            try:
+                choice = input(f"Select outline mode (1-{len(option_keys)}): ").strip()
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(option_keys):
+                    selected_mode = option_keys[choice_idx]
+                    print(f"\n✓ Selected: {options[selected_mode]['name']}")
+                    return selected_mode
+                else:
+                    print(f" Please enter a number between 1 and {len(option_keys)}")
+            except ValueError:
+                print(" Please enter a valid number")
+    
+    def populate_outline_table(self, cursor, template, outline_mode):
+        """Populate the story_outline_extended table based on selected mode"""
+        table_info = template['tables'].get('story_outline_extended', {})
+        default_data = table_info.get('default_data', {})
+        
+        if outline_mode not in default_data:
+            return
+        
+        outline_data = default_data[outline_mode]
+        
+        for beat_data in outline_data:
+            act = beat_data['act']
+            act_number = beat_data['act_number']
+            beat = beat_data['beat']
+            
+            for scene in beat_data['scenes']:
+                cursor.execute("""
+                    INSERT INTO story_outline_extended 
+                    (act, act_number, beat, scene_number, description, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    act,
+                    act_number,
+                    beat,
+                    scene['scene_number'],
+                    scene['description'],
+                    'placeholder'
+                ))
+        
+        # Also populate outline_metadata if table exists
+        if 'outline_metadata' in template['tables']:
+            total_scenes = sum(len(beat['scenes']) for beat in outline_data)
+            cursor.execute("""
+                INSERT INTO outline_metadata 
+                (outline_mode, template_used, total_scenes, acts_structure)
+                VALUES (?, ?, ?, ?)
+            """, (
+                outline_mode,
+                'romcom_default' if outline_mode == 'template' else 'custom',
+                total_scenes,
+                json.dumps({"acts": 3, "structure": outline_mode})
+            ))
+    
+    def populate_characters_table(self, cursor, template, character_mode):
+        """Populate the characters table based on selected mode"""
+        table_info = template['tables'].get('characters', {})
+        default_data = table_info.get('default_data', {})
+        
+        if character_mode not in default_data:
+            return
+        
+        character_data = default_data[character_mode]
+        
+        # Only populate if template mode selected and data exists
+        if character_mode == 'template' and character_data:
+            for character in character_data:
+                cursor.execute("""
+                    INSERT INTO characters 
+                    (name, archetype, gender, age, occupation, key_traits, 
+                     purpose_in_story, romantic_challenge, lovable_trait, comedic_flaw)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    character.get('name', '[Character Name]'),
+                    character.get('archetype', ''),
+                    character.get('gender', ''),
+                    character.get('age', ''),
+                    character.get('occupation', ''),
+                    character.get('key_traits', ''),
+                    character.get('purpose_in_story', ''),
+                    character.get('romantic_challenge', ''),
+                    character.get('lovable_trait', ''),
+                    character.get('comedic_flaw', '')
+                ))
+        # DIY mode starts with empty table
 
 if __name__ == "__main__":
     # Test the template manager

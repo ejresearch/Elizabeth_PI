@@ -1,0 +1,387 @@
+{
+  "name": "Romantic Comedy",
+  "version": "2.0",
+  "description": "Template for romantic comedy screenplays with character-driven humor and structured outline",
+  "tables": {
+    "characters": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "name": "TEXT NOT NULL",
+        "archetype": "TEXT",
+        "gender": "TEXT",
+        "age": "TEXT",
+        "occupation": "TEXT",
+        "key_traits": "TEXT",
+        "purpose_in_story": "TEXT",
+        "romantic_challenge": "TEXT",
+        "lovable_trait": "TEXT",
+        "comedic_flaw": "TEXT",
+        "notes": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["name"],
+      "display_name": "Characters",
+      "description": "Main characters with traits that drive romantic comedy",
+      "character_mode": "selection",
+      "default_data": {
+        "template": [
+          {
+            "name": "[Character Name]",
+            "archetype": "Protagonist (Lead A)",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Emotional anchor; audience must care deeply about them.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          },
+          {
+            "name": "[Character Name]",
+            "archetype": "Love Interest (Lead B)",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Must earn affection and drive romantic tension.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          },
+          {
+            "name": "[Character Name]",
+            "archetype": "Best Friend / Confidant",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Provides humor and emotional reflection for the lead.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          },
+          {
+            "name": "[Character Name]",
+            "archetype": "Comic Relief / Fan Compass",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Adds laughter and lightens high-stakes or emotional scenes.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          },
+          {
+            "name": "[Character Name]",
+            "archetype": "Antagonist / Rival",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Adds conflict or playful romantic competition.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          },
+          {
+            "name": "[Character Name]",
+            "archetype": "Mentor / Family Figure",
+            "gender": "",
+            "age": "",
+            "occupation": "",
+            "key_traits": "",
+            "purpose_in_story": "Establishes emotional grounding and moral context.",
+            "romantic_challenge": "",
+            "lovable_trait": "",
+            "comedic_flaw": ""
+          }
+        ],
+        "diy": []
+      }
+    },
+    "story_outline": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "act": "INTEGER NOT NULL",
+        "scene": "INTEGER NOT NULL",
+        "key_characters": "TEXT",
+        "key_events": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["act", "scene"],
+      "display_name": "Story Outline (Simple)",
+      "description": "Basic three-act structure with scene breakdowns"
+    },
+    "story_outline_extended": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "act": "TEXT NOT NULL",
+        "act_number": "INTEGER NOT NULL",
+        "beat": "TEXT NOT NULL",
+        "scene_number": "INTEGER NOT NULL",
+        "description": "TEXT",
+        "status": "TEXT DEFAULT 'placeholder'",
+        "characters": "TEXT",
+        "location": "TEXT",
+        "key_events": "TEXT",
+        "notes": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "updated_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["act", "beat", "scene_number"],
+      "display_name": "Story Outline (Template/DIY)",
+      "description": "Extended outline with beats and detailed scene tracking",
+      "outline_mode": "selection",
+      "default_data": {
+        "template": [
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Opening Image / Chemical Equation",
+            "scenes": [
+              {"scene_number": 1, "description": "[Establish the world and protagonist's starting point]"},
+              {"scene_number": 2, "description": "[Set up the emotional/romantic baseline]"}
+            ]
+          },
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Meet Cute",
+            "scenes": [
+              {"scene_number": 3, "description": "[The moment when romantic leads first encounter each other]"},
+              {"scene_number": 4, "description": "[Initial spark or conflict that makes the meeting memorable]"}
+            ]
+          },
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Reaction",
+            "scenes": [
+              {"scene_number": 5, "description": "[How the characters react to their first meeting]"},
+              {"scene_number": 6, "description": "[Internal processing and initial attraction/repulsion]"}
+            ]
+          },
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Romantic Complication",
+            "scenes": [
+              {"scene_number": 7, "description": "[The obstacle that prevents easy romance]"},
+              {"scene_number": 8, "description": "[Why they can't just be together]"}
+            ]
+          },
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Raise Stakes",
+            "scenes": [
+              {"scene_number": 9, "description": "[Why this relationship matters to the characters]"},
+              {"scene_number": 10, "description": "[External pressure or deadline introduced]"}
+            ]
+          },
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Break-Into-Act II",
+            "scenes": [
+              {"scene_number": 11, "description": "[Commitment to pursue the relationship despite obstacles]"},
+              {"scene_number": 12, "description": "[Crossing the threshold into new territory]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "Fun & Games / Falling In",
+            "scenes": [
+              {"scene_number": 13, "description": "[The promise of the premise - romance develops]"},
+              {"scene_number": 14, "description": "[Montage or series of bonding moments]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "Midpoint Hook",
+            "scenes": [
+              {"scene_number": 15, "description": "[Major revelation or event that changes everything]"},
+              {"scene_number": 16, "description": "[Stakes are raised, relationship deepens or is threatened]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "External/Internal Tensions Rise",
+            "scenes": [
+              {"scene_number": 17, "description": "[Conflicts intensify both outside and within]"},
+              {"scene_number": 18, "description": "[Character flaws create problems]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "Lose Beat",
+            "scenes": [
+              {"scene_number": 19, "description": "[All seems lost - the relationship appears doomed]"},
+              {"scene_number": 20, "description": "[Characters at their lowest point]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "Self-Revelation",
+            "scenes": [
+              {"scene_number": 21, "description": "[Characters realize what they must change]"},
+              {"scene_number": 22, "description": "[Understanding of true feelings and priorities]"}
+            ]
+          },
+          {
+            "act": "Act III",
+            "act_number": 3,
+            "beat": "Grand Gesture",
+            "scenes": [
+              {"scene_number": 23, "description": "[Big romantic action to win back love]"},
+              {"scene_number": 24, "description": "[Demonstration of growth and change]"}
+            ]
+          },
+          {
+            "act": "Act III",
+            "act_number": 3,
+            "beat": "Reunion",
+            "scenes": [
+              {"scene_number": 25, "description": "[Coming back together after growth]"},
+              {"scene_number": 26, "description": "[Forgiveness and understanding]"}
+            ]
+          },
+          {
+            "act": "Act III",
+            "act_number": 3,
+            "beat": "Happy Ending",
+            "scenes": [
+              {"scene_number": 27, "description": "[Resolution of all conflicts]"},
+              {"scene_number": 28, "description": "[Celebration of love achieved]"}
+            ]
+          },
+          {
+            "act": "Act III",
+            "act_number": 3,
+            "beat": "Final Image",
+            "scenes": [
+              {"scene_number": 29, "description": "[Mirror of opening showing transformation]"},
+              {"scene_number": 30, "description": "[New equilibrium established]"}
+            ]
+          }
+        ],
+        "diy": [
+          {
+            "act": "Act I",
+            "act_number": 1,
+            "beat": "Custom Beat",
+            "scenes": [
+              {"scene_number": 1, "description": "[Add your own beat description]"}
+            ]
+          },
+          {
+            "act": "Act II",
+            "act_number": 2,
+            "beat": "Custom Beat",
+            "scenes": [
+              {"scene_number": 2, "description": "[Add your own beat description]"}
+            ]
+          },
+          {
+            "act": "Act III",
+            "act_number": 3,
+            "beat": "Custom Beat",
+            "scenes": [
+              {"scene_number": 3, "description": "[Add your own beat description]"}
+            ]
+          }
+        ]
+      }
+    },
+    "notes": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "title": "TEXT NOT NULL",
+        "content": "TEXT",
+        "category": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["title"],
+      "display_name": "Notes",
+      "description": "Random ideas, themes, dialogue snippets"
+    },
+    "outline_metadata": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "outline_mode": "TEXT NOT NULL",
+        "template_used": "TEXT",
+        "total_scenes": "INTEGER",
+        "acts_structure": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "last_modified": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["outline_mode"],
+      "display_name": "Outline Settings",
+      "description": "Metadata about the outline structure chosen"
+    }
+  },
+  "buckets": {
+    "recommended": ["books", "scripts", "plays"],
+    "descriptions": {
+      "books": "Screenwriting theory and romantic comedy writing guides",
+      "scripts": "Professional romantic comedy screenplays for reference",
+      "plays": "Theatrical works with romantic themes and witty dialogue"
+    }
+  },
+  "prompts": {
+    "brainstorm": {
+      "tones": {
+        "cheesy-romcom": "Write this scene as if it's from a bubbly, cliché-filled romantic comedy full of silly misunderstandings and charm.",
+        "romantic-dramedy": "Write this scene like it's a grounded romantic dramedy—funny but heartfelt, with honest emotional tension and subtle humor.",
+        "shakespearean-romance": "Craft this scene in the style of a Shakespearean romantic comedy—rich in language, irony, and poetic flare."
+      },
+      "bucket_guidance": {
+        "books": "You are an expert on screenwriting theory, drawing from acclaimed screenwriting books. Provide insights on **structure, pacing, and character arcs**. Explain **scene progression within a three-act structure** based on established principles.",
+        "scripts": "You are an expert in romantic comedy screenplays, knowledgeable of the top 100 romcom scripts. Compare this scene to **moments from successful romcoms**. Suggest effective use of **romcom tropes** with a focus on dialogue, humor, and pacing.",
+        "plays": "You are an expert in Shakespearean drama and comedy, deeply familiar with Shakespeare's complete works. Analyze the scene through a **Shakespearean lens**, focusing on **character dynamics, irony, heightened language, and themes**."
+      }
+    },
+    "write": {
+      "styles": {
+        "screenplay": "Write in proper screenplay format with INT/EXT sluglines, character names in caps, and concise action lines.",
+        "novel": "Write in narrative prose with rich descriptions, internal thoughts, and flowing dialogue.",
+        "treatment": "Write as a film treatment with present tense, visual descriptions, and story beats."
+      },
+      "default_guidance": "Focus on character chemistry, comedic timing, and emotional authenticity. Ensure dialogue reflects each character's unique voice and flaws."
+    }
+  },
+  "initialization": {
+    "on_create": "prompt_template_modes",
+    "character_options": {
+      "template": {
+        "name": "📝 Template Characters",
+        "description": "Pre-fill with 6 essential romcom character archetypes (Protagonist, Love Interest, Best Friend, Comic Relief, Rival, Mentor)",
+        "populate_with": "characters.default_data.template"
+      },
+      "diy": {
+        "name": "🎨 DIY Characters",
+        "description": "Start with a blank character roster and create your own cast",
+        "populate_with": "characters.default_data.diy"
+      }
+    },
+    "outline_options": {
+      "template": {
+        "name": "📝 Template Outline",
+        "description": "Use the proven romcom structure with 30 pre-defined scenes across classic beats",
+        "populate_with": "story_outline_extended.default_data.template"
+      },
+      "diy": {
+        "name": "🎨 DIY Outline",
+        "description": "Start with a blank outline and create your own structure",
+        "populate_with": "story_outline_extended.default_data.diy"
+      }
+    }
+  }
+}

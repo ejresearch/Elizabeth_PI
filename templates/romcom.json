@@ -1,7 +1,7 @@
 {
-  "name": "Romantic Comedy",
+  "name": "Romantic Comedy (Classic)",
   "version": "1.0",
-  "description": "Template for romantic comedy screenplays with character-driven humor",
+  "description": "Classic template for romantic comedy screenplays - simple outline",
   "tables": {
     "characters": {
       "fields": {

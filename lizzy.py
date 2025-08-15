@@ -41,6 +41,13 @@ try:
 except ImportError:
     HAS_INTAKE_GUI = False
 
+# Import romcom outline module
+try:
+    from lizzy_romcom_outline import RomcomOutlineGUI, RomcomOutlineManager
+    HAS_OUTLINE_MODULE = True
+except ImportError:
+    HAS_OUTLINE_MODULE = False
+
 # Platform-specific imports for keyboard handling
 try:
     import termios
@@ -911,11 +918,16 @@ def project_menu():
         
         print(f"   {Colors.BOLD}1.{Colors.END}  Update Tables")
         print(f"   {Colors.BOLD}2.{Colors.END}  Update Buckets")
-        print(f"   {Colors.BOLD}3.{Colors.END}  Brainstorm")
-        print(f"   {Colors.BOLD}4.{Colors.END}   Write")
-        print(f"   {Colors.BOLD}5.{Colors.END}  Version History")
-        print(f"   {Colors.BOLD}6.{Colors.END}  Export Options")
-        print(f"   {Colors.BOLD}7.{Colors.END}   Manage")
+        if HAS_OUTLINE_MODULE:
+            print(f"   {Colors.BOLD}3.{Colors.END}  📝 Story Outline (Template/DIY)")
+            print(f"   {Colors.BOLD}4.{Colors.END}  Brainstorm")
+            print(f"   {Colors.BOLD}5.{Colors.END}   Write")
+        else:
+            print(f"   {Colors.BOLD}3.{Colors.END}  Brainstorm")
+            print(f"   {Colors.BOLD}4.{Colors.END}   Write")
+        print(f"   {Colors.BOLD}6.{Colors.END}  Version History")
+        print(f"   {Colors.BOLD}7.{Colors.END}  Export Options")
+        print(f"   {Colors.BOLD}8.{Colors.END}   Manage")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
@@ -935,15 +947,17 @@ def project_menu():
             update_tables_menu()
         elif choice == "2":
             buckets_manager()
-        elif choice == "3":
+        elif HAS_OUTLINE_MODULE and choice == "3":
+            launch_story_outline()
+        elif choice == "3" or (HAS_OUTLINE_MODULE and choice == "4"):
             brainstorm_module()
-        elif choice == "4":
+        elif choice == "4" or (HAS_OUTLINE_MODULE and choice == "5"):
             write_module()
-        elif choice == "5":
-            version_history()
         elif choice == "6":
-            export_options()
+            version_history()
         elif choice == "7":
+            export_options()
+        elif choice == "8":
             manage_project()
 
 def update_tables_menu():
@@ -1126,10 +1140,17 @@ def story_outline_management():
         print(f"\n{Colors.BOLD} STORY OUTLINE{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END}  Add Scene")
-        print(f"   {Colors.BOLD}2.{Colors.END}  View Outline")
-        print(f"   {Colors.BOLD}3.{Colors.END}   Edit Scene")
-        print(f"   {Colors.BOLD}4.{Colors.END}   Delete Scene")
+        if HAS_OUTLINE_MODULE:
+            print(f"   {Colors.BOLD}1.{Colors.END}  📝 Open Outline Manager (Template/DIY)")
+            print(f"   {Colors.BOLD}2.{Colors.END}  Add Scene (Classic)")
+            print(f"   {Colors.BOLD}3.{Colors.END}  View Outline")
+            print(f"   {Colors.BOLD}4.{Colors.END}   Edit Scene (Classic)")
+            print(f"   {Colors.BOLD}5.{Colors.END}   Delete Scene")
+        else:
+            print(f"   {Colors.BOLD}1.{Colors.END}  Add Scene")
+            print(f"   {Colors.BOLD}2.{Colors.END}  View Outline")
+            print(f"   {Colors.BOLD}3.{Colors.END}   Edit Scene")
+            print(f"   {Colors.BOLD}4.{Colors.END}   Delete Scene")
         if HAS_TERMIOS:
             print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
         print(f"   {Colors.BOLD}0.{Colors.END}  Back")
@@ -1144,13 +1165,15 @@ def story_outline_management():
         
         if choice == "0":
             break
-        elif choice == "1":
+        elif HAS_OUTLINE_MODULE and choice == "1":
+            launch_story_outline()
+        elif choice == "1" or (HAS_OUTLINE_MODULE and choice == "2"):
             add_scene()
-        elif choice == "2":
+        elif choice == "2" or (HAS_OUTLINE_MODULE and choice == "3"):
             view_outline()
-        elif choice == "3":
+        elif choice == "3" or (HAS_OUTLINE_MODULE and choice == "4"):
             edit_scene()
-        elif choice == "4":
+        elif choice == "4" or (HAS_OUTLINE_MODULE and choice == "5"):
             delete_scene()
 
 def show_readme():
@@ -1326,6 +1349,30 @@ def reuse_version():
     print(f"\n{Colors.YELLOW}This feature coming soon!{Colors.END}")
     print("Will allow copying old outputs to new brainstorm/write sessions")
     wait_for_key()
+
+def launch_story_outline():
+    """Launch the Story Outline GUI (Template/DIY)"""
+    if not HAS_OUTLINE_MODULE:
+        print(f"{Colors.RED}Story Outline module not available!{Colors.END}")
+        wait_for_key()
+        return
+    
+    if not session.current_project:
+        print(f"{Colors.RED}No project loaded!{Colors.END}")
+        wait_for_key()
+        return
+    
+    project_path = f"projects/{session.current_project}"
+    
+    print(f"\n{Colors.CYAN}Launching Story Outline Manager...{Colors.END}")
+    print(f"{Colors.YELLOW}Opening GUI window for Template/DIY outline creation{Colors.END}")
+    
+    try:
+        gui = RomcomOutlineGUI(project_path)
+        gui.launch()
+    except Exception as e:
+        print(f"{Colors.RED}Error launching outline GUI: {e}{Colors.END}")
+        wait_for_key()
 
 def export_options():
     """Export menu with Enhanced Options"""
