@@ -11,7 +11,7 @@ import random
 import time
 from datetime import datetime
 from openai import OpenAI
-from template_manager import TemplateManager
+from lizzy_templates import TemplateManager
 from admin import LizzyAdmin
 
 class AutonomousAgent:
@@ -411,9 +411,8 @@ def main():
     print("This agent will:")
     print("1. Analyze available templates")
     print("2. Pick the best one intelligently") 
-    print("3. Create a new project")
-    print("4. Run the complete workflow")
-    print("5. Export results")
+    print("3. Run the complete workflow")
+    print("4. Export results")
     print("\nPress Enter to start, or Ctrl+C to cancel...")
     
     try:

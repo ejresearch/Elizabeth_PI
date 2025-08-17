@@ -1,0 +1,87 @@
+{
+  "name": "Screenplay (Enhanced)",
+  "version": "1.0", 
+  "description": "Enhanced screenplay template with tagging system for notes",
+  "tables": {
+    "characters": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "name": "TEXT NOT NULL",
+        "gender": "TEXT",
+        "age": "TEXT",
+        "occupation": "TEXT",
+        "key_traits": "TEXT",
+        "purpose_in_story": "TEXT",
+        "romantic_challenge": "TEXT",
+        "lovable_trait": "TEXT",
+        "comedic_flaw": "TEXT",
+        "notes": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["name"],
+      "display_name": "Characters",
+      "description": "Main characters with traits that drive romantic comedy"
+    },
+    "story_outline": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "act": "INTEGER NOT NULL",
+        "scene": "INTEGER NOT NULL",
+        "key_characters": "TEXT",
+        "key_events": "TEXT",
+        "location": "TEXT",
+        "time_of_day": "TEXT",
+        "description": "TEXT",
+        "status": "TEXT DEFAULT 'placeholder'",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["act", "scene"],
+      "display_name": "Story Outline", 
+      "description": "Three-act structure with scene breakdowns"
+    },
+    "notes": {
+      "fields": {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "what": "TEXT NOT NULL",
+        "note": "TEXT NOT NULL",
+        "keyword": "TEXT",
+        "tag_type": "TEXT",
+        "tag_reference": "TEXT",
+        "created_at": "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+      },
+      "required": ["what", "note"],
+      "display_name": "Notes",
+      "description": "Tagged notes system: what | note | keyword - can tag characters, scenes, or acts"
+    }
+  },
+  "buckets": {
+    "recommended": ["romcom_scripts", "screenwriting_books", "shakespeare_plays"],
+    "descriptions": {
+      "romcom_scripts": "Professional romantic comedy screenplays for reference",
+      "screenwriting_books": "Screenwriting theory and romantic comedy writing guides", 
+      "shakespeare_plays": "Theatrical works with romantic themes and witty dialogue"
+    }
+  },
+  "prompts": {
+    "brainstorm": {
+      "tones": {
+        "cheesy-romcom": "Write this scene as if it's from a bubbly, cliché-filled romantic comedy full of silly misunderstandings and charm.",
+        "romantic-dramedy": "Write this scene like it's a grounded romantic dramedy—funny but heartfelt, with honest emotional tension and subtle humor.",
+        "shakespearean-romance": "Craft this scene in the style of a Shakespearean romantic comedy—rich in language, irony, and poetic flare."
+      },
+      "bucket_guidance": {
+        "romcom_scripts": "You are an expert in romantic comedy screenplays, knowledgeable of the top 100 romcom scripts. Compare this scene to **moments from successful romcoms**. Suggest effective use of **romcom tropes** with a focus on dialogue, humor, and pacing.",
+        "screenwriting_books": "You are an expert on screenwriting theory, drawing from acclaimed screenwriting books. Provide insights on **structure, pacing, and character arcs**. Explain **scene progression within a three-act structure** based on established principles.",
+        "shakespeare_plays": "You are an expert in Shakespearean drama and comedy, deeply familiar with Shakespeare's complete works. Analyze the scene through a **Shakespearean lens**, focusing on **character dynamics, irony, heightened language, and themes**."
+      }
+    },
+    "write": {
+      "styles": {
+        "screenplay": "Write in proper screenplay format with INT/EXT sluglines, character names in caps, and concise action lines.",
+        "novel": "Write in narrative prose with rich descriptions, internal thoughts, and flowing dialogue.",
+        "treatment": "Write as a film treatment with present tense, visual descriptions, and story beats."
+      },
+      "default_guidance": "Focus on character chemistry, comedic timing, and emotional authenticity. Ensure dialogue reflects each character's unique voice and flaws."
+    }
+  }
+}

@@ -1,21 +1,18 @@
+#!/usr/bin/env python3
 """
-Interactive Intake Module for Lizzy - Polished Version
-Provides modern GUI components for data entry and management
+Polished Table Editor - Modern, clean GUI with professional styling
+Inspired by modern web applications like Notion, Linear, or Supabase
 """
 
-import os
-import csv
-import json
-import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, scrolledtext, font
-from datetime import datetime
+from tkinter import ttk, messagebox, font
+import sqlite3
+import os
 from typing import Dict, List, Any, Optional
-import pandas as pd
+import json
 
-
-class InteractiveIntake:
-    """Polished intake interface with modern GUI components"""
+class PolishedTableEditor:
+    """Professional table editor with modern styling"""
     
     def __init__(self, project_path: str):
         self.project_path = project_path
@@ -23,11 +20,13 @@ class InteractiveIntake:
         self.db_path = os.path.join(project_path, f"{self.project_name}.sqlite")
         self.conn = None
         self.root = None
-        self.current_table = "characters"
+        self.current_table = None
         self.current_data = []
+        
+        # Connect to database
         self.connect_db()
         
-        # Modern color scheme
+        # Color scheme - modern and refined
         self.colors = {
             'bg_primary': '#f8fafc',       # Slightly cooler white background
             'bg_secondary': '#ffffff',     # Pure white cards
@@ -52,11 +51,35 @@ class InteractiveIntake:
         }
     
     def connect_db(self):
-        """Connect to project database"""
-        if os.path.exists(self.db_path):
-            self.conn = sqlite3.connect(self.db_path)
-        else:
-            raise FileNotFoundError(f"Database not found: {self.db_path}")
+        """Connect to database"""
+        self.conn = sqlite3.connect(self.db_path)
+    
+    def launch(self):
+        """Launch the polished table editor"""
+        self.root = tk.Tk()
+        self.root.title(f"Table Editor - {self.project_name}")
+        self.root.geometry("1600x1000")
+        self.root.configure(bg=self.colors['bg_primary'])
+        
+        # Set minimum window size for better UX
+        self.root.minsize(1200, 800)
+        
+        # Configure modern fonts
+        self.setup_fonts()
+        
+        # Configure modern styles
+        self.setup_styles()
+        
+        # Create layout
+        self.create_interface()
+        
+        # Load data
+        self.refresh_tables()
+        
+        # Center window
+        self.center_window()
+        
+        self.root.mainloop()
     
     def setup_fonts(self):
         """Setup modern font families"""
@@ -97,7 +120,7 @@ class InteractiveIntake:
             fieldbackground=self.colors['bg_secondary'],
             borderwidth=0,
             relief='flat',
-            rowheight=44,
+            rowheight=44,  # Taller rows for better readability
             font=self.fonts['body_md'],
             highlightthickness=0
         )
@@ -126,32 +149,24 @@ class InteractiveIntake:
             selectbackground=self.colors['accent_light'],
             selectforeground=self.colors['text_primary']
         )
-    
-    def launch_gui(self):
-        """Launch the polished GUI interface"""
-        self.root = tk.Tk()
-        self.root.title(f"Lizzy Intake - {self.project_name}")
-        self.root.geometry("1600x1000")
-        self.root.configure(bg=self.colors['bg_primary'])
-        self.root.minsize(1200, 800)
         
-        # Configure modern fonts and styles
-        self.setup_fonts()
-        self.setup_styles()
+        # Modern button styles
+        style.configure(
+            "Polished.TButton",
+            font=self.fonts['body_md'],
+            borderwidth=0,
+            focuscolor='none',
+            padding=(16, 8)
+        )
         
-        # Create menu bar
-        self.create_menu()
-        
-        # Create modern interface
-        self.create_interface()
-        
-        # Load initial data
-        self.refresh_data()
-        
-        # Center window
-        self.center_window()
-        
-        self.root.mainloop()
+        # Entry styles
+        style.configure(
+            "Polished.TEntry",
+            font=self.fonts['body_md'],
+            borderwidth=1,
+            relief='solid',
+            padding=(12, 8)
+        )
     
     def center_window(self):
         """Center the window on screen"""
@@ -162,43 +177,8 @@ class InteractiveIntake:
         y = (self.root.winfo_screenheight() - height) // 2
         self.root.geometry(f"+{x}+{y}")
     
-    def create_menu(self):
-        """Create application menu"""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        
-        # File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Import CSV", command=self.import_csv)
-        file_menu.add_command(label="Export CSV", command=self.export_csv)
-        file_menu.add_separator()
-        file_menu.add_command(label="Import Documents", command=self.import_documents)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
-        
-        # Edit menu
-        edit_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Edit", menu=edit_menu)
-        edit_menu.add_command(label="Add Row", command=self.add_row)
-        edit_menu.add_command(label="Edit Selected", command=self.edit_row)
-        edit_menu.add_command(label="Delete Selected", command=self.delete_row)
-        
-        # View menu
-        view_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="View", menu=view_menu)
-        view_menu.add_command(label="Characters", command=lambda: self.switch_table("characters"))
-        view_menu.add_command(label="Scenes", command=lambda: self.switch_table("story_outline"))
-        view_menu.add_command(label="Notes", command=lambda: self.switch_table("notes"))
-        
-        # Tools menu
-        tools_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Tools", menu=tools_menu)
-        tools_menu.add_command(label="Chat with Data", command=self.launch_chat)
-        tools_menu.add_command(label="Visualize Relationships", command=self.visualize_data)
-    
     def create_interface(self):
-        """Create the modern interface"""
+        """Create the main interface"""
         # Main container
         main_container = tk.Frame(self.root, bg=self.colors['bg_primary'])
         main_container.pack(fill=tk.BOTH, expand=True, padx=0, pady=0)
@@ -246,7 +226,7 @@ class InteractiveIntake:
         
         title = tk.Label(
             title_frame,
-            text="Lizzy Intake",
+            text="Database Editor",
             font=self.fonts['heading_md'],
             bg=self.colors['bg_secondary'],
             fg=self.colors['text_primary']
@@ -262,24 +242,24 @@ class InteractiveIntake:
         )
         subtitle.pack(anchor=tk.W)
         
-        # Action buttons in header
+        # Action buttons
         actions_frame = tk.Frame(header_content, bg=self.colors['bg_secondary'])
         actions_frame.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Add new button
-        add_btn = self.create_button(
+        # New table button
+        new_table_btn = self.create_button(
             actions_frame,
-            "Add Row",
-            self.add_row,
+            "New Table",
+            self.show_new_table_dialog,
             style='primary'
         )
-        add_btn.pack(side=tk.RIGHT, padx=(12, 0))
+        new_table_btn.pack(side=tk.RIGHT, padx=(12, 0))
         
         # Refresh button
         refresh_btn = self.create_button(
             actions_frame,
             "Refresh",
-            self.refresh_data,
+            self.refresh_tables,
             style='secondary'
         )
         refresh_btn.pack(side=tk.RIGHT)
@@ -315,61 +295,93 @@ class InteractiveIntake:
         )
         tables_header.pack(anchor=tk.W, pady=(0, 16))
         
-        # Table buttons
+        # Tables list frame
         tables_frame = tk.Frame(sidebar_content, bg=self.colors['bg_secondary'])
-        tables_frame.pack(fill=tk.X, pady=(0, 24))
+        tables_frame.pack(fill=tk.BOTH, expand=True)
         
-        tables = [
-            ("characters", "Characters"),
-            ("story_outline", "Story Outline"),
-            ("notes", "Notes")
-        ]
-        
-        for table_name, display_name in tables:
-            btn = self.create_table_button(
-                tables_frame,
-                display_name,
-                lambda t=table_name: self.switch_table(t)
-            )
-            btn.pack(fill=tk.X, pady=2)
-        
-        # Search section
-        search_header = tk.Label(
-            sidebar_content,
-            text="Search",
-            font=self.fonts['heading_sm'],
-            bg=self.colors['bg_secondary'],
-            fg=self.colors['text_primary']
-        )
-        search_header.pack(anchor=tk.W, pady=(16, 8))
-        
-        # Search entry
-        self.search_var = tk.StringVar()
-        search_entry = tk.Entry(
-            sidebar_content,
-            textvariable=self.search_var,
+        # Enhanced listbox styling
+        self.tables_listbox = tk.Listbox(
+            tables_frame,
             font=self.fonts['body_md'],
-            bg=self.colors['bg_primary'],
+            bg=self.colors['bg_secondary'],
             fg=self.colors['text_primary'],
-            relief='solid',
-            bd=1,
-            highlightthickness=2,
-            highlightcolor=self.colors['accent'],
-            highlightbackground=self.colors['border'],
-            insertbackground=self.colors['accent']
+            selectbackground=self.colors['accent_light'],
+            selectforeground=self.colors['text_primary'],
+            borderwidth=0,
+            highlightthickness=0,
+            activestyle='none',
+            cursor='hand2',
+            relief='flat'
         )
-        search_entry.pack(fill=tk.X, pady=(0, 8), ipady=8)
-        search_entry.bind('<KeyRelease>', lambda e: self.search_data())
+        self.tables_listbox.pack(fill=tk.BOTH, expand=True)
+        self.tables_listbox.bind('<<ListboxSelect>>', self.on_table_select)
+        self.tables_listbox.bind('<Button-1>', self.on_table_click)
     
     def create_main_content(self, parent):
-        """Create main content area"""
+        """Create polished main content area"""
         self.main_area = tk.Frame(parent, bg=self.colors['bg_primary'])
         self.main_area.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        # Will be populated with table view
-        self.create_table_view()
+        # Welcome screen
+        self.create_welcome_screen()
     
-    def create_table_view(self):
+    def create_welcome_screen(self):
+        """Create welcome screen"""
+        welcome_frame = tk.Frame(self.main_area, bg=self.colors['bg_primary'])
+        welcome_frame.pack(fill=tk.BOTH, expand=True, padx=48, pady=48)
+        
+        # Welcome card
+        welcome_card = tk.Frame(
+            welcome_frame,
+            bg=self.colors['bg_secondary'],
+            relief='flat',
+            bd=0
+        )
+        welcome_card.pack(expand=True, fill=tk.BOTH)
+        
+        # Add elegant shadow and border effects
+        shadow_frame = tk.Frame(welcome_card, bg=self.colors['shadow_light'], height=2)
+        shadow_frame.pack(fill=tk.X)
+        
+        border_frame = tk.Frame(welcome_card, bg=self.colors['border'], height=1)
+        border_frame.pack(fill=tk.X)
+        
+        # Welcome content
+        welcome_content = tk.Frame(welcome_card, bg=self.colors['bg_secondary'])
+        welcome_content.pack(expand=True, padx=64, pady=64)
+        
+        # Icon
+        icon_label = tk.Label(
+            welcome_content,
+            text="🗄️",
+            font=('Arial', 48),
+            bg=self.colors['bg_secondary']
+        )
+        icon_label.pack(pady=(0, 24))
+        
+        # Welcome text
+        welcome_title = tk.Label(
+            welcome_content,
+            text="Select a table to get started",
+            font=self.fonts['heading_md'],
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
+        )
+        welcome_title.pack(pady=(0, 12))
+        
+        welcome_desc = tk.Label(
+            welcome_content,
+            text="Choose a table from the sidebar to view and edit its data,\nor create a new table to get started.",
+            font=self.fonts['body_lg'],
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_secondary'],
+            justify=tk.CENTER
+        )
+        welcome_desc.pack()
+        
+        self.welcome_frame = welcome_frame
+    
+    def create_table_view(self, table_name):
         """Create polished table view"""
         # Clear main area
         for widget in self.main_area.winfo_children():
@@ -389,7 +401,7 @@ class InteractiveIntake:
         
         table_title = tk.Label(
             title_frame,
-            text=self.current_table.replace('_', ' ').title(),
+            text=table_name.replace('_', ' ').title(),
             font=self.fonts['heading_md'],
             bg=self.colors['bg_primary'],
             fg=self.colors['text_primary']
@@ -410,22 +422,56 @@ class InteractiveIntake:
         actions_frame = tk.Frame(table_header, bg=self.colors['bg_primary'])
         actions_frame.pack(side=tk.RIGHT, fill=tk.Y)
         
+        # Search
+        search_frame = tk.Frame(actions_frame, bg=self.colors['bg_primary'])
+        search_frame.pack(side=tk.RIGHT, padx=(0, 16))
+        
+        search_label = tk.Label(
+            search_frame,
+            text="🔍",
+            font=self.fonts['body_lg'],
+            bg=self.colors['bg_primary'],
+            fg=self.colors['text_secondary']
+        )
+        search_label.pack(side=tk.LEFT, padx=(0, 8))
+        
+        self.search_var = tk.StringVar()
+        # Enhanced search entry with modern styling
+        search_entry = tk.Entry(
+            search_frame,
+            textvariable=self.search_var,
+            font=self.fonts['body_md'],
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary'],
+            relief='solid',
+            bd=1,
+            width=20,
+            highlightthickness=2,
+            highlightcolor=self.colors['accent'],
+            highlightbackground=self.colors['border']
+        )
+        search_entry.pack(side=tk.LEFT, ipady=8)
+        
+        # Add subtle rounded corner effect through padding
+        search_entry.configure(insertbackground=self.colors['accent'])
+        search_entry.bind('<KeyRelease>', lambda e: self.search_table(table_name))
+        
         # Action buttons
-        delete_btn = self.create_button(
+        delete_table_btn = self.create_button(
             actions_frame,
-            "Delete Row",
-            self.delete_row,
+            "Delete Table",
+            lambda: self.delete_table(table_name),
             style='danger'
         )
-        delete_btn.pack(side=tk.RIGHT, padx=(0, 12))
+        delete_table_btn.pack(side=tk.RIGHT, padx=(0, 12))
         
-        edit_btn = self.create_button(
+        add_row_btn = self.create_button(
             actions_frame,
-            "Edit Row",
-            self.edit_row,
-            style='secondary'
+            "Add Row",
+            lambda: self.show_row_editor(table_name),
+            style='primary'
         )
-        edit_btn.pack(side=tk.RIGHT, padx=(0, 12))
+        add_row_btn.pack(side=tk.RIGHT, padx=(0, 12))
         
         # Enhanced table card with shadow
         card_container = tk.Frame(table_container, bg=self.colors['bg_primary'])
@@ -449,9 +495,12 @@ class InteractiveIntake:
         table_card.pack(fill=tk.BOTH, expand=True)
         
         # Create polished table
-        self.create_polished_table(table_card)
+        self.create_polished_table(table_card, table_name)
+        
+        # Load data
+        self.load_table_data(table_name)
     
-    def create_polished_table(self, parent):
+    def create_polished_table(self, parent, table_name):
         """Create a polished data table"""
         # Table frame with padding
         table_frame = tk.Frame(parent, bg=self.colors['bg_secondary'])
@@ -478,9 +527,11 @@ class InteractiveIntake:
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
         
-        # Bind events
-        self.tree.bind('<Double-1>', lambda e: self.edit_row())
-        self.tree.bind('<Button-3>', lambda e: self.show_context_menu(e))
+        # Bind events with enhanced interaction
+        self.tree.bind('<Double-1>', lambda e: self.edit_selected_row(table_name))
+        self.tree.bind('<Button-3>', lambda e: self.show_context_menu(e, table_name))
+        self.tree.bind('<Motion>', self.on_tree_motion)
+        self.tree.bind('<Leave>', self.on_tree_leave)
     
     def create_button(self, parent, text, command, style='secondary'):
         """Create a polished button"""
@@ -518,12 +569,12 @@ class InteractiveIntake:
             fg=style_config['fg'],
             relief='flat',
             bd=0,
-            padx=20,
-            pady=10,
+            padx=16,
+            pady=8,
             cursor='hand2'
         )
         
-        # Enhanced hover effects
+        # Enhanced hover effects with smooth transitions
         def on_enter(e):
             btn.config(bg=style_config['hover_bg'], relief='flat')
             if style == 'primary':
@@ -537,33 +588,8 @@ class InteractiveIntake:
         btn.bind('<Enter>', on_enter)
         btn.bind('<Leave>', on_leave)
         
-        return btn
-    
-    def create_table_button(self, parent, text, command):
-        """Create a table selection button"""
-        btn = tk.Button(
-            parent,
-            text=text,
-            command=command,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_secondary'],
-            fg=self.colors['text_primary'],
-            relief='flat',
-            bd=0,
-            padx=16,
-            pady=8,
-            cursor='hand2',
-            anchor='w'
-        )
-        
-        def on_enter(e):
-            btn.config(bg=self.colors['bg_tertiary'])
-        
-        def on_leave(e):
-            btn.config(bg=self.colors['bg_secondary'])
-        
-        btn.bind('<Enter>', on_enter)
-        btn.bind('<Leave>', on_leave)
+        # Add subtle shadow effect for buttons
+        btn.configure(padx=20, pady=10)
         
         return btn
     
@@ -606,39 +632,53 @@ class InteractiveIntake:
         )
         db_info.pack(side=tk.RIGHT)
     
-    def show_context_menu(self, event):
-        """Show context menu for table rows"""
-        item = self.tree.identify_row(event.y)
-        if item:
-            self.tree.selection_set(item)
-            
-            # Create context menu
-            context_menu = tk.Menu(self.root, tearoff=0)
-            context_menu.add_command(
-                label="Edit Row",
-                command=self.edit_row
-            )
-            context_menu.add_command(
-                label="Delete Row",
-                command=self.delete_row
-            )
-            
-            try:
-                context_menu.tk_popup(event.x_root, event.y_root)
-            finally:
-                context_menu.grab_release()
-    
-    def switch_table(self, table_name: str):
-        """Switch to viewing a different table"""
-        self.current_table = table_name
-        self.create_table_view()
-        self.refresh_data()
-    
-    def refresh_data(self):
-        """Refresh the data display"""
-        if not self.current_table:
-            self.current_table = "characters"
+    def refresh_tables(self):
+        """Refresh table list"""
+        self.tables_listbox.delete(0, tk.END)
         
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+        tables = cursor.fetchall()
+        
+        for table in tables:
+            self.tables_listbox.insert(tk.END, table[0])
+        
+        self.status_var.set(f"Found {len(tables)} tables")
+    
+    def on_table_click(self, event):
+        """Handle table click with visual feedback"""
+        # Add visual feedback for table selection
+        index = self.tables_listbox.nearest(event.y)
+        if index >= 0:
+            self.tables_listbox.selection_clear(0, tk.END)
+            self.tables_listbox.selection_set(index)
+            self.tables_listbox.activate(index)
+    
+    def on_tree_motion(self, event):
+        """Handle mouse motion over tree for hover effects"""
+        item = self.tree.identify_row(event.y)
+        if item and item != getattr(self, '_last_hovered_item', None):
+            # Clear previous hover
+            if hasattr(self, '_last_hovered_item') and self._last_hovered_item:
+                self.tree.set(self._last_hovered_item, '#0', '')
+            self._last_hovered_item = item
+    
+    def on_tree_leave(self, event):
+        """Handle mouse leaving tree"""
+        if hasattr(self, '_last_hovered_item') and self._last_hovered_item:
+            self.tree.set(self._last_hovered_item, '#0', '')
+            self._last_hovered_item = None
+    
+    def on_table_select(self, event):
+        """Handle table selection"""
+        selection = self.tables_listbox.curselection()
+        if selection:
+            table_name = self.tables_listbox.get(selection[0])
+            self.current_table = table_name
+            self.create_table_view(table_name)
+    
+    def load_table_data(self, table_name):
+        """Load and display table data"""
         # Clear existing data
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -646,7 +686,7 @@ class InteractiveIntake:
         cursor = self.conn.cursor()
         
         # Get column info
-        cursor.execute(f"PRAGMA table_info({self.current_table})")
+        cursor.execute(f"PRAGMA table_info({table_name})")
         columns = cursor.fetchall()
         col_names = [col[1] for col in columns]
         
@@ -672,7 +712,7 @@ class InteractiveIntake:
             self.tree.column(col_name, width=width, minwidth=80, anchor='w')
         
         # Load data
-        cursor.execute(f"SELECT * FROM {self.current_table}")
+        cursor.execute(f"SELECT * FROM {table_name}")
         rows = cursor.fetchall()
         self.current_data = rows
         
@@ -695,18 +735,19 @@ class InteractiveIntake:
         self.tree.tag_configure('evenrow', background=self.colors['bg_secondary'])
         self.tree.tag_configure('oddrow', background=self.colors['bg_primary'])
         
-        # Update row count
-        if hasattr(self, 'row_count_label'):
-            self.row_count_label.config(text=f"{len(rows)} rows")
+        # Add hover effect styling
+        self.tree.tag_configure('hover', background=self.colors['bg_hover'])
         
-        self.status_var.set(f"Loaded {len(rows)} rows from {self.current_table}")
+        # Update row count
+        self.row_count_label.config(text=f"{len(rows)} rows")
+        self.status_var.set(f"Loaded {len(rows)} rows from {table_name}")
     
-    def search_data(self):
-        """Search and filter displayed data"""
+    def search_table(self, table_name):
+        """Search table data"""
         search_term = self.search_var.get().strip().lower()
         
         if not search_term:
-            self.refresh_data()
+            self.load_table_data(table_name)
             return
         
         # Clear existing items
@@ -736,34 +777,62 @@ class InteractiveIntake:
         
         self.status_var.set(f"Found {len(filtered_rows)} matching rows")
     
-    def add_row(self):
-        """Add a new row to the current table"""
-        dialog = DataEntryDialog(self.root, self.conn, self.current_table, self.colors, self.fonts)
+    def show_new_table_dialog(self):
+        """Show new table creation dialog"""
+        dialog = NewTableDialog(self.root, self.conn, self.colors, self.fonts)
         if dialog.result:
-            self.refresh_data()
-            self.status_var.set("New row added successfully")
+            self.refresh_tables()
+            self.status_var.set(f"Created table: {dialog.result}")
     
-    def edit_row(self):
-        """Edit selected row"""
+    def show_row_editor(self, table_name, existing_data=None):
+        """Show row editor dialog"""
+        dialog = RowEditorDialog(self.root, self.conn, table_name, self.colors, self.fonts, existing_data)
+        if dialog.result:
+            self.load_table_data(table_name)
+            action = "updated" if existing_data else "created"
+            self.status_var.set(f"Row {action} successfully")
+    
+    def edit_selected_row(self, table_name):
+        """Edit the selected row"""
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("No Selection", "Please select a row to edit")
             return
         
+        # Get the row index
         item = self.tree.item(selection[0])
         row_values = item['values']
         
         # Find the actual row data
         for row in self.current_data:
             if str(row[0]) == str(row_values[0]):  # Match by ID
-                dialog = DataEntryDialog(self.root, self.conn, self.current_table, self.colors, self.fonts, row)
-                if dialog.result:
-                    self.refresh_data()
-                    self.status_var.set("Row updated successfully")
+                self.show_row_editor(table_name, row)
                 break
     
-    def delete_row(self):
-        """Delete selected row"""
+    def show_context_menu(self, event, table_name):
+        """Show context menu for table rows"""
+        # Select the item under cursor
+        item = self.tree.identify_row(event.y)
+        if item:
+            self.tree.selection_set(item)
+            
+            # Create context menu
+            context_menu = tk.Menu(self.root, tearoff=0)
+            context_menu.add_command(
+                label="Edit Row",
+                command=lambda: self.edit_selected_row(table_name)
+            )
+            context_menu.add_command(
+                label="Delete Row",
+                command=lambda: self.delete_selected_row(table_name)
+            )
+            
+            try:
+                context_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                context_menu.grab_release()
+    
+    def delete_selected_row(self, table_name):
+        """Delete the selected row"""
         selection = self.tree.selection()
         if not selection:
             messagebox.showwarning("No Selection", "Please select a row to delete")
@@ -774,61 +843,302 @@ class InteractiveIntake:
             row_id = item['values'][0]
             
             cursor = self.conn.cursor()
-            cursor.execute(f"DELETE FROM {self.current_table} WHERE id = ?", (row_id,))
+            cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (row_id,))
             self.conn.commit()
             
-            self.refresh_data()
+            self.load_table_data(table_name)
             self.status_var.set("Row deleted successfully")
     
-    def import_csv(self):
-        """Import data from CSV file"""
-        filename = filedialog.askopenfilename(
-            title="Select CSV file",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        
-        if filename:
-            try:
-                df = pd.read_csv(filename)
-                df.to_sql(self.current_table, self.conn, if_exists='append', index=False)
-                self.conn.commit()
-                self.refresh_data()
-                self.status_var.set(f"Imported {len(df)} rows from CSV")
-            except Exception as e:
-                messagebox.showerror("Import Error", str(e))
-    
-    def export_csv(self):
-        """Export current table to CSV"""
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
-        )
-        
-        if filename:
-            try:
-                df = pd.read_sql_query(f"SELECT * FROM {self.current_table}", self.conn)
-                df.to_csv(filename, index=False)
-                self.status_var.set(f"Exported {len(df)} rows to CSV")
-            except Exception as e:
-                messagebox.showerror("Export Error", str(e))
-    
-    def import_documents(self):
-        """Import documents for LightRAG buckets"""
-        dialog = DocumentImportDialog(self.root, self.project_path, self.colors, self.fonts)
-        if dialog.result:
-            self.status_var.set("Documents imported successfully")
-    
-    def launch_chat(self):
-        """Launch chat interface for data"""
-        ChatInterface(self.root, self.conn, self.current_table, self.colors, self.fonts)
-    
-    def visualize_data(self):
-        """Visualize data relationships"""
-        DataVisualizer(self.root, self.conn, self.colors, self.fonts)
+    def delete_table(self, table_name):
+        """Delete entire table"""
+        if messagebox.askyesno(
+            "Confirm Delete",
+            f"Are you sure you want to delete the table '{table_name}'?\n\nThis action cannot be undone."
+        ):
+            cursor = self.conn.cursor()
+            cursor.execute(f"DROP TABLE {table_name}")
+            self.conn.commit()
+            
+            self.refresh_tables()
+            
+            # Return to welcome screen
+            for widget in self.main_area.winfo_children():
+                widget.destroy()
+            self.create_welcome_screen()
+            
+            self.status_var.set(f"Table '{table_name}' deleted")
 
 
-class DataEntryDialog:
-    """Polished dialog for adding/editing data rows"""
+class NewTableDialog:
+    """Polished dialog for creating new tables"""
+    
+    def __init__(self, parent, conn, colors, fonts):
+        self.conn = conn
+        self.colors = colors
+        self.fonts = fonts
+        self.result = None
+        
+        # Create dialog
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Create New Table")
+        self.dialog.geometry("700x600")
+        self.dialog.configure(bg=colors['bg_primary'])
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center dialog
+        self.center_dialog(parent)
+        
+        self.setup_ui()
+    
+    def center_dialog(self, parent):
+        """Center dialog on parent window"""
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - self.dialog.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - self.dialog.winfo_height()) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+    
+    def setup_ui(self):
+        """Setup the UI"""
+        # Main container
+        main_container = tk.Frame(self.dialog, bg=self.colors['bg_primary'])
+        main_container.pack(fill=tk.BOTH, expand=True, padx=32, pady=32)
+        
+        # Header
+        header = tk.Label(
+            main_container,
+            text="Create New Table",
+            font=self.fonts['heading_md'],
+            bg=self.colors['bg_primary'],
+            fg=self.colors['text_primary']
+        )
+        header.pack(anchor=tk.W, pady=(0, 24))
+        
+        # Form card
+        form_card = tk.Frame(
+            main_container,
+            bg=self.colors['bg_secondary'],
+            relief='solid',
+            bd=1
+        )
+        form_card.pack(fill=tk.BOTH, expand=True)
+        
+        # Form content
+        form_content = tk.Frame(form_card, bg=self.colors['bg_secondary'])
+        form_content.pack(fill=tk.BOTH, expand=True, padx=32, pady=32)
+        
+        # Table name
+        name_label = tk.Label(
+            form_content,
+            text="Table Name",
+            font=self.fonts['heading_sm'],
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
+        )
+        name_label.pack(anchor=tk.W, pady=(0, 8))
+        
+        self.name_var = tk.StringVar()
+        name_entry = tk.Entry(
+            form_content,
+            textvariable=self.name_var,
+            font=self.fonts['body_lg'],
+            bg=self.colors['bg_primary'],
+            fg=self.colors['text_primary'],
+            relief='solid',
+            bd=1,
+            highlightthickness=2,
+            highlightcolor=self.colors['accent'],
+            highlightbackground=self.colors['border'],
+            insertbackground=self.colors['accent']
+        )
+        name_entry.pack(fill=tk.X, pady=(0, 24), ipady=12)
+        
+        # Columns section
+        columns_label = tk.Label(
+            form_content,
+            text="Columns",
+            font=self.fonts['heading_sm'],
+            bg=self.colors['bg_secondary'],
+            fg=self.colors['text_primary']
+        )
+        columns_label.pack(anchor=tk.W, pady=(0, 12))
+        
+        # Columns container with scrolling
+        columns_container = tk.Frame(form_content, bg=self.colors['bg_secondary'])
+        columns_container.pack(fill=tk.BOTH, expand=True)
+        
+        # Canvas for scrolling
+        canvas = tk.Canvas(columns_container, bg=self.colors['bg_primary'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(columns_container, orient="vertical", command=canvas.yview)
+        self.scrollable_frame = tk.Frame(canvas, bg=self.colors['bg_primary'])
+        
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+        
+        # Column entries
+        self.column_entries = []
+        
+        # Add default columns
+        self.add_column_field("id", "INTEGER PRIMARY KEY AUTOINCREMENT")
+        self.add_column_field("name", "TEXT NOT NULL")
+        self.add_column_field("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+        
+        # Add column button
+        add_col_frame = tk.Frame(form_content, bg=self.colors['bg_secondary'])
+        add_col_frame.pack(fill=tk.X, pady=(16, 24))
+        
+        add_col_btn = tk.Button(
+            add_col_frame,
+            text="+ Add Column",
+            command=self.add_column_field,
+            font=self.fonts['body_md'],
+            bg=self.colors['accent'],
+            fg='white',
+            relief='flat',
+            bd=0,
+            padx=16,
+            pady=8,
+            cursor='hand2'
+        )
+        add_col_btn.pack()
+        
+        # Actions
+        actions_frame = tk.Frame(form_content, bg=self.colors['bg_secondary'])
+        actions_frame.pack(fill=tk.X)
+        
+        cancel_btn = tk.Button(
+            actions_frame,
+            text="Cancel",
+            command=self.dialog.destroy,
+            font=self.fonts['body_md'],
+            bg=self.colors['bg_tertiary'],
+            fg=self.colors['text_primary'],
+            relief='flat',
+            bd=0,
+            padx=24,
+            pady=10
+        )
+        cancel_btn.pack(side=tk.RIGHT, padx=(12, 0))
+        
+        create_btn = tk.Button(
+            actions_frame,
+            text="Create Table",
+            command=self.create_table,
+            font=self.fonts['body_md'],
+            bg=self.colors['accent'],
+            fg='white',
+            relief='flat',
+            bd=0,
+            padx=24,
+            pady=10
+        )
+        create_btn.pack(side=tk.RIGHT)
+    
+    def add_column_field(self, name="", type_def="TEXT"):
+        """Add column input field"""
+        row_frame = tk.Frame(self.scrollable_frame, bg=self.colors['bg_primary'])
+        row_frame.pack(fill=tk.X, pady=4)
+        
+        name_entry = tk.Entry(
+            row_frame,
+            font=self.fonts['body_md'],
+            bg=self.colors['bg_secondary'],
+            relief='solid',
+            bd=1,
+            width=20,
+            highlightthickness=1,
+            highlightcolor=self.colors['accent'],
+            highlightbackground=self.colors['border']
+        )
+        name_entry.pack(side=tk.LEFT, padx=(0, 12), ipady=6)
+        name_entry.insert(0, name)
+        
+        type_entry = tk.Entry(
+            row_frame,
+            font=self.fonts['body_md'],
+            bg=self.colors['bg_secondary'],
+            relief='solid',
+            bd=1,
+            width=30,
+            highlightthickness=1,
+            highlightcolor=self.colors['accent'],
+            highlightbackground=self.colors['border']
+        )
+        type_entry.pack(side=tk.LEFT, padx=(0, 12), ipady=6)
+        type_entry.insert(0, type_def)
+        
+        remove_btn = tk.Button(
+            row_frame,
+            text="×",
+            command=lambda: self.remove_column_field(row_frame),
+            font=self.fonts['body_md'],
+            bg=self.colors['danger'],
+            fg='white',
+            relief='flat',
+            bd=0,
+            width=3,
+            height=1
+        )
+        remove_btn.pack(side=tk.LEFT)
+        
+        self.column_entries.append((name_entry, type_entry, row_frame))
+    
+    def remove_column_field(self, row_frame):
+        """Remove column field"""
+        row_frame.destroy()
+        self.column_entries = [
+            entry for entry in self.column_entries 
+            if entry[2] != row_frame
+        ]
+    
+    def create_table(self):
+        """Create the table"""
+        table_name = self.name_var.get().strip()
+        
+        if not table_name:
+            messagebox.showerror("Error", "Please enter a table name")
+            return
+        
+        # Get column definitions
+        columns = []
+        for name_entry, type_entry, _ in self.column_entries:
+            name = name_entry.get().strip()
+            type_def = type_entry.get().strip()
+            
+            if name and type_def:
+                columns.append(f"{name} {type_def}")
+        
+        if not columns:
+            messagebox.showerror("Error", "Please define at least one column")
+            return
+        
+        # Create SQL
+        columns_sql = ",\n    ".join(columns)
+        create_sql = f"CREATE TABLE {table_name} (\n    {columns_sql}\n)"
+        
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(create_sql)
+            self.conn.commit()
+            
+            self.result = table_name
+            messagebox.showinfo("Success", f"Table '{table_name}' created successfully!")
+            self.dialog.destroy()
+            
+        except sqlite3.Error as e:
+            messagebox.showerror("Database Error", str(e))
+
+
+class RowEditorDialog:
+    """Polished dialog for editing rows"""
     
     def __init__(self, parent, conn, table_name, colors, fonts, existing_data=None):
         self.conn = conn
@@ -999,7 +1309,7 @@ class DataEntryDialog:
         save_btn = tk.Button(
             actions_frame,
             text="Save",
-            command=self.save_data,
+            command=self.save_row,
             font=self.fonts['body_md'],
             bg=self.colors['accent'],
             fg='white',
@@ -1010,8 +1320,8 @@ class DataEntryDialog:
         )
         save_btn.pack(side=tk.RIGHT)
     
-    def save_data(self):
-        """Save the entered data"""
+    def save_row(self):
+        """Save the row"""
         # Get values
         values = {}
         for col_name, widget in self.entries.items():
@@ -1045,424 +1355,15 @@ class DataEntryDialog:
             messagebox.showerror("Database Error", str(e))
 
 
-class DocumentImportDialog:
-    """Polished dialog for importing documents to LightRAG buckets"""
-    
-    def __init__(self, parent, project_path, colors, fonts):
-        self.project_path = project_path
-        self.colors = colors
-        self.fonts = fonts
-        self.result = None
-        
-        # Create dialog
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title("Import Documents")
-        self.dialog.geometry("700x600")
-        self.dialog.configure(bg=colors['bg_primary'])
-        
-        # Create UI elements using modern styling
-        self.setup_ui()
-    
-    def setup_ui(self):
-        """Setup the UI with modern styling"""
-        # Main container
-        main_container = tk.Frame(self.dialog, bg=self.colors['bg_primary'])
-        main_container.pack(fill=tk.BOTH, expand=True, padx=32, pady=32)
-        
-        # Header
-        header = tk.Label(
-            main_container,
-            text="Import Documents",
-            font=self.fonts['heading_md'],
-            bg=self.colors['bg_primary'],
-            fg=self.colors['text_primary']
-        )
-        header.pack(anchor=tk.W, pady=(0, 24))
-        
-        # Form fields
-        # Bucket selection
-        bucket_label = tk.Label(
-            main_container,
-            text="Select Bucket:",
-            font=self.fonts['heading_sm'],
-            bg=self.colors['bg_primary'],
-            fg=self.colors['text_primary']
-        )
-        bucket_label.pack(anchor=tk.W, pady=(0, 8))
-        
-        self.bucket_var = tk.StringVar()
-        bucket_combo = ttk.Combobox(main_container, textvariable=self.bucket_var,
-                                    values=["scripts", "books", "plays", "examples", "reference"])
-        bucket_combo.pack(fill=tk.X, pady=(0, 24))
-        bucket_combo.set("scripts")
-        
-        # Document content
-        content_label = tk.Label(
-            main_container,
-            text="Document Content:",
-            font=self.fonts['heading_sm'],
-            bg=self.colors['bg_primary'],
-            fg=self.colors['text_primary']
-        )
-        content_label.pack(anchor=tk.W, pady=(0, 8))
-        
-        self.text_widget = tk.Text(
-            main_container,
-            height=15,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_secondary'],
-            fg=self.colors['text_primary'],
-            relief='solid',
-            bd=1,
-            wrap=tk.WORD
-        )
-        self.text_widget.pack(fill=tk.BOTH, expand=True, pady=(0, 16))
-        
-        # Metadata fields
-        meta_frame = tk.Frame(main_container, bg=self.colors['bg_primary'])
-        meta_frame.pack(fill=tk.X, pady=(0, 24))
-        
-        # Title
-        title_label = tk.Label(meta_frame, text="Title:", font=self.fonts['body_md'],
-                              bg=self.colors['bg_primary'], fg=self.colors['text_primary'])
-        title_label.grid(row=0, column=0, sticky=tk.W, padx=(0, 12))
-        
-        self.title_entry = tk.Entry(meta_frame, font=self.fonts['body_md'],
-                                   bg=self.colors['bg_secondary'], width=30)
-        self.title_entry.grid(row=0, column=1, sticky=tk.W)
-        
-        # Tags
-        tags_label = tk.Label(meta_frame, text="Tags:", font=self.fonts['body_md'],
-                             bg=self.colors['bg_primary'], fg=self.colors['text_primary'])
-        tags_label.grid(row=1, column=0, sticky=tk.W, padx=(0, 12), pady=(8, 0))
-        
-        self.tags_entry = tk.Entry(meta_frame, font=self.fonts['body_md'],
-                                  bg=self.colors['bg_secondary'], width=30)
-        self.tags_entry.grid(row=1, column=1, sticky=tk.W, pady=(8, 0))
-        
-        # Buttons
-        button_frame = tk.Frame(main_container, bg=self.colors['bg_primary'])
-        button_frame.pack(fill=tk.X)
-        
-        # Import file button
-        import_btn = tk.Button(
-            button_frame,
-            text="Import File",
-            command=self.import_file,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['text_primary'],
-            relief='flat',
-            bd=0,
-            padx=16,
-            pady=8
-        )
-        import_btn.pack(side=tk.LEFT)
-        
-        # Cancel button
-        cancel_btn = tk.Button(
-            button_frame,
-            text="Cancel",
-            command=self.dialog.destroy,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_tertiary'],
-            fg=self.colors['text_primary'],
-            relief='flat',
-            bd=0,
-            padx=16,
-            pady=8
-        )
-        cancel_btn.pack(side=tk.RIGHT, padx=(12, 0))
-        
-        # Save button
-        save_btn = tk.Button(
-            button_frame,
-            text="Save Document",
-            command=self.save_document,
-            font=self.fonts['body_md'],
-            bg=self.colors['accent'],
-            fg='white',
-            relief='flat',
-            bd=0,
-            padx=16,
-            pady=8
-        )
-        save_btn.pack(side=tk.RIGHT)
-    
-    def import_file(self):
-        """Import content from file"""
-        filename = filedialog.askopenfilename(
-            title="Select document",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
-        )
-        
-        if filename:
-            with open(filename, 'r', encoding='utf-8') as f:
-                content = f.read()
-                self.text_widget.delete(1.0, tk.END)
-                self.text_widget.insert(tk.END, content)
-                
-                # Set title from filename
-                self.title_entry.delete(0, tk.END)
-                self.title_entry.insert(0, os.path.basename(filename))
-    
-    def save_document(self):
-        """Save document to LightRAG bucket"""
-        bucket = self.bucket_var.get()
-        content = self.text_widget.get(1.0, tk.END).strip()
-        title = self.title_entry.get()
-        tags = self.tags_entry.get()
-        
-        if not content:
-            messagebox.showwarning("No Content", "Please enter document content")
-            return
-        
-        # Save document
-        doc_dir = os.path.join(self.project_path, "documents", bucket)
-        os.makedirs(doc_dir, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(doc_dir, f"{title or 'doc'}_{timestamp}.txt")
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(content)
-        
-        # Save metadata
-        metadata = {
-            "title": title,
-            "tags": tags,
-            "bucket": bucket,
-            "timestamp": timestamp,
-            "file": filename
-        }
-        
-        meta_file = os.path.join(doc_dir, f"metadata_{timestamp}.json")
-        with open(meta_file, 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        self.result = True
-        messagebox.showinfo("Success", f"Document saved to {bucket} bucket")
-        self.dialog.destroy()
-
-
-class ChatInterface:
-    """Polished chat interface for interacting with data"""
-    
-    def __init__(self, parent, conn, table_name, colors, fonts):
-        self.conn = conn
-        self.table_name = table_name
-        self.colors = colors
-        self.fonts = fonts
-        
-        # Create chat window
-        self.window = tk.Toplevel(parent)
-        self.window.title(f"Chat with {table_name}")
-        self.window.geometry("700x600")
-        self.window.configure(bg=colors['bg_primary'])
-        
-        self.setup_ui()
-        
-        # Initial message
-        self.add_message("System", f"Chat interface for {table_name} table. Ask questions about your data!")
-    
-    def setup_ui(self):
-        """Setup the UI with modern styling"""
-        # Main container
-        main_container = tk.Frame(self.window, bg=self.colors['bg_primary'])
-        main_container.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
-        
-        # Chat display
-        self.chat_display = tk.Text(
-            main_container,
-            height=25,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_secondary'],
-            fg=self.colors['text_primary'],
-            relief='solid',
-            bd=1,
-            wrap=tk.WORD,
-            state=tk.DISABLED
-        )
-        self.chat_display.pack(fill=tk.BOTH, expand=True, pady=(0, 16))
-        
-        # Input frame
-        input_frame = tk.Frame(main_container, bg=self.colors['bg_primary'])
-        input_frame.pack(fill=tk.X)
-        
-        self.input_entry = tk.Entry(
-            input_frame,
-            font=self.fonts['body_md'],
-            bg=self.colors['bg_secondary'],
-            fg=self.colors['text_primary'],
-            relief='solid',
-            bd=1
-        )
-        self.input_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 12), ipady=8)
-        self.input_entry.bind('<Return>', lambda e: self.send_message())
-        
-        send_btn = tk.Button(
-            input_frame,
-            text="Send",
-            command=self.send_message,
-            font=self.fonts['body_md'],
-            bg=self.colors['accent'],
-            fg='white',
-            relief='flat',
-            bd=0,
-            padx=16,
-            pady=8
-        )
-        send_btn.pack(side=tk.RIGHT)
-    
-    def add_message(self, sender: str, message: str):
-        """Add message to chat display"""
-        self.chat_display.config(state=tk.NORMAL)
-        self.chat_display.insert(tk.END, f"\n{sender}: {message}\n")
-        self.chat_display.see(tk.END)
-        self.chat_display.config(state=tk.DISABLED)
-    
-    def send_message(self):
-        """Process user message"""
-        message = self.input_entry.get().strip()
-        if not message:
-            return
-        
-        self.add_message("You", message)
-        self.input_entry.delete(0, tk.END)
-        
-        # Process query
-        response = self.process_query(message)
-        self.add_message("Assistant", response)
-    
-    def process_query(self, query: str) -> str:
-        """Process natural language query"""
-        query_lower = query.lower()
-        cursor = self.conn.cursor()
-        
-        try:
-            # Simple query processing
-            if "how many" in query_lower or "count" in query_lower:
-                cursor.execute(f"SELECT COUNT(*) FROM {self.table_name}")
-                count = cursor.fetchone()[0]
-                return f"There are {count} rows in {self.table_name}"
-            
-            elif "show" in query_lower or "list" in query_lower:
-                cursor.execute(f"SELECT * FROM {self.table_name} LIMIT 5")
-                rows = cursor.fetchall()
-                if rows:
-                    result = f"Here are the first {len(rows)} rows:\n"
-                    for row in rows:
-                        result += f"  {row}\n"
-                    return result
-                return "No data found"
-            
-            elif "describe" in query_lower or "schema" in query_lower:
-                cursor.execute(f"PRAGMA table_info({self.table_name})")
-                columns = cursor.fetchall()
-                result = f"Table {self.table_name} has these columns:\n"
-                for col in columns:
-                    result += f"  - {col[1]} ({col[2]})\n"
-                return result
-            
-            else:
-                return "I can help you explore your data. Try asking:\n" \
-                       "- How many rows are there?\n" \
-                       "- Show me some data\n" \
-                       "- Describe the table structure"
-                       
-        except Exception as e:
-            return f"Error processing query: {str(e)}"
-
-
-class DataVisualizer:
-    """Polished visualizer for data relationships"""
-    
-    def __init__(self, parent, conn, colors, fonts):
-        self.conn = conn
-        self.colors = colors
-        self.fonts = fonts
-        
-        # Create visualization window
-        self.window = tk.Toplevel(parent)
-        self.window.title("Data Relationships")
-        self.window.geometry("900x700")
-        self.window.configure(bg=colors['bg_primary'])
-        
-        # Canvas for visualization
-        canvas_frame = tk.Frame(self.window, bg=colors['bg_secondary'], relief='solid', bd=1)
-        canvas_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=24)
-        
-        self.canvas = tk.Canvas(canvas_frame, bg=colors['bg_secondary'])
-        self.canvas.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
-        
-        # Draw relationships
-        self.visualize_relationships()
-    
-    def visualize_relationships(self):
-        """Create visual representation of data relationships"""
-        # Get character and scene data
-        cursor = self.conn.cursor()
-        
-        try:
-            # Get characters
-            cursor.execute("SELECT name FROM characters")
-            characters = [row[0] for row in cursor.fetchall()]
-            
-            # Get scenes
-            cursor.execute("SELECT act, scene, key_characters FROM story_outline")
-            scenes = cursor.fetchall()
-            
-            # Draw characters as nodes
-            char_positions = {}
-            y = 80
-            for i, char in enumerate(characters):
-                x = 120 + (i * 180)
-                self.canvas.create_oval(x-35, y-35, x+35, y+35, fill=self.colors['accent_light'], outline=self.colors['accent'])
-                self.canvas.create_text(x, y, text=char, font=self.fonts['body_md'], fill=self.colors['text_primary'])
-                char_positions[char] = (x, y)
-            
-            # Draw scenes and connections
-            scene_y = 250
-            for act, scene, chars in scenes:
-                scene_x = 120 + ((act-1) * 220) + (scene * 60)
-                
-                # Draw scene box
-                self.canvas.create_rectangle(scene_x-45, scene_y-25, scene_x+45, scene_y+25, 
-                                           fill=self.colors['success_light'], outline=self.colors['success'])
-                self.canvas.create_text(scene_x, scene_y, text=f"A{act}S{scene}", 
-                                      font=self.fonts['body_md'], fill=self.colors['text_primary'])
-                
-                # Draw connections to characters
-                if chars:
-                    for char_name in chars.split(','):
-                        char_name = char_name.strip()
-                        if char_name in char_positions:
-                            char_x, char_y = char_positions[char_name]
-                            self.canvas.create_line(char_x, char_y+35, scene_x, scene_y-25, 
-                                                   fill=self.colors['text_muted'], width=2)
-        
-        except sqlite3.Error:
-            # If tables don't exist, show message
-            self.canvas.create_text(400, 300, text="No relationship data available", 
-                                  font=self.fonts['heading_sm'], fill=self.colors['text_secondary'])
-
-
-def launch_intake_gui(project_path: str):
-    """Launch the polished intake GUI for a project"""
-    intake = InteractiveIntake(project_path)
-    intake.launch_gui()
+def launch_polished_table_editor(project_path: str):
+    """Launch the polished table editor"""
+    editor = PolishedTableEditor(project_path)
+    editor.launch()
 
 
 if __name__ == "__main__":
-    # Demo usage
-    import sys
-    
-    if len(sys.argv) > 1:
-        project_path = sys.argv[1]
-    else:
-        project_path = "projects/Alpha"
-    
-    if os.path.exists(project_path):
-        launch_intake_gui(project_path)
-    else:
-        print(f"Project not found: {project_path}")
+    # Test
+    import tempfile
+    test_dir = os.path.join(tempfile.gettempdir(), "test_project")
+    os.makedirs(test_dir, exist_ok=True)
+    launch_polished_table_editor(test_dir)

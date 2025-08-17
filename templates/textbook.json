@@ -90,17 +90,18 @@
     }
   },
   "buckets": {
-    "recommended": ["bordwell_sources", "cook_sources", "reference_sources"],
+    "recommended": ["academic_sources", "balio_sources", "bordwell_sources", "cook_sources", "cousins_sources", "cultural_sources", "reference_sources"],
     "descriptions": {
+      "academic_sources": "General academic papers and research",
+      "balio_sources": "Hollywood studio system and business analysis",
       "bordwell_sources": "Bordwell's film studies and narrative theory",
       "cook_sources": "David Cook's film history and analysis",
       "cousins_sources": "Mark Cousins' cinema history perspectives", 
+      "cultural_sources": "Cultural studies and media analysis",
+      "reference_sources": "General academic references and methodology",
       "dixon_foster_sources": "Technical and production analysis",
       "gomery_sources": "Film industry and economic analysis",
       "knight_sources": "Film criticism and theory",
-      "balio_sources": "Hollywood studio system and business",
-      "cultural_sources": "Cultural studies and media analysis",
-      "reference_sources": "General academic references and methodology",
       "american_cinema_series": "American film history and development"
     }
   },

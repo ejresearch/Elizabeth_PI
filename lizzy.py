@@ -15,7 +15,7 @@ from openai import OpenAI
 
 # Import template management
 try:
-    from template_manager import TemplateManager
+    from lizzy_templates import TemplateManager
     from admin import LizzyAdmin
     from autonomous_agent import AutonomousAgent
     HAS_TEMPLATE_SYSTEM = True
@@ -687,14 +687,29 @@ def create_project():
         
         break
     
-    # Create project
-    if create_project_database(project_name):
-        session.set_project(project_name)
-        print(f"\n{Colors.GREEN} Project '{project_name}' created and loaded!{Colors.END}")
-        input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
-        return True
-    
-    return False
+    # Create project using romcom template by default
+    if HAS_TEMPLATE_SYSTEM:
+        from lizzy_templates import TemplateManager
+        tm = TemplateManager()
+        if tm.create_project_from_template(project_name, "romcom"):
+            session.set_project(project_name)
+            print(f"\n{Colors.GREEN} Project '{project_name}' created with romcom template!{Colors.END}")
+            print(f"{Colors.GREEN} ✓ 6 Character archetypes ready to customize{Colors.END}")
+            print(f"{Colors.GREEN} ✓ 30-scene romcom outline pre-populated{Colors.END}")
+            print(f"{Colors.GREEN} ✓ 6 Starter notes with romcom writing guidance{Colors.END}")
+            input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
+            return True
+        else:
+            print(f"{Colors.RED} Failed to create project with template{Colors.END}")
+            return False
+    else:
+        # Fallback to old method if template system not available
+        if create_project_database(project_name):
+            session.set_project(project_name)
+            print(f"\n{Colors.GREEN} Project '{project_name}' created and loaded!{Colors.END}")
+            input(f"{Colors.CYAN}Press Enter to continue...{Colors.END}")
+            return True
+        return False
 
 def create_project_database(project_name):
     """Create project database with all tables"""
@@ -865,6 +880,46 @@ def wait_for_key(prompt="Press any key to continue..."):
     print(f"\n{Colors.CYAN}{prompt}{Colors.END}")
     get_single_keypress()
 
+def check_gui_available():
+    """Check if GUI mode is available (running in an environment that supports tkinter)"""
+    try:
+        import tkinter
+        import os
+        # Check if we're in a display environment
+        if os.environ.get('DISPLAY') or os.name == 'nt' or os.environ.get('TERM_PROGRAM') == 'Apple_Terminal':
+            return True
+    except ImportError:
+        pass
+    return False
+
+def open_gui_table_selector():
+    """Open the polished table editor"""
+    try:
+        from tools.polished_table_editor import launch_polished_table_editor
+        
+        # Get project path
+        project_path = f"projects/{session.project_name}" if hasattr(session, 'project_name') else None
+        
+        if project_path and os.path.exists(project_path):
+            # Launch the polished table editor
+            launch_polished_table_editor(project_path)
+        else:
+            print(f"{Colors.RED}No project found at: {project_path}{Colors.END}")
+            
+    except Exception as e:
+        print(f"{Colors.RED}Error opening polished table editor: {e}{Colors.END}")
+        print(f"{Colors.CYAN}Falling back to basic intake GUI...{Colors.END}")
+        
+        # Fallback to existing intake GUI
+        try:
+            from lizzy_intake_interactive import InteractiveIntake
+            if project_path and os.path.exists(project_path):
+                intake = InteractiveIntake(project_path)
+                intake.launch_gui()
+        except Exception as e2:
+            print(f"{Colors.RED}Fallback also failed: {e2}{Colors.END}")
+            print(f"{Colors.CYAN}Using CLI mode{Colors.END}")
+
 def main_menu():
     """Main navigation menu - LIZZY"""
     while True:
@@ -875,90 +930,110 @@ def main_menu():
             setup_api_key()
             continue
         
-        print(f"\n{Colors.BOLD}LIZZY{Colors.END}")
+        print(f"\n{Colors.BOLD}LIZZY - Romantic Comedy Screenplay Generator{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END}  New Project")
-        print(f"   {Colors.BOLD}2.{Colors.END}  Existing Project")
-        print(f"   {Colors.BOLD}3.{Colors.END}  🤖 Auto Agent (Pick Template & Go)")
-        print(f"   {Colors.BOLD}4.{Colors.END}  Getting Started")
-        if HAS_TEMPLATE_SYSTEM:
-            print(f"   {Colors.BOLD}5.{Colors.END}   Admin")
-        print(f"   {Colors.BOLD}6.{Colors.END}  Exit")
+        print(f"{Colors.CYAN}Get started in 30 seconds with a complete romcom template:{Colors.END}")
+        print(f"{Colors.CYAN}📝 6 character archetypes + 30-scene outline + writing guides{Colors.END}")
+        print()
+        print(f"   {Colors.BOLD}1.{Colors.END}  🆕 Create New Romcom Project")
+        print(f"   {Colors.BOLD}2.{Colors.END}  📂 Open Existing Project")
+        print(f"   {Colors.BOLD}3.{Colors.END}  ❓ Help & Getting Started")
+        print(f"   {Colors.BOLD}4.{Colors.END}  🚪 Exit")
         
         choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
         
         if choice == "1":
-            create_project_with_template()
+            create_project()  # Use simplified project creation
             if session.current_project:
                 project_menu()
         elif choice == "2":
             if select_project():
                 project_menu()
         elif choice == "3":
-            run_autonomous_agent()
-        elif choice == "4":
             show_readme()
-        elif choice == "5" and HAS_TEMPLATE_SYSTEM:
-            admin_menu()
-        elif choice == "6":
-            print(f"\n{Colors.CYAN} Thank you for using LIZZY Framework!{Colors.END}")
-            print(f"{Colors.YELLOW}   Happy writing! {Colors.END}\n")
+        elif choice == "4":
+            print(f"\n{Colors.CYAN} Thank you for using LIZZY!{Colors.END}")
+            print(f"{Colors.YELLOW}   Happy writing! 🎬{Colors.END}\n")
             session.close()
             sys.exit(0)
+        else:
+            print(f"{Colors.RED}Invalid choice. Please select 1-4.{Colors.END}")
+            wait_for_key()
 
 def project_menu():
-    """Project-specific menu"""
+    """Streamlined project workflow menu"""
     while True:
         print_header()
         print_status()
         
-        print(f"\n{Colors.BOLD}PROJECT{Colors.END}")
+        print(f"\n{Colors.BOLD}LIZZY WORKFLOW{Colors.END}")
         print_separator()
         
-        print(f"   {Colors.BOLD}1.{Colors.END}  Update Tables")
-        print(f"   {Colors.BOLD}2.{Colors.END}  Update Buckets")
-        if HAS_OUTLINE_MODULE:
-            print(f"   {Colors.BOLD}3.{Colors.END}  📝 Story Outline (Template/DIY)")
-            print(f"   {Colors.BOLD}4.{Colors.END}  Brainstorm")
-            print(f"   {Colors.BOLD}5.{Colors.END}   Write")
-        else:
-            print(f"   {Colors.BOLD}3.{Colors.END}  Brainstorm")
-            print(f"   {Colors.BOLD}4.{Colors.END}   Write")
-        print(f"   {Colors.BOLD}6.{Colors.END}  Version History")
-        print(f"   {Colors.BOLD}7.{Colors.END}  Export Options")
-        print(f"   {Colors.BOLD}8.{Colors.END}   Manage")
-        if HAS_TERMIOS:
-            print(f"\n   {Colors.CYAN}← Press left arrow or ESC to go back{Colors.END}")
+        print(f"{Colors.CYAN}📝 Complete your romantic comedy in 4 simple steps:{Colors.END}")
+        print()
+        print(f"   {Colors.BOLD}1.{Colors.END}  🎨 Edit Tables (Characters, Scenes, Notes)")
+        print(f"   {Colors.BOLD}2.{Colors.END}  💭 Brainstorm (Generate ideas for scenes)")
+        print(f"   {Colors.BOLD}3.{Colors.END}  ✍️  Write (Create screenplay scenes)")
+        print(f"   {Colors.BOLD}4.{Colors.END}  📤 Export (Final screenplay output)")
+        print()
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
-        choice = input(f"\n{Colors.BOLD}Select option: {Colors.END}").strip()
-        
-        # Check for arrow key navigation
-        if not choice and HAS_TERMIOS:
-            key = get_single_keypress()
-            if key in ['LEFT', 'ESC']:
-                break
-            continue
+        choice = input(f"\n{Colors.BOLD}Select step: {Colors.END}").strip()
         
         if choice == "0":
             break
         elif choice == "1":
-            update_tables_menu()
+            launch_modern_editor_for_project()
         elif choice == "2":
-            buckets_manager()
-        elif HAS_OUTLINE_MODULE and choice == "3":
-            launch_story_outline()
-        elif choice == "3" or (HAS_OUTLINE_MODULE and choice == "4"):
             brainstorm_module()
-        elif choice == "4" or (HAS_OUTLINE_MODULE and choice == "5"):
+        elif choice == "3":
             write_module()
-        elif choice == "6":
-            version_history()
-        elif choice == "7":
+        elif choice == "4":
             export_options()
-        elif choice == "8":
-            manage_project()
+        else:
+            print(f"{Colors.RED}Invalid choice. Please select 1-4 or 0.{Colors.END}")
+            wait_for_key()
+
+def launch_modern_editor_for_project():
+    """Launch the modern web-based editor for the current project"""
+    try:
+        from web_server import launch_web_editor
+        
+        if not session.current_project:
+            print(f"{Colors.RED}No project loaded!{Colors.END}")
+            wait_for_key()
+            return
+        
+        project_path = f"projects/{session.current_project}"
+        if not os.path.exists(project_path):
+            print(f"{Colors.RED}Project directory not found: {project_path}{Colors.END}")
+            wait_for_key()
+            return
+        
+        print(f"\n{Colors.CYAN}🌐 Launching Modern Web Editor for {session.current_project}...{Colors.END}")
+        print(f"{Colors.YELLOW}✨ Starting web server and opening browser automatically{Colors.END}")
+        print(f"{Colors.GREEN}📝 You can edit characters, scenes, and notes in your browser{Colors.END}")
+        print(f"{Colors.MAGENTA}⏹️  Press Ctrl+C in this terminal to stop the server when done{Colors.END}")
+        print()
+        
+        try:
+            launch_web_editor(project_path, port=8080, auto_open=True)
+        except KeyboardInterrupt:
+            print(f"\n{Colors.GREEN}✅ Web server stopped by user{Colors.END}")
+        except Exception as e:
+            print(f"\n{Colors.RED}❌ Server error: {e}{Colors.END}")
+        
+        print(f"\n{Colors.GREEN}✅ Returning to Lizzy workflow{Colors.END}")
+        wait_for_key()
+        
+    except ImportError:
+        print(f"{Colors.RED}Modern editor not available!{Colors.END}")
+        print(f"{Colors.CYAN}Falling back to classic table editor...{Colors.END}")
+        update_tables_menu()
+    except Exception as e:
+        print(f"{Colors.RED}Error launching editor: {e}{Colors.END}")
+        wait_for_key()
 
 def update_tables_menu():
     """Update Tables - Enhanced table management"""
@@ -1043,6 +1118,8 @@ def edit_table_menu():
     print(f"   {Colors.BOLD}1.{Colors.END} Characters")
     print(f"   {Colors.BOLD}2.{Colors.END} Scenes")
     print(f"   {Colors.BOLD}3.{Colors.END} Notes")
+    if check_gui_available():
+        print(f"   {Colors.BOLD}4.{Colors.END} 🖥️  Open GUI Table Editor")
     
     choice = input(f"\n[ ] Enter choice: ").strip()
     
@@ -1052,6 +1129,8 @@ def edit_table_menu():
         story_outline_management()
     elif choice == "3":
         notes_management()
+    elif choice == "4" and check_gui_available():
+        open_gui_table_selector()
 
 def new_table_menu():
     """Create new entry or import from CSV"""
@@ -1847,6 +1926,25 @@ def view_outline():
 
 def edit_character():
     """Edit an existing character"""
+    # Check if we can use GUI mode
+    if check_gui_available():
+        try:
+            from lizzy_intake_interactive import InteractiveIntake
+            
+            # Get project path
+            project_path = f"projects/{session.project_name}" if hasattr(session, 'project_name') else None
+            
+            if project_path and os.path.exists(project_path):
+                # Launch the existing intake GUI
+                intake = InteractiveIntake(project_path)
+                intake.switch_table('characters')
+                intake.launch_gui()
+                return
+        except (ImportError, Exception) as e:
+            print(f"{Colors.YELLOW}Could not open GUI: {e}{Colors.END}")
+            pass  # Fall back to CLI mode
+    
+    # CLI mode fallback
     print(f"\n{Colors.YELLOW}  EDIT CHARACTER{Colors.END}")
     print_separator()
     
@@ -1931,6 +2029,25 @@ def delete_character():
 
 def edit_scene():
     """Edit an existing scene"""
+    # Check if we can use GUI mode
+    if check_gui_available():
+        try:
+            from lizzy_intake_interactive import InteractiveIntake
+            
+            # Get project path
+            project_path = f"projects/{session.project_name}" if hasattr(session, 'project_name') else None
+            
+            if project_path and os.path.exists(project_path):
+                # Launch the existing intake GUI
+                intake = InteractiveIntake(project_path)
+                intake.switch_table('story_outline')
+                intake.launch_gui()
+                return
+        except (ImportError, Exception) as e:
+            print(f"{Colors.YELLOW}Could not open GUI: {e}{Colors.END}")
+            pass  # Fall back to CLI mode
+    
+    # CLI mode fallback
     print(f"\n{Colors.YELLOW}  EDIT SCENE{Colors.END}")
     print_separator()
     
@@ -4819,13 +4936,35 @@ def create_project_with_template():
         return False
     
     # Create project with template
+    print(f"\n{Colors.CYAN} Creating project '{project_name}' with template '{template_key}'...{Colors.END}")
+    
     if tm.create_project_from_template(project_name, template_key):
-        session.set_project(project_name)
+        print(f"\n{Colors.GREEN} Project database created successfully!{Colors.END}")
+        
+        # Verify the project exists before setting it
+        expected_db_path = f"projects/{project_name}/{project_name}.sqlite"
+        if not os.path.exists(expected_db_path):
+            print(f"{Colors.RED} ERROR: Database not found at expected path: {expected_db_path}{Colors.END}")
+            print(f"{Colors.YELLOW} Checking project directory...{Colors.END}")
+            if os.path.exists(f"projects/{project_name}"):
+                print(f" Project directory exists")
+                files = os.listdir(f"projects/{project_name}")
+                print(f" Files in directory: {files}")
+            else:
+                print(f" Project directory does not exist!")
+            return False
+        
+        # Set the project in session
+        if session.set_project(project_name):
+            print(f"{Colors.GREEN} Project loaded into session successfully!{Colors.END}")
+        else:
+            print(f"{Colors.RED} Failed to load project into session{Colors.END}")
+            return False
         
         # Ensure legacy compatibility for session
         tm.ensure_legacy_compatibility(project_name)
         
-        print(f"\n{Colors.GREEN} Project '{project_name}' created successfully!{Colors.END}")
+        print(f"\n{Colors.GREEN} Project '{project_name}' created and loaded successfully!{Colors.END}")
         
         # Show next steps
         template = tm.load_template(template_key)
@@ -4838,6 +4977,187 @@ def create_project_with_template():
         wait_for_key()
         return True
     else:
+        print(f"{Colors.RED} Failed to create project from template{Colors.END}")
+        return False
+
+def create_new_project_flow():
+    """New streamlined project creation flow with textbook vs screenplay choice"""
+    print(f"\n{Colors.YELLOW} CREATE NEW PROJECT{Colors.END}")
+    print_separator()
+    
+    # Project type selection
+    print(f"{Colors.BOLD}Choose your project type:{Colors.END}\n")
+    print(f"   {Colors.BOLD}1.{Colors.END}  📽️  Screenplay")
+    print(f"       Clean GUI for characters, scenes, and notes")
+    print(f"       Uses screenplay-specific templates and buckets")
+    print()
+    print(f"   {Colors.BOLD}2.{Colors.END}  📚  Textbook/Research")
+    print(f"       All other LightRAG buckets for academic work")
+    print(f"       Academic sources, film theory, cultural research")
+    print()
+    
+    while True:
+        choice = input(f"{Colors.BOLD}Select project type (1-2, or 'back'): {Colors.END}").strip()
+        
+        if choice.lower() == 'back':
+            return False
+        elif choice == "1":
+            return create_screenplay_project()
+        elif choice == "2":
+            return create_textbook_project()
+        else:
+            print(f"{Colors.RED} Please enter 1, 2, or 'back'{Colors.END}")
+
+def create_screenplay_project():
+    """Create screenplay project with GUI interface"""
+    if not HAS_TEMPLATE_SYSTEM:
+        print(f"{Colors.RED} Template system not available{Colors.END}")
+        return False
+    
+    print(f"\n{Colors.CYAN}📽️ SCREENPLAY PROJECT{Colors.END}")
+    print_separator()
+    
+    # Get project name
+    existing_projects = []
+    if HAS_TEMPLATE_SYSTEM:
+        tm = TemplateManager()
+        existing_projects = [p['name'] for p in tm.list_projects()]
+    
+    while True:
+        project_name = input(f"{Colors.BOLD} Enter screenplay project name: {Colors.END}").strip()
+        
+        if not project_name:
+            print(f"{Colors.RED} Project name cannot be empty!{Colors.END}")
+            continue
+        
+        # Sanitize project name
+        sanitized_name = re.sub(r'[^\w\-_]', '_', project_name)
+        if sanitized_name != project_name:
+            print(f"{Colors.YELLOW} Project name sanitized to: {sanitized_name}{Colors.END}")
+            project_name = sanitized_name
+        
+        if project_name in existing_projects:
+            print(f"{Colors.RED} Project '{project_name}' already exists!{Colors.END}")
+            continue
+        
+        break
+    
+    # Create project with screenplay template
+    print(f"\n{Colors.CYAN} Creating screenplay project '{project_name}'...{Colors.END}")
+    
+    if HAS_TEMPLATE_SYSTEM:
+        tm = TemplateManager()
+        # Use romcom template as default for screenplay projects
+        if tm.create_project_from_template(project_name, "romcom"):
+            print(f"{Colors.GREEN} ✓ Database created with romcom template{Colors.END}")
+            print(f"   - 6 Character archetypes (Protagonist, Love Interest, Best Friend, etc.)")
+            print(f"   - 30-scene romcom outline (Opening, Meet Cute, Midpoint, Grand Gesture, etc.)")
+            print(f"   - 6 Starter notes with themes, development tips, and writing guidance")
+            
+            # Set project in session
+            if session.set_project(project_name):
+                print(f"{Colors.GREEN} ✓ Project loaded into session{Colors.END}")
+                
+                # Launch GUI if available
+                if HAS_INTAKE_GUI:
+                    print(f"\n{Colors.CYAN} 🎨 Launching screenplay editing interface...{Colors.END}")
+                    print(f"   Clean Tailwind-style GUI for editing:")
+                    print(f"   • Character profiles and development")
+                    print(f"   • Scene-by-scene story outline")
+                    print(f"   • Tagged notes system")
+                    
+                    wait_for_key()
+                    
+                    try:
+                        project_path = f"projects/{project_name}"
+                        launch_intake_gui(project_path)
+                    except Exception as e:
+                        print(f"{Colors.RED} Error launching GUI: {e}{Colors.END}")
+                        print(f"{Colors.YELLOW} Falling back to standard interface{Colors.END}")
+                        wait_for_key()
+                else:
+                    print(f"{Colors.YELLOW} ℹ️ GUI not available, using standard interface{Colors.END}")
+                    wait_for_key()
+                
+                return True
+            else:
+                print(f"{Colors.RED} Failed to load project into session{Colors.END}")
+                return False
+        else:
+            print(f"{Colors.RED} Failed to create screenplay project{Colors.END}")
+            return False
+    else:
+        # Fallback to basic project creation
+        return create_project()
+
+def create_textbook_project():
+    """Create textbook/research project with all academic buckets"""
+    if not HAS_TEMPLATE_SYSTEM:
+        print(f"{Colors.RED} Template system not available{Colors.END}")
+        return False
+    
+    print(f"\n{Colors.CYAN}📚 TEXTBOOK/RESEARCH PROJECT{Colors.END}")
+    print_separator()
+    
+    print(f"{Colors.BLUE}This project includes all academic LightRAG buckets:{Colors.END}")
+    print(f"   • academic_sources (general research)")
+    print(f"   • balio_sources (Hollywood studio system)")
+    print(f"   • bordwell_sources (film studies & narrative theory)")
+    print(f"   • cook_sources (film history)")
+    print(f"   • cousins_sources (cinema history)")
+    print(f"   • cultural_sources (cultural studies)")
+    print(f"   • reference_sources (academic references)")
+    print(f"   • Plus: dixon_foster, gomery, knight, american_cinema_series")
+    print()
+    
+    # Get project name
+    tm = TemplateManager()
+    existing_projects = [p['name'] for p in tm.list_projects()]
+    
+    while True:
+        project_name = input(f"{Colors.BOLD} Enter textbook project name: {Colors.END}").strip()
+        
+        if not project_name:
+            print(f"{Colors.RED} Project name cannot be empty!{Colors.END}")
+            continue
+        
+        # Sanitize project name
+        sanitized_name = re.sub(r'[^\w\-_]', '_', project_name)
+        if sanitized_name != project_name:
+            print(f"{Colors.YELLOW} Project name sanitized to: {sanitized_name}{Colors.END}")
+            project_name = sanitized_name
+        
+        if project_name in existing_projects:
+            print(f"{Colors.RED} Project '{project_name}' already exists!{Colors.END}")
+            continue
+        
+        break
+    
+    # Create project with textbook template
+    print(f"\n{Colors.CYAN} Creating textbook project '{project_name}'...{Colors.END}")
+    
+    if tm.create_project_from_template(project_name, "textbook"):
+        print(f"{Colors.GREEN} ✓ Database created with textbook tables{Colors.END}")
+        print(f"   - Academic research structure")
+        print(f"   - Film theory buckets ready")
+        print(f"   - All scholarly source buckets configured")
+        
+        # Set project in session
+        if session.set_project(project_name):
+            print(f"{Colors.GREEN} ✓ Project loaded into session{Colors.END}")
+            
+            print(f"\n{Colors.CYAN} 📚 Next steps:{Colors.END}")
+            print(f"   1. Upload sources to the appropriate buckets")
+            print(f"   2. Use brainstorm to analyze academic content")
+            print(f"   3. Write with film theory and scholarly backing")
+            
+            wait_for_key()
+            return True
+        else:
+            print(f"{Colors.RED} Failed to load project into session{Colors.END}")
+            return False
+    else:
+        print(f"{Colors.RED} Failed to create textbook project{Colors.END}")
         return False
 
 def run_autonomous_agent():

@@ -310,7 +310,41 @@
       },
       "required": ["title"],
       "display_name": "Notes",
-      "description": "Random ideas, themes, dialogue snippets"
+      "description": "Random ideas, themes, dialogue snippets",
+      "default_data": {
+        "template": [
+          {
+            "title": "🎯 Romcom Core Elements",
+            "content": "KEY INGREDIENTS:\n• Meet Cute - The spark that starts it all\n• Obstacle - What keeps them apart (internal fears, external circumstances)\n• Stakes - Why this relationship matters\n• Growth - How both characters change\n• Chemistry - The undeniable connection\n\nREMEMBER: The audience needs to root for BOTH characters to find love.",
+            "category": "Structure"
+          },
+          {
+            "title": "💭 Theme & Tone Ideas",
+            "content": "POTENTIAL THEMES:\n• Learning to trust again\n• Work vs. life balance\n• Opposites attract\n• Second chances\n• Finding yourself through love\n• Breaking down walls\n\nTONE NOTES:\n• Keep it warm and optimistic\n• Humor comes from character, not situations\n• Emotional truth over big comedy moments\n• Make the audience feel good",
+            "category": "Theme"
+          },
+          {
+            "title": "✨ Character Development Tips",
+            "content": "PROTAGONIST DEVELOPMENT:\n• Give them a clear emotional wound/fear\n• Create a compelling goal beyond romance\n• Show their growth through actions, not words\n• Make their flaw create comedy naturally\n\nLOVE INTEREST DEVELOPMENT:\n• They should challenge the protagonist\n• Give them their own complete arc\n• Avoid the 'perfect person' trap\n• Show why they fall for the protagonist\n\nCHEMISTRY CHECKLIST:\n• Do they bring out each other's best/worst?\n• Do they have fun together?\n• Do they fight well together?\n• Do they make each other better people?",
+            "category": "Characters"
+          },
+          {
+            "title": "🎬 Scene Writing Reminders",
+            "content": "DIALOGUE TIPS:\n• Give each character a unique voice\n• Subtext is everything - what they don't say\n• Banter should reveal character\n• Avoid exposition dumps\n\nSCENE STRUCTURE:\n• Enter late, leave early\n• Every scene needs conflict/tension\n• Show, don't tell emotions\n• Use physical comedy sparingly\n\nPACING NOTES:\n• Build romantic tension gradually\n• Don't rush the emotional beats\n• Alternate between comedy and heart\n• Save the biggest laughs for Act II",
+            "category": "Craft"
+          },
+          {
+            "title": "🌟 Inspiration & References",
+            "content": "CLASSIC ROMCOM BEATS TO STUDY:\n• When Harry Met Sally - Best friends dynamic\n• The Princess Bride - Adventure + romance\n• Roman Holiday - Fish out of water\n• Sleepless in Seattle - Destiny and fate\n• Notting Hill - Class differences\n\nMODERN EXAMPLES:\n• Crazy Rich Asians - Cultural specificity\n• The Big Sick - Real-world obstacles\n• To All the Boys - YA authenticity\n\nREMEMBER: Study what works, don't copy. Find your unique voice within the genre.",
+            "category": "Reference"
+          },
+          {
+            "title": "📝 Development Questions",
+            "content": "ASK YOURSELF:\n• What's the worst thing that could happen to your protagonist in love?\n• What does your love interest need to learn about themselves?\n• What would make your audience cry happy tears?\n• How can you surprise without betraying expectations?\n• What makes this story uniquely yours?\n\nSTORY CHECKPOINTS:\n• Does every character serve the central romance?\n• Are the obstacles believable and relatable?\n• Does the ending feel earned, not just inevitable?\n• Would you want to watch this movie?\n\nIf you get stuck, go back to character motivation. What do they want? What are they afraid of? How does love challenge both?",
+            "category": "Development"
+          }
+        ]
+      }
     },
     "outline_metadata": {
       "fields": {

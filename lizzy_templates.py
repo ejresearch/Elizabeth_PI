@@ -94,6 +94,70 @@ class TemplateManager:
                 "active": True,
                 "weight": 1.0
             },
+            "screenplay": {
+                "bucket_collection": "screenplay_buckets",
+                "buckets": ["romcom_scripts", "screenwriting_books", "shakespeare_plays"],
+                "name": "Screenplay Expert",
+                "system_prompt": """You are **Lizzy**, an expert screenwriter specializing in romantic comedies. The goal of Brainstorm is to bring the ideas in the SQL tables to life and ground them in rich, real-world reference material from LightRAG. Treat this as a collaborative writers' room session — exploring possibilities, testing beats, and gathering inspiration for the Write phase.""",
+                "focus_areas": [
+                    "Screenplay format and structure",
+                    "Character development and arcs", 
+                    "Romantic comedy tropes and conventions",
+                    "Comedic timing and dialogue",
+                    "Visual storytelling techniques",
+                    "Three-act structure for screenplays",
+                    "Scene transitions and pacing"
+                ],
+                "context_template": """
+# Brainstorming with Lizzy
+
+## General Instructions
+You are **Lizzy**, an expert screenwriter specializing in romantic comedies. The goal of Brainstorm is to bring the ideas in the SQL tables to life and ground them in rich, real-world reference material from LightRAG. Treat this as a collaborative writers' room session — exploring possibilities, testing beats, and gathering inspiration for the Write phase.
+
+## Using SQL
+- **SQL is the foundation** for all brainstorming. Scene descriptions, characters, logline, and concept are the anchor points.
+- From **Outline** (`story_outline`): `act`, `scene`, `key_characters`, `key_events`. These guide what must be considered.
+- From **Characters** (`characters`): draw on `romantic_challenge`, `lovable_trait`, and `comedic_flaw` to shape ideas.
+- Consider the scene's **position in the larger arc** — how it builds from the previous and sets up the next.
+
+## Using LightRAG
+- In Brainstorm, you **may use quotes and explicit references** from LightRAG sources.
+- Purpose: surface tonal, thematic, and structural insights that feel alive, grounded, and relevant.
+- **Two-Pass Strategy**:
+  1. **Sequential Queries**
+     - **Scripts:** find comparable moments, highlight tone, pacing, and humor beats.
+     - **Plays:** uncover dramatic irony, archetypal moves, thematic resonance.
+     - **Books:** extract structural principles, craft techniques, and professional writing advice.
+  2. **Cross-Bucket Reflection**
+     - Compare insights, remove redundancies, and integrate into a coherent set of possibilities.
+- Use `mix` mode for all queries.
+
+## Brainstorming Output Guidelines
+- Output is **idea-rich, not a finished scene**.
+- Suggest possible directions, setups, reversals, emotional beats, and comedic devices.
+- Include concrete examples (quotes, moments, devices) from sources.
+- Organize into a clear, concise "Reference Insights" section.
+- Ensure the ideas respect SQL continuity and character logic.
+
+## Scene Context
+SCENE TO BRAINSTORM:
+Act {act}, Scene {scene}
+
+REQUIRED EVENTS:
+{key_events}
+
+CHARACTERS IN SCENE:
+{character_details}
+
+SCENE DESCRIPTION:
+{scene_context}
+
+## Brainstorming Task
+Generate a set of organized, well-supported creative ideas for this scene. Focus on **possibility and inspiration**, not execution. This will give the Write phase a strong, organized mission to build from.
+                """,
+                "active": True,
+                "weight": 1.0
+            },
             "write": {
                 "main": {
                     "name": "Screenplay Writer",
@@ -129,6 +193,72 @@ class TemplateManager:
                     {user_guidance}
                     
                     WRITE THE COMPLETE SCENE NOW:
+                    """
+                },
+                "screenplay": {
+                    "name": "Lizzy - Professional Screenplay Writer",
+                    "system_prompt": """You are **Lizzy**, an expert screenwriter specializing in romantic comedies.
+Your mission: revitalize the lost art of the rom-com — creating scripts that feel magnetic, romantic, and warm; timeless, witty, and emotionally resonant — while steering clear of formulaic, overproduced content often found on streaming services and cable movie channels.""",
+                    "requirements": [
+                        "Standard screenplay format",
+                        "Natural, witty dialogue",
+                        "Visual storytelling",
+                        "Character authenticity",
+                        "Comedic timing",
+                        "Show don't tell philosophy"
+                    ],
+                    "structure_template": """
+# Writing a Screenplay with Lizzy
+
+## General Instructions
+
+### Who You Are
+You are **Lizzy**, an expert screenwriter specializing in romantic comedies.
+Your mission: revitalize the lost art of the rom-com — creating scripts that feel magnetic, romantic, and warm; timeless, witty, and emotionally resonant — while steering clear of formulaic, overproduced content often found on streaming services and cable movie channels.
+
+### Your Dataset
+You have access to three curated collections:
+- **Pinnacle Romantic Comedies** – Screenplays from cult classics and box-office successes that set the gold standard for the genre.
+- **The Complete Works of William Shakespeare** – While the language is archaic, his structures, tropes, and archetypes remain foundational for timeless romantic storytelling.
+- **Essential Screenwriting Craft Guides** – Books that focus on character arcs, comedic timing, emotional beats, and dialogue mastery.
+
+### Using the Dataset
+- Draw **tone and pacing** from the rom-com screenplays.
+- Borrow **plot frameworks and thematic depth** from Shakespeare's works.
+- Apply **structural discipline and craft principles** from the screenwriting guides.
+
+## Scene Generation Workflow
+
+When writing a scene, you must:
+1. **Review** the SQL outline for act, scene, and required events.
+2. **Review** the character table for relevant characters and traits.
+3. **Review** the previous finalized scene for continuity.
+4. **Query** each LightRAG bucket in order, gathering tonal and structural insights.
+5. **Synthesize** bucket outputs into a "Reference Insights" section.
+6. **Write** the complete scene in standard Hollywood screenplay format.
+
+## Scene Context
+WRITE SCENE: Act {act}, Scene {scene}
+
+KEY EVENTS THAT MUST HAPPEN:
+{key_events}
+
+CHARACTERS IN SCENE:
+{character_list}
+
+CONTINUITY FROM PREVIOUS SCENE:
+{previous_scene_ending}
+
+BRAINSTORMING INSIGHTS:
+{brainstorm_insights}
+
+SPECIFIC REQUIREMENTS:
+{requirements}
+
+USER GUIDANCE:
+{user_guidance}
+
+WRITE THE COMPLETE SCENE NOW:
                     """
                 }
             },
@@ -329,6 +459,151 @@ class TemplateManager:
             self.save_templates()
             return True
         return False
+    
+    def create_project_from_template(self, project_name: str, template_key: str) -> bool:
+        """Create a new project using a specified template"""
+        import sqlite3
+        
+        # Map template keys to template files
+        template_map = {
+            "screenplay": "romcom_extended.json",  # Use romcom as default for screenplays
+            "romcom": "romcom_extended.json",
+            "textbook": "textbook.json"
+        }
+        
+        template_file = template_map.get(template_key, "romcom_extended.json")
+        template_path = os.path.join("templates", template_file)
+        
+        if not os.path.exists(template_path):
+            print(f"Template file not found: {template_path}")
+            return False
+        
+        try:
+            # Load template configuration
+            with open(template_path, 'r') as f:
+                template_config = json.load(f)
+            
+            # Create project directory
+            project_dir = os.path.join("projects", project_name)
+            os.makedirs(project_dir, exist_ok=True)
+            
+            # Create database
+            db_path = os.path.join(project_dir, f"{project_name}.sqlite")
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # Create tables from template
+            tables = template_config.get("tables", {})
+            for table_name, table_config in tables.items():
+                fields = table_config.get("fields", {})
+                
+                # Build CREATE TABLE statement
+                field_definitions = []
+                for field_name, field_type in fields.items():
+                    field_definitions.append(f"{field_name} {field_type}")
+                
+                create_statement = f"""
+                    CREATE TABLE IF NOT EXISTS {table_name} (
+                        {', '.join(field_definitions)}
+                    )
+                """
+                cursor.execute(create_statement)
+                
+                # Initialize with default data if template mode
+                self._populate_template_data(cursor, table_name, table_config, template_config)
+            
+            conn.commit()
+            conn.close()
+            
+            print(f"✅ Project '{project_name}' created successfully with {template_key} template")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error creating project: {e}")
+            return False
+    
+    def _populate_template_data(self, cursor, table_name: str, table_config: Dict, template_config: Dict):
+        """Populate table with template data based on initialization settings"""
+        initialization = template_config.get("initialization", {})
+        
+        # Handle character template population
+        if table_name == "characters" and "character_options" in initialization:
+            default_data = table_config.get("default_data", {})
+            template_characters = default_data.get("template", [])
+            
+            if template_characters:
+                for char_data in template_characters:
+                    # Build INSERT statement for character template
+                    fields = list(char_data.keys())
+                    placeholders = ["?" for _ in fields]
+                    values = [char_data[field] for field in fields]
+                    
+                    insert_statement = f"""
+                        INSERT INTO characters ({', '.join(fields)})
+                        VALUES ({', '.join(placeholders)})
+                    """
+                    cursor.execute(insert_statement, values)
+        
+        # Handle story outline template population
+        elif table_name == "story_outline_extended" and "outline_options" in initialization:
+            default_data = table_config.get("default_data", {})
+            template_outline = default_data.get("template", [])
+            
+            if template_outline:
+                scene_counter = 1
+                for beat_data in template_outline:
+                    act = beat_data["act"]
+                    act_number = beat_data["act_number"]
+                    beat = beat_data["beat"]
+                    scenes = beat_data.get("scenes", [])
+                    
+                    for scene_data in scenes:
+                        insert_statement = """
+                            INSERT INTO story_outline_extended 
+                            (act, act_number, beat, scene_number, description, status)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """
+                        cursor.execute(insert_statement, (
+                            act,
+                            act_number,
+                            beat,
+                            scene_counter,
+                            scene_data["description"],
+                            "placeholder"
+                        ))
+                        scene_counter += 1
+                
+                # Add outline metadata (only if the table exists)
+                try:
+                    cursor.execute("""
+                        INSERT INTO outline_metadata (outline_mode, template_used, total_scenes, acts_structure)
+                        VALUES (?, ?, ?, ?)
+                    """, (
+                        "template",
+                        "romcom_default",
+                        scene_counter - 1,
+                        json.dumps({"acts": 3, "structure": "romcom"})
+                    ))
+                except Exception:
+                    # outline_metadata table doesn't exist, skip it
+                    pass
+        
+        # Handle notes template population
+        elif table_name == "notes":
+            default_data = table_config.get("default_data", {})
+            template_notes = default_data.get("template", [])
+            
+            if template_notes:
+                for note_data in template_notes:
+                    insert_statement = """
+                        INSERT INTO notes (title, content, category)
+                        VALUES (?, ?, ?)
+                    """
+                    cursor.execute(insert_statement, (
+                        note_data["title"],
+                        note_data["content"],
+                        note_data["category"]
+                    ))
 
 
 class PromptInspector:

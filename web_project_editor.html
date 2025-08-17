@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizzy - Project Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'lizzy-blue': '#3b82f6',
+                        'lizzy-purple': '#7c3aed',
+                        'lizzy-emerald': '#059669',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .transition-all { transition: all 0.3s ease; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
+        }
+        
+        .table-row:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+        
+        .editable-cell {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .editable-cell:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Mobile Header -->
+    <div class="lg:hidden bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <button id="mobile-menu-btn" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+            <h1 class="text-lg font-semibold text-gray-900 dark:text-white">📝 Gamma Project</h1>
+        </div>
+        <button id="mobile-theme-toggle" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+            </svg>
+            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700 sidebar-transition lg:translate-x-0 -translate-x-full lg:static lg:z-auto">
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-br from-lizzy-blue to-lizzy-purple rounded-lg flex items-center justify-center">
+                        <span class="text-white text-sm font-bold">L</span>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Gamma Project</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Romantic Comedy</p>
+                    </div>
+                </div>
+                <button id="close-sidebar" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="p-4 space-y-2">
+                <button onclick="showSection('characters')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <span class="text-xl">👥</span>
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">Characters</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">6 archetypes</div>
+                    </div>
+                </button>
+                
+                <button onclick="showSection('outline')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <span class="text-xl">📖</span>
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">Story Outline</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">30 scenes</div>
+                    </div>
+                </button>
+                
+                <button onclick="showSection('notes')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <span class="text-xl">📝</span>
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">Notes</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">6 guides</div>
+                    </div>
+                </button>
+                
+                <button onclick="showSection('brainstorm')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <span class="text-xl">🧠</span>
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">Brainstorm</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" id="brainstorm-count">AI insights</div>
+                    </div>
+                </button>
+                
+                <button onclick="showSection('scenes')" class="nav-item w-full flex items-center space-x-3 px-4 py-3 text-left rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                    <span class="text-xl">🎬</span>
+                    <div>
+                        <div class="font-medium text-gray-900 dark:text-white">Written Scenes</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400" id="scenes-count">Generated scripts</div>
+                    </div>
+                </button>
+            </nav>
+
+            <!-- Bottom Actions -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
+                <button onclick="saveAll()" class="w-full flex items-center justify-center space-x-2 bg-lizzy-emerald hover:bg-emerald-700 text-white px-4 py-3 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <span class="font-medium">Save All</span>
+                </button>
+                
+                <button id="theme-toggle" class="w-full mt-3 flex items-center justify-center space-x-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-3 rounded-lg transition-colors">
+                    <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                    <span class="font-medium hidden dark:block">Light Mode</span>
+                    <span class="font-medium block dark:hidden">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden hidden"></div>
+
+        <!-- Main Content -->
+        <div class="flex-1 lg:ml-0">
+            <!-- Header -->
+            <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4 hidden lg:block">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">📝 Gamma Project</h1>
+                        <p class="text-gray-500 dark:text-gray-400 mt-1">Romantic Comedy Project Editor</p>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- Search Bar -->
+                        <div class="relative">
+                            <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
+                            <input type="text" id="search" placeholder="Search..." class="pl-10 pr-4 py-2 w-64 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-lizzy-blue focus:border-transparent transition-colors">
+                        </div>
+                        
+                        <!-- User Avatar -->
+                        <div class="w-10 h-10 bg-gradient-to-br from-lizzy-blue to-lizzy-purple rounded-full flex items-center justify-center">
+                            <span class="text-white text-sm font-semibold">LZ</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="p-6">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Characters</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">6</p>
+                                <p class="text-sm text-emerald-600 dark:text-emerald-400">All archetypes ready</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">👥</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Scenes</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">30</p>
+                                <p class="text-sm text-emerald-600 dark:text-emerald-400">Complete outline</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">📖</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Notes</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">6</p>
+                                <p class="text-sm text-emerald-600 dark:text-emerald-400">Writing guides</p>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/20 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">📝</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Brainstorm</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">0</p>
+                                <p class="text-sm text-blue-600 dark:text-blue-400">AI sessions</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">🧠</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Written</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">0</p>
+                                <p class="text-sm text-purple-600 dark:text-purple-400">Scenes ready</p>
+                            </div>
+                            <div class="w-12 h-12 bg-pink-100 dark:bg-pink-900/20 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">🎬</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Content Sections -->
+                <div id="content-area" class="animate-fade-in">
+                    <!-- Characters Section -->
+                    <div id="characters-section" class="content-section">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Character Development</h2>
+                                    <p class="text-gray-500 dark:text-gray-400 mt-1">Customize your 6 romantic comedy archetypes</p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="addCharacter()" class="bg-lizzy-emerald hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        <span>Add Character</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Archetype</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Gender</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Age</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Challenge</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Trait</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="characters-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Sample data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Story Outline Section -->
+                    <div id="outline-section" class="content-section hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Story Structure</h2>
+                                    <p class="text-gray-500 dark:text-gray-400 mt-1">30-scene romantic comedy outline with classic beats</p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="addScene()" class="bg-lizzy-emerald hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        <span>Add Scene</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Act</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Beat</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Scene #</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="outline-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Sample data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Notes Section -->
+                    <div id="notes-section" class="content-section hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Development Notes</h2>
+                                    <p class="text-gray-500 dark:text-gray-400 mt-1">Writing guides and development tips</p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="addNote()" class="bg-lizzy-emerald hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        <span>Add Note</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Preview</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="notes-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Sample data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Brainstorm Section -->
+                    <div id="brainstorm-section" class="content-section hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Brainstorm Sessions</h2>
+                                    <p class="text-gray-500 dark:text-gray-400 mt-1">AI-generated creative insights and research</p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="refreshBrainstormData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="brainstorm-sessions-list" class="p-6">
+                                <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                                    <span class="text-4xl block mb-4">🧠</span>
+                                    <p>No brainstorm sessions yet</p>
+                                    <p class="text-sm mt-2">Run brainstorm from CLI to see AI-generated insights here</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Written Scenes Section -->
+                    <div id="scenes-section" class="content-section hidden">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Written Scenes</h2>
+                                    <p class="text-gray-500 dark:text-gray-400 mt-1">AI-generated screenplay scenes ready for editing</p>
+                                </div>
+                                <div class="flex space-x-3">
+                                    <button onclick="refreshScenesData()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                        </svg>
+                                        <span>Refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Act.Scene</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Title</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Preview</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scenes-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Scenes will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for editing -->
+    <div id="edit-modal" class="fixed inset-0 z-50 hidden">
+        <div class="modal-backdrop absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="relative flex items-center justify-center min-h-screen p-4">
+            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <h3 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white">Edit Item</h3>
+                    <button onclick="closeModal()" class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                        <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div id="modal-content" class="p-6 overflow-y-auto max-h-[70vh]">
+                    <!-- Modal content will be populated dynamically -->
+                </div>
+                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+                    <button onclick="closeModal()" class="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
+                    <button onclick="saveModalData()" class="px-4 py-2 bg-lizzy-blue hover:bg-blue-700 text-white rounded-lg transition-colors">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Toast -->
+    <div id="status-toast" class="fixed bottom-4 right-4 z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center space-x-3 max-w-sm">
+            <div id="toast-icon" class="flex-shrink-0">
+                <!-- Icon will be set dynamically -->
+            </div>
+            <div id="toast-message" class="text-gray-900 dark:text-white text-sm font-medium">
+                <!-- Message will be set dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        let characters = [];
+        let outline = [];
+        let notes = [];
+        let brainstormSessions = [];
+        let writtenScenes = [];
+        let projectStats = { characters: 0, scenes: 0, notes: 0, brainstorm_sessions: 0, written_scenes: 0 };
+
+        // Current editing state
+        let currentEditingData = null;
+        let currentEditingType = null;
+
+        // API functions
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(`/api/${endpoint}`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                showToast(`Error loading ${endpoint}`, 'error');
+                return [];
+            }
+        }
+
+        async function updateData(endpoint, id, field, value) {
+            try {
+                const response = await fetch(`/api/${endpoint}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, field, value })
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error updating ${endpoint}:`, error);
+                showToast(`Error saving changes`, 'error');
+                return { success: false };
+            }
+        }
+
+        async function loadProjectData() {
+            try {
+                // Load project info and stats
+                const projectInfo = await fetchData('project/info');
+                if (projectInfo && projectInfo.stats) {
+                    projectStats = projectInfo.stats;
+                    updateStatsDisplay();
+                }
+
+                // Load all data in parallel
+                const [charactersData, outlineData, notesData, brainstormData, scenesData] = await Promise.all([
+                    fetchData('characters'),
+                    fetchData('outline'), 
+                    fetchData('notes'),
+                    fetchData('brainstorm/sessions'),
+                    fetchData('written-scenes')
+                ]);
+
+                characters = charactersData || [];
+                outline = outlineData || [];
+                notes = notesData || [];
+                brainstormSessions = brainstormData || [];
+                writtenScenes = scenesData || [];
+
+                // Refresh current view
+                const currentSection = document.querySelector('.content-section:not(.hidden)');
+                if (currentSection) {
+                    const sectionId = currentSection.id.replace('-section', '');
+                    loadSectionData(sectionId);
+                }
+
+            } catch (error) {
+                console.error('Error loading project data:', error);
+                showToast('Error loading project data', 'error');
+            }
+        }
+
+        function updateStatsDisplay() {
+            // Update stats cards
+            const statsCards = document.querySelectorAll('.text-3xl.font-bold');
+            if (statsCards.length >= 5) {
+                statsCards[0].textContent = projectStats.characters || 0;
+                statsCards[1].textContent = projectStats.scenes || 0;
+                statsCards[2].textContent = projectStats.notes || 0;
+                statsCards[3].textContent = projectStats.brainstorm_sessions || 0;
+                statsCards[4].textContent = projectStats.written_scenes || 0;
+            }
+        }
+
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+
+        // Mobile menu management
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        // Navigation
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.remove('hidden');
+            
+            // Update navigation active state
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-lizzy-blue', 'text-white');
+                item.classList.add('hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            });
+            
+            // Close mobile menu
+            closeMobileMenu();
+            
+            // Load data for the section
+            loadSectionData(sectionName);
+        }
+
+        // Data loading
+        function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'characters':
+                    loadCharacters();
+                    break;
+                case 'outline':
+                    loadOutline();
+                    break;
+                case 'notes':
+                    loadNotes();
+                    break;
+                case 'brainstorm':
+                    loadBrainstormSessions();
+                    break;
+                case 'scenes':
+                    loadWrittenScenes();
+                    break;
+            }
+        }
+
+        async function loadCharacters() {
+            try {
+                const charactersData = await fetchData('characters');
+                characters = charactersData || [];
+                
+                const tbody = document.getElementById('characters-table');
+                tbody.innerHTML = characters.map(char => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'name', ${char.id}, 'characters')">${char.name || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'archetype', ${char.id}, 'characters')">${char.archetype || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'gender', ${char.id}, 'characters')">${char.gender || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'age', ${char.id}, 'characters')">${char.age || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'challenge', ${char.id}, 'characters')">${char.challenge || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'trait', ${char.id}, 'characters')">${char.trait || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="deleteItem(${char.id}, 'characters')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading characters:', error);
+                showToast('Error loading characters', 'error');
+            }
+        }
+
+        async function loadOutline() {
+            try {
+                const outlineData = await fetchData('outline');
+                outline = outlineData || [];
+                
+                const tbody = document.getElementById('outline-table');
+                tbody.innerHTML = outline.map(scene => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'act', ${scene.id}, 'outline')">${scene.act || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'beat', ${scene.id}, 'outline')">${scene.beat || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'scene', ${scene.id}, 'outline')">${scene.scene || 'Click to edit'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'description', ${scene.id}, 'outline')">${scene.description || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${scene.status === 'completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400'}">${scene.status || 'pending'}</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="deleteItem(${scene.id}, 'outline')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading outline:', error);
+                showToast('Error loading outline', 'error');
+            }
+        }
+
+        async function loadNotes() {
+            try {
+                const notesData = await fetchData('notes');
+                notes = notesData || [];
+                
+                const tbody = document.getElementById('notes-table');
+                tbody.innerHTML = notes.map(note => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'title', ${note.id}, 'notes')">${note.title || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'category', ${note.id}, 'notes')">${note.category || 'Click to edit'}</td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'content', ${note.id}, 'notes')">${note.content ? (note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content) : 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="deleteItem(${note.id}, 'notes')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading notes:', error);
+                showToast('Error loading notes', 'error');
+            }
+        }
+
+        async function loadBrainstormSessions() {
+            try {
+                const sessionsData = await fetchData('brainstorm/sessions');
+                brainstormSessions = sessionsData || [];
+                
+                const container = document.getElementById('brainstorm-sessions-list');
+                
+                if (brainstormSessions.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                            <span class="text-4xl block mb-4">🧠</span>
+                            <p>No brainstorm sessions yet</p>
+                            <p class="text-sm mt-2">Run brainstorm from CLI to see AI-generated insights here</p>
+                        </div>`;
+                    return;
+                }
+                
+                container.innerHTML = brainstormSessions.map(session => `
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">${session.session_id}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">
+                                    ${session.total_scenes} scenes • ${session.buckets_used}
+                                </p>
+                            </div>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${session.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'}">${session.status}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mb-3">${session.user_guidance || 'No guidance provided'}</p>
+                        <button onclick="loadBrainstormOutputs('${session.session_id}')" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm font-medium">
+                            View Outputs →
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading brainstorm sessions:', error);
+                showToast('Error loading brainstorm sessions', 'error');
+            }
+        }
+
+        async function loadBrainstormOutputs(sessionId) {
+            try {
+                const outputs = await fetchData(`brainstorm/sessions/${sessionId}/outputs`);
+                
+                // Create modal-like display for outputs
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50';
+                modal.innerHTML = `
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Brainstorm Session: ${sessionId}</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="overflow-y-auto max-h-[calc(90vh-80px)] p-6">
+                            ${outputs.map(output => `
+                                <div class="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <h4 class="font-medium text-gray-900 dark:text-white">Act ${output.act}, Scene ${output.scene} - ${output.bucket}</h4>
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">${output.timestamp}</span>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                        <pre class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">${output.response}</pre>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+            } catch (error) {
+                console.error('Error loading brainstorm outputs:', error);
+                showToast('Error loading brainstorm outputs', 'error');
+            }
+        }
+
+        async function loadWrittenScenes() {
+            try {
+                const scenesData = await fetchData('written-scenes');
+                writtenScenes = scenesData || [];
+                
+                const tbody = document.getElementById('scenes-table');
+                tbody.innerHTML = writtenScenes.map(scene => `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">${scene.act}.${scene.scene}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 editable" onclick="startInlineEdit(this, 'title', ${scene.id}, 'written-scenes')">${scene.title || 'Click to edit'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${scene.status === 'completed' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'}">${scene.status}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
+                            ${scene.content ? (scene.content.length > 100 ? scene.content.substring(0, 100) + '...' : scene.content) : 'No content'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button onclick="editScene('${scene.id}')" class="text-blue-600 hover:text-blue-900 dark:hover:text-blue-400 mr-3">Edit</button>
+                            <button onclick="deleteItem(${scene.id}, 'written-scenes')" class="text-red-600 hover:text-red-900 dark:hover:text-red-400">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading written scenes:', error);
+                showToast('Error loading written scenes', 'error');
+            }
+        }
+
+        async function refreshBrainstormData() {
+            showToast('Refreshing brainstorm data...', 'info');
+            await loadBrainstormSessions();
+            showToast('Brainstorm data refreshed', 'success');
+        }
+
+        async function refreshScenesData() {
+            showToast('Refreshing scenes data...', 'info');
+            await loadWrittenScenes();
+            showToast('Scenes data refreshed', 'success');
+        }
+
+        // Inline editing
+        function startInlineEdit(element, field, id, type) {
+            const currentValue = element.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentValue === 'Click to edit' ? '' : currentValue;
+            input.className = 'w-full px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white';
+            
+            input.addEventListener('blur', () => finishInlineEdit(element, input, field, id, type));
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    finishInlineEdit(element, input, field, id, type);
+                } else if (e.key === 'Escape') {
+                    element.textContent = currentValue;
+                }
+            });
+            
+            element.innerHTML = '';
+            element.appendChild(input);
+            input.focus();
+            input.select();
+        }
+
+        async function finishInlineEdit(element, input, field, id, type) {
+            const newValue = input.value.trim() || 'Click to edit';
+            element.textContent = newValue;
+            
+            try {
+                const result = await updateData(type, id, field, newValue);
+                
+                if (result.success) {
+                    showToast('✅ Updated successfully', 'success');
+                    
+                    // Update local data
+                    if (type === 'characters') {
+                        const char = characters.find(c => c.id === id);
+                        if (char) char[field] = newValue;
+                    } else if (type === 'outline') {
+                        const scene = outline.find(s => s.id === id);
+                        if (scene) scene[field] = newValue;
+                    } else if (type === 'notes') {
+                        const note = notes.find(n => n.id === id);
+                        if (note) note[field] = newValue;
+                    } else if (type === 'written-scenes') {
+                        const scene = writtenScenes.find(s => s.id === id);
+                        if (scene) scene[field] = newValue;
+                    }
+                } else {
+                    showToast('❌ Error saving changes', 'error');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showToast('❌ Error saving changes', 'error');
+            }
+        }
+
+        // Modal functions
+        function editCharacter(id) {
+            const character = sampleCharacters.find(c => c.id === id);
+            showModal('Edit Character', `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                        <input type="text" id="edit-name" value="${character.name}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Archetype</label>
+                        <input type="text" id="edit-archetype" value="${character.archetype}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender</label>
+                        <select id="edit-gender" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">
+                            <option value="Male" ${character.gender === 'Male' ? 'selected' : ''}>Male</option>
+                            <option value="Female" ${character.gender === 'Female' ? 'selected' : ''}>Female</option>
+                            <option value="Non-binary" ${character.gender === 'Non-binary' ? 'selected' : ''}>Non-binary</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age</label>
+                        <input type="text" id="edit-age" value="${character.age}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Romantic Challenge</label>
+                        <textarea id="edit-challenge" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">${character.challenge}</textarea>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lovable Trait</label>
+                        <textarea id="edit-trait" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-lizzy-blue focus:border-transparent bg-white dark:bg-gray-700 dark:text-white">${character.trait}</textarea>
+                    </div>
+                </div>
+            `);
+            currentEditingData = character;
+            currentEditingType = 'character';
+        }
+
+        function showModal(title, content) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            document.getElementById('edit-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('edit-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+            currentEditingData = null;
+            currentEditingType = null;
+        }
+
+        function saveModalData() {
+            if (currentEditingType === 'character') {
+                // Save character data
+                const updatedData = {
+                    name: document.getElementById('edit-name').value,
+                    archetype: document.getElementById('edit-archetype').value,
+                    gender: document.getElementById('edit-gender').value,
+                    age: document.getElementById('edit-age').value,
+                    challenge: document.getElementById('edit-challenge').value,
+                    trait: document.getElementById('edit-trait').value
+                };
+                
+                // Update the character in sample data
+                Object.assign(currentEditingData, updatedData);
+                loadCharacters();
+                showToast('✅ Character updated successfully', 'success');
+            }
+            closeModal();
+        }
+
+        // Toast notifications
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('status-toast');
+            const icon = document.getElementById('toast-icon');
+            const messageEl = document.getElementById('toast-message');
+            
+            const icons = {
+                success: '<svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
+                error: '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
+                info: '<svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+            };
+            
+            icon.innerHTML = icons[type] || icons.info;
+            messageEl.textContent = message;
+            
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Action functions
+        function addCharacter() {
+            showToast('Add character functionality would be implemented here', 'info');
+        }
+
+        function addScene() {
+            showToast('Add scene functionality would be implemented here', 'info');
+        }
+
+        function addNote() {
+            showToast('Add note functionality would be implemented here', 'info');
+        }
+
+        function deleteItem(id, type) {
+            if (confirm('Are you sure you want to delete this item?')) {
+                showToast(`${type.slice(0, -1)} deleted successfully`, 'success');
+                // Would implement actual deletion here
+            }
+        }
+
+        function saveAll() {
+            showToast('All changes saved successfully', 'success');
+        }
+
+        // Search functionality
+        function initSearch() {
+            const searchInput = document.getElementById('search');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    const query = e.target.value.toLowerCase();
+                    // Would implement search filtering here
+                    console.log('Searching for:', query);
+                });
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initTheme();
+            initSearch();
+            loadProjectData(); // Load data from API
+            showSection('characters'); // Show characters by default
+            
+            // Event listeners
+            document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+            document.getElementById('mobile-theme-toggle')?.addEventListener('click', toggleTheme);
+            document.getElementById('mobile-menu-btn')?.addEventListener('click', toggleMobileMenu);
+            document.getElementById('close-sidebar')?.addEventListener('click', closeMobileMenu);
+            document.getElementById('sidebar-overlay')?.addEventListener('click', closeMobileMenu);
+            
+            // Modal close on backdrop click
+            document.getElementById('edit-modal')?.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-backdrop')) {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
