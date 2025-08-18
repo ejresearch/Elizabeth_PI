@@ -36,7 +36,7 @@ except ImportError:
 
 # Import intake GUI for enhanced data entry
 try:
-    from lizzy_intake_interactive import launch_intake_gui, InteractiveIntake
+    from lizzy_intake_interactive import launch_intake_gui
     HAS_INTAKE_GUI = True
 except ImportError:
     HAS_INTAKE_GUI = False
@@ -556,100 +556,24 @@ def show_help():
 
 # Enhanced functionality with graceful fallbacks
 def edit_tables_menu():
-    """Edit Tables - Launch Functional Web Project Editor"""
-    if not session.current_project:
-        print(f"\n{Colors.RED}⚠ No project loaded{Colors.END}")
-        print(f"{Colors.CYAN}Please create or select a project first{Colors.END}")
-        wait_for_key()
-        return
-    
-    print(f"\n{Colors.YELLOW}🎨 EDIT TABLES{Colors.END}")
-    print_separator()
-    print(f"{Colors.CYAN}📋 Launching Functional Project Editor...{Colors.END}")
-    print(f"{Colors.YELLOW}Full-featured project editor with data display will open in your browser{Colors.END}")
-    
-    try:
-        import webbrowser
-        import subprocess
-        import time
-        import os
-        from pathlib import Path
-        import requests
+    """Edit Tables - Launch GUI directly"""
+    if HAS_INTAKE_GUI:
+        print(f"\n{Colors.YELLOW}🎨 EDIT TABLES{Colors.END}")
+        print_separator()
+        print(f"{Colors.CYAN}🖥️ Launching Advanced Table Editor...{Colors.END}")
+        print(f"{Colors.YELLOW}A new window will open for visual editing{Colors.END}")
         
-        print(f"\n{Colors.GREEN}🚀 Starting project editor server...{Colors.END}")
-        
-        # Kill any existing processes on port 8080
         try:
-            os.system("lsof -ti:8080 | xargs kill -9 2>/dev/null")
-            time.sleep(1)
-        except:
-            pass
+            project_path = f"projects/{session.current_project}"
+            launch_intake_gui(project_path)
+            print(f"\n{Colors.GREEN}✅ Table editor closed{Colors.END}")
+        except Exception as e:
+            print(f"{Colors.RED}⚠️ Error launching table editor: {str(e)}{Colors.END}")
         
-        # Start the web server (web_server_refactored.py) - serves functional web_project_editor.html
-        backend_file = Path(__file__).parent / "web_server_refactored.py"
-        if backend_file.exists():
-            # Start the backend server on port 8080
-            server_process = subprocess.Popen([
-                "python", str(backend_file)
-            ], cwd=str(Path(__file__).parent),
-               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
-            # Wait for server to start
-            print(f"{Colors.CYAN}Waiting for server to start...{Colors.END}")
-            server_ready = False
-            for i in range(15):
-                try:
-                    response = requests.get("http://localhost:8080", timeout=2)
-                    if response.status_code == 200:
-                        server_ready = True
-                        break
-                except:
-                    time.sleep(1)
-            
-            if not server_ready:
-                raise Exception("Project editor server failed to start on port 8080")
-            
-            # Open the interface in browser
-            print(f"\n{Colors.GREEN}🌐 Opening functional project editor in browser...{Colors.END}")
-            webbrowser.open("http://localhost:8080")
-            
-            print(f"\n{Colors.GREEN}✅ Functional project editor launched at http://localhost:8080{Colors.END}")
-            print(f"{Colors.YELLOW}Close the browser tab when you're done editing{Colors.END}")
-            print(f"{Colors.CYAN}Press Enter to return to main menu...{Colors.END}")
-            
-            # Wait for user to finish editing
-            input()
-            
-            # Clean up server process
-            try:
-                server_process.terminate()
-                server_process.wait(timeout=5)
-            except:
-                try:
-                    server_process.kill()
-                    server_process.wait(timeout=2)
-                except:
-                    # Force kill via system command
-                    os.system("lsof -ti:8080 | xargs kill -9 2>/dev/null")
-        else:
-            raise FileNotFoundError("web_server_refactored.py not found")
-        
-    except Exception as e:
-        print(f"{Colors.RED}⚠️ Error launching project editor: {str(e)}{Colors.END}")
-        print(f"{Colors.CYAN}Falling back to basic table editor...{Colors.END}")
-        
-        # Fallback to intake GUI if available
-        if HAS_INTAKE_GUI:
-            try:
-                project_path = f"projects/{session.current_project}"
-                launch_intake_gui(project_path)
-                print(f"\n{Colors.GREEN}✅ Table editor closed{Colors.END}")
-            except Exception as e2:
-                print(f"{Colors.RED}⚠️ Error launching fallback editor: {str(e2)}{Colors.END}")
-        else:
-            print(f"{Colors.RED}⚠️ No table editor available{Colors.END}")
-    
-    wait_for_key()
+        wait_for_key()
+    else:
+        print(f"\n{Colors.RED}⚠️ Table editor GUI not available{Colors.END}")
+        wait_for_key()
 
 def launch_gui_editor():
     """Launch the GUI editor for table management"""
@@ -666,28 +590,11 @@ def launch_gui_editor():
     wait_for_key()
 
 def basic_table_editor():
-    """Advanced Interactive Table Editor"""
-    print(f"\n{Colors.YELLOW}📝 ADVANCED TABLE EDITOR{Colors.END}")
+    """Basic CLI table editor"""
+    print(f"\n{Colors.YELLOW}📝 BASIC TABLE EDITOR{Colors.END}")
     print_separator()
-    print(f"{Colors.GREEN}✨ Launching Advanced Interactive Editor{Colors.END}")
-    print(f"{Colors.CYAN}Features:{Colors.END}")
-    print(f"  • Modern visual interface")
-    print(f"  • Multi-table editing")
-    print(f"  • CSV import/export")
-    print(f"  • Search and filtering")
-    print(f"  • Data visualization")
-    
-    try:
-        project_path = f"projects/{session.current_project}"
-        if HAS_INTAKE_GUI:
-            intake_gui = InteractiveIntake(project_path)
-            intake_gui.launch_gui()
-            print(f"\n{Colors.GREEN}✅ Advanced editor closed{Colors.END}")
-        else:
-            print(f"\n{Colors.RED}⚠️ Advanced GUI not available{Colors.END}")
-    except Exception as e:
-        print(f"\n{Colors.RED}⚠️ Error launching advanced editor: {str(e)}{Colors.END}")
-    
+    print(f"{Colors.CYAN}Basic table editing interface coming soon!{Colors.END}")
+    print(f"This will include simple character, scene, and notes management.")
     wait_for_key()
 
 def brainstorm_module():
@@ -699,76 +606,22 @@ def brainstorm_module():
     
     print(f"\n{Colors.YELLOW}💭 BRAINSTORM IDEAS{Colors.END}")
     print_separator()
-    print(f"{Colors.CYAN}💭 Launching Dynamic Prompt Studio...{Colors.END}")
-    print(f"{Colors.YELLOW}Interactive brainstorm interface with prompt editor and AI chat will open in your browser{Colors.END}")
+    print(f"{Colors.CYAN}🧠 Launching Enhanced Brainstorming Interface...{Colors.END}")
+    print(f"{Colors.YELLOW}A comprehensive GUI will open for brainstorming{Colors.END}")
     
     try:
-        # Launch the HTML-based brainstorm interface using the refactored backend
-        import webbrowser
-        import subprocess
-        import time
-        import os
-        from pathlib import Path
-        import requests
-        import signal
+        # Import the main orchestrator which has the brainstorm GUI
+        from lizzy_main_orchestrator import LizzyMainOrchestrator
         
-        print(f"\n{Colors.GREEN}🚀 Starting creative brainstorm studio server...{Colors.END}")
+        project_path = f"projects/{session.current_project}"
+        orchestrator = LizzyMainOrchestrator(project_path)
         
-        # Kill any existing processes on port 8002
-        try:
-            os.system("lsof -ti:8002 | xargs kill -9 2>/dev/null")
-            time.sleep(1)
-        except:
-            pass
+        print(f"\n{Colors.GREEN}🚀 Starting brainstorming workflow...{Colors.END}")
         
-        # Start the actual brainstorm backend (prompt_studio_dynamic.py) - serves prompt_studio_dynamic.html with chat/prompt toggle
-        backend_file = Path(__file__).parent / "prompt_studio_dynamic.py"
-        if backend_file.exists():
-            # Start the backend server on port 8002
-            server_process = subprocess.Popen([
-                "python", str(backend_file)
-            ], cwd=str(Path(__file__).parent), 
-               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
-            # Wait for server to start
-            print(f"{Colors.CYAN}Waiting for server to start...{Colors.END}")
-            server_ready = False
-            for i in range(15):
-                try:
-                    response = requests.get("http://localhost:8002", timeout=2)
-                    if response.status_code == 200:
-                        server_ready = True
-                        break
-                except:
-                    time.sleep(1)
-            
-            if not server_ready:
-                raise Exception("Brainstorm server failed to start on port 8002")
-            
-            # Open the interface in browser
-            print(f"\n{Colors.GREEN}🌐 Opening creative brainstorm studio in browser...{Colors.END}")
-            webbrowser.open("http://localhost:8002")
-            
-            print(f"\n{Colors.GREEN}✅ Creative brainstorm studio launched at http://localhost:8002{Colors.END}")
-            print(f"{Colors.YELLOW}Close the browser tab when you're done brainstorming{Colors.END}")
-            print(f"{Colors.CYAN}Press Enter to return to main menu...{Colors.END}")
-            
-            # Wait for user to finish brainstorming
-            input()
-            
-            # Clean up server process
-            try:
-                server_process.terminate()
-                server_process.wait(timeout=5)
-            except:
-                try:
-                    server_process.kill()
-                    server_process.wait(timeout=2)
-                except:
-                    # Force kill via system command
-                    os.system("lsof -ti:8002 | xargs kill -9 2>/dev/null")
-        else:
-            raise FileNotFoundError("prompt_studio_dynamic.py not found")
+        # Launch the GUI orchestrator which contains the brainstorm workflow
+        orchestrator.launch_gui()
+        
+        print(f"\n{Colors.GREEN}✅ Brainstorming session completed{Colors.END}")
         
     except Exception as e:
         print(f"{Colors.RED}⚠️ Error launching brainstorm GUI: {str(e)}{Colors.END}")
@@ -809,43 +662,28 @@ def brainstorm_module():
     wait_for_key()
 
 def write_module():
-    """Writing Module - CLI Only (No GUI Yet)"""
+    """Writing Module"""
     if not session.current_project or not session.api_key_set:
         print(f"{Colors.RED}⚠ Project and API key required for writing{Colors.END}")
         wait_for_key()
         return
     
-    print(f"\n{Colors.YELLOW}✍️ WRITE SCREENPLAY{Colors.END}")
-    print_separator()
-    print(f"{Colors.CYAN}📝 Enhanced Writing Mode{Colors.END}")
-    print(f"{Colors.YELLOW}GUI coming soon! Using enhanced CLI writing for now{Colors.END}")
-    
     if HAS_TRANSPARENT_MODULES:
-        print(f"\n{Colors.GREEN}✨ Using Enhanced Transparent Writing{Colors.END}")
+        print(f"\n{Colors.YELLOW}✍️ ENHANCED WRITE{Colors.END}")
+        print_separator()
+        print(f"{Colors.GREEN}✨ Using Enhanced Transparent Writing{Colors.END}")
         print(f"{Colors.CYAN}Features:{Colors.END}")
         print(f"  • Context from brainstorming sessions")
         print(f"  • Style guidance from buckets")
         print(f"  • Professional screenplay formatting")
         print(f"  • Real-time generation tracking")
         
-        try:
-            project_path = f"projects/{session.current_project}"
-            from lizzy_transparent_write import TransparentWriter
-            writer = TransparentWriter(project_path=project_path)
-            
-            print(f"\n{Colors.CYAN}✍️ Starting enhanced writing session...{Colors.END}")
-            print(f"{Colors.YELLOW}Advanced CLI writing tools ready!{Colors.END}")
-            
-        except Exception as e:
-            print(f"\n{Colors.RED}⚠️ Enhanced writing error: {str(e)}{Colors.END}")
-            print(f"{Colors.CYAN}Basic writing mode available{Colors.END}")
+        print(f"\n{Colors.CYAN}✍️ Writing interface ready!{Colors.END}")
     else:
-        print(f"\n{Colors.CYAN}Basic Writing Features:{Colors.END}")
-        print(f"  • Scene content generation")
-        print(f"  • Character dialogue")
-        print(f"  • Story progression")
-        print(f"  • Export to various formats")
-        print(f"\n{Colors.YELLOW}Enhanced writing modules coming soon!{Colors.END}")
+        print(f"\n{Colors.YELLOW}✍️ WRITE{Colors.END}")
+        print_separator()
+        print(f"{Colors.CYAN}Scene writing interface coming soon!{Colors.END}")
+        print(f"This will generate screenplay content from your brainstorms.")
     
     wait_for_key()
 

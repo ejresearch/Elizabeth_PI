@@ -27,7 +27,7 @@ def index():
             return f.read()
     except FileNotFoundError:
         return """
-        <h1>Lizzy Brainstorm Studio</h1>
+        <h1>Lizzy Creative Brainstorm Studio</h1>
         <p>Brainstorm interface file not found. Please ensure brainstorm_seamless.html exists.</p>
         <p><a href="/api/projects">View Available Projects</a></p>
         """
@@ -255,7 +255,7 @@ def get_conversation_messages(project_name, conversation_id):
     return response_handler.success({"messages": messages})
 
 if __name__ == '__main__':
-    print("🧠 Starting Lizzy Brainstorm Studio...")
-    print("💬 AI brainstorming with template integration")
+    print("🧠 Starting Lizzy Creative Brainstorm Studio...")
+    print("💭 AI-powered creative brainstorming for screenplay scenes")
     print("🔗 http://localhost:5001")
     app.run(debug=True, port=5001)

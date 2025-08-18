@@ -35,7 +35,7 @@ class ValidationError(LizzyError):
 class DatabaseManager:
     """Centralized database operations for all Lizzy components"""
     
-    def __init__(self, projects_dir='exports'):
+    def __init__(self, projects_dir='projects'):
         self.projects_dir = projects_dir
         
     def get_project_db_path(self, project_name: str) -> str:

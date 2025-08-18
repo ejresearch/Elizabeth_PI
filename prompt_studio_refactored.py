@@ -1,6 +1,6 @@
 """
-Refactored Prompt Studio using standardized Lizzy API base
-Template creation and management interface
+Refactored Character & Scene Editor using standardized Lizzy API base
+Character and scene table editing interface
 """
 
 import re
@@ -25,8 +25,8 @@ def index():
             return f.read()
     except FileNotFoundError:
         return """
-        <h1>Lizzy Prompt Studio</h1>
-        <p>Template interface file not found. Please ensure prompt_studio_dynamic.html exists.</p>
+        <h1>Lizzy Character & Scene Editor</h1>
+        <p>Table editor interface file not found. Please ensure prompt_studio_dynamic.html exists.</p>
         <p><a href="/api/projects">View Available Projects</a></p>
         """
 
@@ -144,7 +144,7 @@ def increment_prompt_usage(project_name, prompt_id):
     return response_handler.success(message="Usage count updated")
 
 if __name__ == '__main__':
-    print("📝 Starting Lizzy Prompt Studio...")
-    print("🎨 Template creation and management interface")
-    print("🔗 http://localhost:8002")
-    app.run(host='0.0.0.0', port=8002, debug=True)
+    print("🎨 Starting Lizzy Character & Scene Editor...")
+    print("📋 Character profiles, scenes, and story data management")
+    print("🔗 http://localhost:5002")
+    app.run(host='0.0.0.0', port=5002, debug=True)
