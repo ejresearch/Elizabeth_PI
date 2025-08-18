@@ -2509,7 +2509,7 @@ def project_summary():
     view_notes()
 
 def brainstorm_module():
-    """Creative Brainstorming Module with Transparency"""
+    """Creative Brainstorming Module with Prompt Studio Interface"""
     if not session.current_project or not session.api_key_set:
         return
     
@@ -2518,18 +2518,72 @@ def brainstorm_module():
     print(f"\n{Colors.BOLD}BRAINSTORM MODE{Colors.END}")
     print_separator()
     
-    # Check if we have transparent modules available
-    if HAS_TRANSPARENT_MODULES:
-        print(f"{Colors.GREEN}✨ Using Enhanced Transparent Brainstorming{Colors.END}")
-        print(f"{Colors.CYAN}You'll see:{Colors.END}")
-        print(f"  • What data is being assembled")
-        print(f"  • Which buckets are being queried")
-        print(f"  • How prompts are compiled")
-        print(f"  • Real-time AI responses")
-        print_separator()
+    # Launch Dynamic Prompt Studio
+    print(f"{Colors.GREEN}🎨 Launching Dynamic Prompt Studio...{Colors.END}")
+    print(f"{Colors.CYAN}Features:{Colors.END}")
+    print(f"  • System-agnostic prompt engineering")
+    print(f"  • Real project data integration")
+    print(f"  • Custom template management")
+    print(f"  • Live preview compilation")
+    print(f"  • Toggle between prompts like Claude chats")
+    print_separator()
+    
+    try:
+        import subprocess
+        import threading
+        import webbrowser
+        import time
         
-        # Use transparent brainstormer
-        return run_transparent_brainstorm()
+        # Launch the prompt studio backend in a separate process
+        print(f"{Colors.YELLOW}Starting Prompt Studio backend...{Colors.END}")
+        
+        def launch_backend():
+            """Launch the prompt studio backend server"""
+            try:
+                subprocess.run([
+                    sys.executable, 'prompt_studio_dynamic.py'
+                ], cwd=os.getcwd())
+            except Exception as e:
+                print(f"{Colors.RED}Backend error: {str(e)}{Colors.END}")
+        
+        # Start backend in background thread
+        backend_thread = threading.Thread(target=launch_backend, daemon=True)
+        backend_thread.start()
+        
+        # Wait a moment for server to start
+        print(f"{Colors.YELLOW}Waiting for server to start...{Colors.END}")
+        time.sleep(3)
+        
+        # Open web browser to the interface
+        studio_url = "http://localhost:8002"
+        print(f"{Colors.GREEN}🚀 Opening Prompt Studio: {studio_url}{Colors.END}")
+        
+        try:
+            webbrowser.open(studio_url)
+            print(f"{Colors.CYAN}✅ Prompt Studio opened in your browser!{Colors.END}")
+            print(f"{Colors.CYAN}   Current project '{session.current_project}' will be auto-detected{Colors.END}")
+            print(f"\n{Colors.YELLOW}Instructions:{Colors.END}")
+            print(f"  1. Select your project ({session.current_project}) from the dropdown")
+            print(f"  2. Choose a prompt template or create a new one")
+            print(f"  3. Use data blocks to insert real project data")
+            print(f"  4. Preview your compiled prompt with actual data")
+            print(f"  5. Save custom templates to your project database")
+            print(f"\n{Colors.BOLD}Press Enter when done with Prompt Studio...{Colors.END}")
+            input()
+            
+        except Exception as e:
+            print(f"{Colors.RED}Could not open browser automatically.{Colors.END}")
+            print(f"{Colors.YELLOW}Please manually open: {studio_url}{Colors.END}")
+            print(f"\n{Colors.BOLD}Press Enter when done with Prompt Studio...{Colors.END}")
+            input()
+            
+    except Exception as e:
+        print(f"{Colors.RED}Error launching Prompt Studio: {str(e)}{Colors.END}")
+        print(f"{Colors.YELLOW}Falling back to enhanced brainstorming...{Colors.END}")
+        
+        # Fallback to transparent brainstormer if available
+        if HAS_TRANSPARENT_MODULES:
+            return run_transparent_brainstorm()
     
     # Fallback to original implementation
     # Collect selections
