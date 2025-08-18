@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seamless Brainstorm Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #fafafa;
+            --panel: #ffffff;
+            --border: #e5e7eb;
+            --text: #111827;
+            --muted: #6b7280;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --hover: #f3f4f6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Clean Header */
+        .header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .project-selector {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--panel);
+            font-size: 14px;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 380px;
+            height: calc(100vh - 53px);
+        }
+
+        /* Template Sidebar */
+        .templates-panel {
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .template-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .template-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-card:hover {
+            border-color: var(--accent);
+            background: var(--hover);
+        }
+
+        .template-card.active {
+            border-color: var(--accent);
+            background: #eff6ff;
+        }
+
+        .template-name {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Chat Area */
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin-bottom: 20px;
+        }
+
+        .message-header {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-content {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+
+        /* Markdown Formatting */
+        .message-content h1, .message-content h2, .message-content h3 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .message-content h1 { font-size: 20px; }
+        .message-content h2 { font-size: 18px; }
+        .message-content h3 { font-size: 16px; }
+
+        .message-content ul, .message-content ol {
+            margin: 12px 0;
+            padding-left: 24px;
+        }
+
+        .message-content li {
+            margin-bottom: 6px;
+            line-height: 1.6;
+        }
+
+        .message-content ul li {
+            list-style-type: disc;
+        }
+
+        .message-content ol li {
+            list-style-type: decimal;
+        }
+
+        .message-content p {
+            margin-bottom: 12px;
+        }
+
+        .message-content code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+        }
+
+        .message-content pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+
+        .message-content blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 16px;
+            margin: 12px 0;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        /* Chat Input */
+        .chat-input-container {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            background: var(--panel);
+        }
+
+        .chat-input-wrapper {
+            display: flex;
+            gap: 12px;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            min-height: 60px;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .send-btn:hover {
+            background: #2563eb;
+        }
+
+        /* Data Panel */
+        .data-panel {
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-tab {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .data-tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+
+        .data-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        /* Table Editor */
+        .table-selector {
+            margin-bottom: 16px;
+        }
+
+        .table-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .table-editor {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .table-grid {
+            width: 100%;
+            font-size: 13px;
+        }
+
+        .table-grid th {
+            background: var(--panel);
+            padding: 10px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+        }
+
+        .table-grid td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-grid tr:hover {
+            background: var(--hover);
+        }
+
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .editable-cell:hover {
+            background: #eff6ff;
+        }
+
+        .cell-input {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* Conversation History */
+        .history-item {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover {
+            border-color: var(--accent);
+        }
+
+        .history-title {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .history-meta {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Action Buttons */
+        .action-btn {
+            padding: 6px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--hover);
+            border-color: var(--accent);
+        }
+
+        /* Save Indicator */
+        .save-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Loading State */
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--muted);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.5;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🧠 Seamless Brainstorm</h1>
+        <select id="project-select" class="project-selector">
+            <option value="">Select Project...</option>
+        </select>
+        <div style="margin-left: auto; display: flex; gap: 12px;">
+            <button class="action-btn" onclick="saveConversation()">💾 Save</button>
+            <button class="action-btn" onclick="exportMarkdown()">📥 Export</button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Templates Panel -->
+        <div class="templates-panel">
+            <div class="panel-header">
+                Templates
+                <button class="action-btn" onclick="createTemplate()">+ New</button>
+            </div>
+            <div class="template-list" id="template-list">
+                <!-- Templates will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-messages" id="chat-messages">
+                <div style="text-align: center; padding: 40px; color: var(--muted);">
+                    <h2 style="margin-bottom: 8px;">Ready to Brainstorm</h2>
+                    <p>Select a template and your data will automatically flow into the conversation</p>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <textarea id="chat-input" class="chat-input" 
+                              placeholder="Type your message..." 
+                              onkeydown="handleKeyPress(event)"></textarea>
+                    <button class="send-btn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Panel -->
+        <div class="data-panel">
+            <div class="data-tabs">
+                <button class="data-tab active" onclick="showDataTab('tables')">Tables</button>
+                <button class="data-tab" onclick="showDataTab('history')">History</button>
+            </div>
+            
+            <div class="data-content">
+                <!-- Tables Tab -->
+                <div id="tables-tab" class="tab-content">
+                    <div class="table-selector">
+                        <select id="table-select" class="table-select" onchange="loadTable()">
+                            <option value="">Select Table...</option>
+                        </select>
+                    </div>
+                    <div id="table-editor" class="table-editor">
+                        <!-- Table will be loaded here -->
+                    </div>
+                </div>
+                
+                <!-- History Tab -->
+                <div id="history-tab" class="tab-content" style="display: none;">
+                    <div id="conversation-history">
+                        <!-- History will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Indicator -->
+    <div id="save-indicator" class="save-indicator">
+        ✓ Saved to database
+    </div>
+
+    <script>
+        // State Management
+        let currentProject = null;
+        let currentTemplate = null;
+        let conversationId = null;
+        let messages = [];
+        let templates = [];
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+            setupAutoSave();
+        });
+        
+        // Load Projects
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                const select = document.getElementById('project-select');
+                select.innerHTML = '<option value="">Select Project...</option>';
+                
+                data.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project;
+                    select.appendChild(option);
+                });
+                
+                select.onchange = () => selectProject(select.value);
+                
+            } catch (error) {
+                console.error('Error loading projects:', error);
+            }
+        }
+        
+        // Select Project
+        async function selectProject(projectName) {
+            if (!projectName) return;
+            
+            currentProject = projectName;
+            await loadTemplates();
+            await loadTables();
+            await loadHistory();
+        }
+        
+        // Load Templates
+        async function loadTemplates() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts`);
+                const data = await response.json();
+                
+                templates = data.prompts || [];
+                displayTemplates();
+                
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        }
+        
+        // Display Templates
+        function displayTemplates() {
+            const container = document.getElementById('template-list');
+            container.innerHTML = '';
+            
+            // Add System Brainstorm template first
+            const systemTemplate = templates.find(t => t.name === 'System Brainstorm');
+            if (systemTemplate) {
+                container.appendChild(createTemplateCard(systemTemplate));
+            }
+            
+            // Add other templates
+            templates.filter(t => t.name !== 'System Brainstorm').forEach(template => {
+                container.appendChild(createTemplateCard(template));
+            });
+        }
+        
+        // Create Template Card
+        function createTemplateCard(template) {
+            const div = document.createElement('div');
+            div.className = 'template-card';
+            if (currentTemplate?.id === template.id) {
+                div.classList.add('active');
+            }
+            
+            div.innerHTML = `
+                <div class="template-name">${template.name}</div>
+                <div class="template-desc">${template.description || 'Custom template'}</div>
+            `;
+            
+            div.onclick = () => selectTemplate(template);
+            return div;
+        }
+        
+        // Select Template
+        function selectTemplate(template) {
+            currentTemplate = template;
+            
+            // Update UI
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+            
+            // Clear welcome message
+            const messagesDiv = document.getElementById('chat-messages');
+            if (messagesDiv.querySelector('div[style*="text-align: center"]')) {
+                messagesDiv.innerHTML = '';
+            }
+            
+            // Add system message
+            addMessage('system', `Template "${template.name}" activated. Your messages will be enhanced with project data.`);
+        }
+        
+        // Send Message
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message || !currentTemplate) return;
+            
+            // Add user message
+            addMessage('user', message);
+            
+            // Clear input
+            input.value = '';
+            
+            // Show typing indicator
+            showTyping();
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        template_id: currentTemplate.id,
+                        user_message: message,
+                        conversation_id: conversationId,
+                        format: 'markdown_lists'  // Request structured list format
+                    })
+                });
+                
+                const data = await response.json();
+                
+                hideTyping();
+                
+                if (data.response) {
+                    addMessage('assistant', data.response);
+                    
+                    // Save conversation ID if new
+                    if (data.conversation_id && !conversationId) {
+                        conversationId = data.conversation_id;
+                    }
+                    
+                    // Auto-save
+                    autoSave();
+                }
+                
+            } catch (error) {
+                hideTyping();
+                console.error('Error:', error);
+            }
+        }
+        
+        // Add Message
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('chat-messages');
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            let header = '';
+            if (role === 'user') {
+                header = 'You';
+            } else if (role === 'assistant') {
+                header = 'AI Brainstorm';
+            } else if (role === 'system') {
+                header = 'System';
+            }
+            
+            messageDiv.innerHTML = `
+                <div class="message-header">${header}</div>
+                <div class="message-content">${formatMarkdown(content)}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // Store message
+            messages.push({role, content, timestamp: new Date().toISOString()});
+        }
+        
+        // Format Markdown
+        function formatMarkdown(text) {
+            // Convert markdown to HTML with proper list formatting
+            let html = text;
+            
+            // Headers
+            html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+            
+            // Bold and italic
+            html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Code blocks
+            html = html.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // Lists - Convert to proper HTML lists
+            html = html.replace(/^(\d+)\. (.*?)$/gm, '<li>$2</li>');
+            html = html.replace(/(<li>.*?<\/li>\n?)+/gs, (match) => {
+                return '<ol>' + match + '</ol>';
+            });
+            
+            html = html.replace(/^[\*\-\+] (.*?)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*?<\/li>\n?)+/gs, (match) => {
+                if (!match.includes('<ol>')) {
+                    return '<ul>' + match + '</ul>';
+                }
+                return match;
+            });
+            
+            // Blockquotes
+            html = html.replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>');
+            
+            // Line breaks
+            html = html.replace(/\n\n/g, '</p><p>');
+            html = '<p>' + html + '</p>';
+            
+            // Clean up empty paragraphs
+            html = html.replace(/<p><\/p>/g, '');
+            html = html.replace(/<p>(<[huo])/g, '$1');
+            html = html.replace(/(<\/[huo]l>)<\/p>/g, '$1');
+            
+            return html;
+        }
+        
+        // Load Tables
+        async function loadTables() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/schema`);
+                const data = await response.json();
+                
+                const select = document.getElementById('table-select');
+                select.innerHTML = '<option value="">Select Table...</option>';
+                
+                Object.keys(data.tables).forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table;
+                    option.textContent = `${table} (${data.tables[table].row_count} rows)`;
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading tables:', error);
+            }
+        }
+        
+        // Load Table Data
+        async function loadTable() {
+            const tableName = document.getElementById('table-select').value;
+            if (!tableName || !currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/table/${tableName}`);
+                const data = await response.json();
+                
+                displayTable(data);
+                
+            } catch (error) {
+                console.error('Error loading table:', error);
+            }
+        }
+        
+        // Display Table
+        function displayTable(data) {
+            const container = document.getElementById('table-editor');
+            
+            if (!data.rows || data.rows.length === 0) {
+                container.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--muted);">No data</p>';
+                return;
+            }
+            
+            const columns = Object.keys(data.rows[0]);
+            
+            let html = '<table class="table-grid"><thead><tr>';
+            columns.forEach(col => {
+                html += `<th>${col}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.rows.forEach((row, i) => {
+                html += '<tr>';
+                columns.forEach(col => {
+                    html += `<td class="editable-cell" onclick="editCell(this, '${data.table}', ${row.id || i}, '${col}')">${row[col] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        // Edit Cell
+        function editCell(cell, table, rowId, column) {
+            const currentValue = cell.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'cell-input';
+            input.value = currentValue;
+            
+            input.onblur = async () => {
+                const newValue = input.value;
+                if (newValue !== currentValue) {
+                    await updateCell(table, rowId, column, newValue);
+                    cell.textContent = newValue;
+                } else {
+                    cell.textContent = currentValue;
+                }
+            };
+            
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                } else if (e.key === 'Escape') {
+                    cell.textContent = currentValue;
+                }
+            };
+            
+            cell.textContent = '';
+            cell.appendChild(input);
+            input.focus();
+            input.select();
+        }
+        
+        // Update Cell
+        async function updateCell(table, rowId, column, value) {
+            try {
+                await fetch('/api/table/update', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        table,
+                        row_id: rowId,
+                        column,
+                        value
+                    })
+                });
+                
+                showSaveIndicator();
+                
+            } catch (error) {
+                console.error('Error updating cell:', error);
+            }
+        }
+        
+        // Auto Save
+        function setupAutoSave() {
+            setInterval(() => {
+                if (messages.length > 0 && currentProject) {
+                    autoSave();
+                }
+            }, 30000); // Auto-save every 30 seconds
+        }
+        
+        async function autoSave() {
+            if (messages.length === 0) return;
+            
+            try {
+                await fetch('/api/conversation/autosave', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        conversation_id: conversationId,
+                        messages,
+                        template_id: currentTemplate?.id
+                    })
+                });
+                
+                showSaveIndicator();
+                
+            } catch (error) {
+                console.error('Error auto-saving:', error);
+            }
+        }
+        
+        // Save Conversation
+        async function saveConversation() {
+            const title = prompt('Conversation title:', `Brainstorm ${new Date().toLocaleDateString()}`);
+            if (!title) return;
+            
+            try {
+                const response = await fetch('/api/project/${currentProject}/conversations', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        title,
+                        messages,
+                        template_id: currentTemplate?.id,
+                        template_name: currentTemplate?.name
+                    })
+                });
+                
+                const data = await response.json();
+                conversationId = data.id;
+                
+                showSaveIndicator();
+                loadHistory();
+                
+            } catch (error) {
+                console.error('Error saving conversation:', error);
+            }
+        }
+        
+        // Export Markdown
+        function exportMarkdown() {
+            let markdown = `# Brainstorm Session\n\n`;
+            markdown += `**Project:** ${currentProject}\n`;
+            markdown += `**Template:** ${currentTemplate?.name || 'None'}\n`;
+            markdown += `**Date:** ${new Date().toLocaleString()}\n\n---\n\n`;
+            
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    markdown += `## You\n\n${msg.content}\n\n`;
+                } else if (msg.role === 'assistant') {
+                    markdown += `## AI Response\n\n${msg.content}\n\n`;
+                }
+            });
+            
+            // Download file
+            const blob = new Blob([markdown], {type: 'text/markdown'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `brainstorm_${currentProject}_${Date.now()}.md`;
+            a.click();
+        }
+        
+        // Load History
+        async function loadHistory() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/conversations`);
+                const data = await response.json();
+                
+                displayHistory(data.conversations || []);
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+        
+        // Display History
+        function displayHistory(conversations) {
+            const container = document.getElementById('conversation-history');
+            container.innerHTML = '';
+            
+            if (conversations.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--muted);">No conversations yet</p>';
+                return;
+            }
+            
+            conversations.forEach(conv => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                
+                const date = new Date(conv.created_at);
+                
+                div.innerHTML = `
+                    <div class="history-title">${conv.title}</div>
+                    <div class="history-meta">
+                        ${date.toLocaleDateString()} · ${conv.message_count} messages
+                    </div>
+                `;
+                
+                div.onclick = () => loadConversation(conv.id);
+                container.appendChild(div);
+            });
+        }
+        
+        // Load Conversation
+        async function loadConversation(id) {
+            try {
+                const response = await fetch(`/api/project/${currentProject}/conversations/${id}`);
+                const conversation = await response.json();
+                
+                // Clear and load messages
+                document.getElementById('chat-messages').innerHTML = '';
+                messages = [];
+                
+                conversation.messages.forEach(msg => {
+                    addMessage(msg.role, msg.content);
+                });
+                
+                conversationId = id;
+                
+            } catch (error) {
+                console.error('Error loading conversation:', error);
+            }
+        }
+        
+        // Show Data Tab
+        function showDataTab(tab) {
+            document.querySelectorAll('.data-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.getElementById(`${tab}-tab`).style.display = 'block';
+        }
+        
+        // Handle Key Press
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // Show Save Indicator
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+        
+        // Show Typing
+        function showTyping() {
+            const messagesDiv = document.getElementById('chat-messages');
+            const typing = document.createElement('div');
+            typing.id = 'typing';
+            typing.className = 'message assistant';
+            typing.innerHTML = `
+                <div class="message-header">AI is thinking...</div>
+                <div class="message-content">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `;
+            messagesDiv.appendChild(typing);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        // Hide Typing
+        function hideTyping() {
+            const typing = document.getElementById('typing');
+            if (typing) typing.remove();
+        }
+    </script>
+</body>
+</html>

@@ -656,6 +656,11 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 <div class="panel-content">
                     <div class="block-category">
                         <h3>📋 Select Prompt Template</h3>
+                        <div style="margin-bottom: 12px;">
+                            <button onclick="toggleTemplateQuick()" class="btn btn-secondary" style="width: 100%; font-size: 14px; padding: 8px;">
+                                ⚡ Quick Toggle Templates
+                            </button>
+                        </div>
                         <div id="chat-template-list">
                             <div class="loading">Loading templates...</div>
                         </div>
@@ -664,6 +669,11 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                     <div class="block-category" style="margin-top: 24px;">
                         <h3>⚙️ Chat Settings</h3>
                         <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">API Key:</label>
+                            <input type="password" id="api-key-input" placeholder="Enter your OpenAI API key" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px;">
+                            <button onclick="toggleApiKeyVisibility()" style="margin-top: 4px; font-size: 12px; background: none; border: none; color: var(--accent); cursor: pointer;">👁️ Show/Hide</button>
+                        </div>
+                        <div style="margin-bottom: 12px;">
                             <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Temperature:</label>
                             <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" style="width: 100%;">
                             <span id="temperature-value" style="font-size: 12px; color: var(--muted);">0.7</span>
@@ -671,9 +681,9 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                         <div>
                             <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Model:</label>
                             <select id="model-select" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                                <option value="gpt-4o">GPT-4o (Latest)</option>
                                 <option value="gpt-4">GPT-4</option>
                                 <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                             </select>
                         </div>
                     </div>
@@ -729,6 +739,122 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         let currentMode = 'landing';
         let chatHistory = [];
         let currentChatTemplate = null;
+        let sqlUpdateInterval = null;
+
+        // Toggle API key visibility
+        function toggleApiKeyVisibility() {
+            const apiKeyInput = document.getElementById('api-key-input');
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+            } else {
+                apiKeyInput.type = 'password';
+            }
+        }
+
+        // Quick toggle templates
+        function toggleTemplateQuick() {
+            const templates = document.querySelectorAll('#chat-template-list .data-block');
+            if (templates.length === 0) return;
+            
+            // Find current active template
+            let currentIndex = -1;
+            templates.forEach((template, index) => {
+                if (template.classList.contains('active')) {
+                    currentIndex = index;
+                }
+            });
+            
+            // Move to next template
+            const nextIndex = (currentIndex + 1) % templates.length;
+            templates[nextIndex].click();
+        }
+
+        // SQL Auto-update functions
+        function startSqlAutoUpdate() {
+            if (sqlUpdateInterval) {
+                clearInterval(sqlUpdateInterval);
+            }
+            
+            // Update every 10 seconds
+            sqlUpdateInterval = setInterval(() => {
+                updateSqlData();
+            }, 10000);
+        }
+
+        function stopSqlAutoUpdate() {
+            if (sqlUpdateInterval) {
+                clearInterval(sqlUpdateInterval);
+                sqlUpdateInterval = null;
+            }
+        }
+
+        function toggleSqlAutoUpdate() {
+            const btn = document.getElementById('sql-auto-update-btn');
+            if (sqlUpdateInterval) {
+                stopSqlAutoUpdate();
+                btn.textContent = '🔄 Auto-update: OFF';
+                btn.style.background = '#fee';
+            } else {
+                startSqlAutoUpdate();
+                btn.textContent = '🔄 Auto-update: ON';
+                btn.style.background = '#efe';
+                // Trigger immediate update
+                updateSqlData();
+            }
+        }
+
+        async function updateSqlData() {
+            if (!currentProject) return;
+            
+            const indicator = document.getElementById('sql-update-indicator');
+            if (indicator) indicator.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/schema`);
+                const schema = await response.json();
+                
+                if (schema.error) {
+                    throw new Error(schema.error);
+                }
+                
+                // Update only SQL blocks
+                const sqlContainer = document.getElementById('sql-blocks');
+                if (sqlContainer) {
+                    // Keep the header
+                    const header = sqlContainer.querySelector('h3');
+                    sqlContainer.innerHTML = '';
+                    if (header) sqlContainer.appendChild(header);
+                    
+                    // Re-add updated SQL blocks
+                    schema.data_blocks.sql.forEach(block => {
+                        const blockElement = createDataBlock(block, 'sql');
+                        sqlContainer.appendChild(blockElement);
+                    });
+                }
+                
+                // Update schema for preview
+                currentSchema = schema;
+                
+                // Flash indicator to show update completed
+                if (indicator) {
+                    indicator.style.display = 'none';
+                    setTimeout(() => {
+                        const btn = document.getElementById('sql-auto-update-btn');
+                        if (btn) {
+                            btn.style.transition = 'background 0.3s';
+                            btn.style.background = '#bfb';
+                            setTimeout(() => {
+                                btn.style.background = '#efe';
+                            }, 300);
+                        }
+                    }, 100);
+                }
+                
+            } catch (error) {
+                console.error('Error updating SQL data:', error);
+                if (indicator) indicator.style.display = 'none';
+            }
+        }
 
         // Mode switching functions
         function selectMode(mode) {
@@ -749,6 +875,10 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 // Ensure builder is activated if project is selected
                 if (currentProject) {
                     document.getElementById('builder').classList.add('active');
+                    // Restart SQL auto-update if it was on
+                    if (sqlUpdateInterval) {
+                        startSqlAutoUpdate();
+                    }
                 }
             } else if (mode === 'chat') {
                 document.getElementById('builder').style.display = 'none';
@@ -756,6 +886,9 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 document.getElementById('chat-container').classList.add('active');
                 document.getElementById('builder-mode-btn').classList.remove('active');
                 document.getElementById('chat-mode-btn').classList.add('active');
+                
+                // Stop SQL auto-update when in chat mode to save resources
+                stopSqlAutoUpdate();
                 
                 // Load templates for chat
                 loadChatTemplates();
@@ -878,8 +1011,14 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         async function sendMessage() {
             const input = document.getElementById('chat-input');
             const userMessage = input.value.trim();
+            const apiKey = document.getElementById('api-key-input').value.trim();
             
             if (!userMessage || !currentChatTemplate) return;
+            
+            if (!apiKey) {
+                alert('Please enter your OpenAI API key in the chat settings.');
+                return;
+            }
             
             // Add user message to chat
             addUserMessage(userMessage);
@@ -908,6 +1047,7 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                         user_message: userMessage,
                         temperature: temperature,
                         model: model,
+                        api_key: apiKey,
                         chat_history: chatHistory.slice(-10) // Last 10 messages for context
                     })
                 });
@@ -1050,7 +1190,7 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             // Populate SQL blocks
             const sqlContainer = document.getElementById('sql-blocks');
             sqlContainer.style.display = 'block';
-            sqlContainer.innerHTML = '<h3>🗄️ Project Data</h3>';
+            sqlContainer.innerHTML = '<h3><span id="sql-update-indicator" class="spinner" style="width: 12px; height: 12px; display: none;"></span> 🗄️ Project Data <button onclick="toggleSqlAutoUpdate()" id="sql-auto-update-btn" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px; margin-left: 8px;">🔄 Auto-update: ON</button></h3>';
             
             schema.data_blocks.sql.forEach(block => {
                 const blockElement = createDataBlock(block, 'sql');
@@ -1076,6 +1216,9 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 const blockElement = createDataBlock(block, 'context');
                 contextContainer.appendChild(blockElement);
             });
+            
+            // Start SQL auto-update
+            startSqlAutoUpdate();
         }
 
         function createDataBlock(block, type) {
