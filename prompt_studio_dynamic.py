@@ -635,6 +635,128 @@ def delete_project_prompt(project_name, prompt_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/chat', methods=['POST'])
+def chat_with_ai():
+    """Chat with AI using compiled prompt templates"""
+    data = request.json
+    project_name = data.get('project_name')
+    template_id = data.get('template_id')
+    user_message = data.get('user_message')
+    temperature = data.get('temperature', 0.7)
+    model = data.get('model', 'gpt-4')
+    chat_history = data.get('chat_history', [])
+    
+    if not project_name or not user_message:
+        return jsonify({"error": "Missing project_name or user_message"}), 400
+    
+    try:
+        # Get OpenAI API key from environment
+        import os
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({"error": "OpenAI API key not configured"}), 500
+        
+        # Initialize OpenAI client
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+        
+        # Build the conversation
+        messages = []
+        
+        # Add system prompt if template is selected
+        if template_id:
+            # Get the template and compile it
+            db_path = os.path.join(discovery.projects_dir, project_name, f"{project_name}.sqlite")
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Get template
+                cursor.execute('SELECT template FROM custom_prompts WHERE id = ?', (template_id,))
+                result = cursor.fetchone()
+                
+                if result:
+                    template = result[0]
+                    
+                    # Compile template with real project data (reuse compile logic)
+                    compiled_template = template
+                    
+                    # Replace context variables
+                    compiled_template = compiled_template.replace('{context.project.name}', project_name)
+                    
+                    # Replace SQL table variables with formatted table data
+                    import re
+                    sql_vars = re.findall(r'{sql\.(\w+)}', template)
+                    for table in sql_vars:
+                        table_data = discovery.get_project_data(project_name, table)
+                        if table_data and isinstance(table_data, list):
+                            # Format table data nicely for chat context
+                            formatted_data = f"=== {table.upper()} DATA ===\n"
+                            for i, row in enumerate(table_data[:3]):  # Show first 3 rows for context
+                                if table == 'characters' and 'name' in row:
+                                    formatted_data += f"Character {i+1}: {row.get('name', 'N/A')} - Challenge: {row.get('romantic_challenge', 'N/A')} - Trait: {row.get('lovable_trait', 'N/A')}\n"
+                                elif table == 'story_outline_extended' and 'description' in row:
+                                    formatted_data += f"Scene {i+1}: Act {row.get('act_number', 'N/A')}, Scene {row.get('scene_number', 'N/A')} - {row.get('description', 'N/A')[:100]}...\n"
+                                elif table == 'notes' and 'title' in row:
+                                    formatted_data += f"Note {i+1}: {row.get('title', 'N/A')} - {row.get('content', 'N/A')[:100]}...\n"
+                                else:
+                                    # Generic display
+                                    key_fields = [k for k in row.keys() if k not in ['id', 'created_at', 'updated_at']][:2]
+                                    formatted_data += f"Row {i+1}: " + " | ".join([f"{k}: {row.get(k, 'N/A')}" for k in key_fields]) + "\n"
+                            
+                            if len(table_data) > 3:
+                                formatted_data += f"... and {len(table_data) - 3} more rows\n"
+                                
+                            compiled_template = compiled_template.replace(f'{{sql.{table}}}', formatted_data.strip())
+                        else:
+                            compiled_template = compiled_template.replace(f'{{sql.{table}}}', f"No data available for {table} table")
+                    
+                    # Replace LightRAG variables with instructions
+                    lightrag_vars = re.findall(r'{lightrag\.(\w+)}', template)
+                    for bucket in lightrag_vars:
+                        compiled_template = compiled_template.replace(f'{{lightrag.{bucket}}}', f"[Use {bucket} knowledge - reference relevant insights for this query]")
+                    
+                    # Add as system message
+                    messages.append({
+                        "role": "system",
+                        "content": compiled_template
+                    })
+                
+                conn.close()
+        
+        # Add chat history (limit to last 6 messages to manage context)
+        for msg in chat_history[-6:]:
+            messages.append({
+                "role": msg["role"],
+                "content": msg["content"]
+            })
+        
+        # Add current user message
+        messages.append({
+            "role": "user", 
+            "content": user_message
+        })
+        
+        # Call OpenAI API
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=2000
+        )
+        
+        assistant_response = response.choices[0].message.content
+        
+        return jsonify({
+            "response": assistant_response,
+            "model": model,
+            "temperature": temperature,
+            "template_used": template_id is not None
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/')
 def serve_interface():
     """Serve the main interface"""

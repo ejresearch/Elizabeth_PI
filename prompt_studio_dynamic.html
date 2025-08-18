@@ -348,6 +348,173 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Landing page styles */
+        .landing-page {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+
+        .mode-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 40px;
+            max-width: 800px;
+        }
+
+        .mode-card {
+            background: var(--panel);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .mode-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.15);
+        }
+
+        .mode-card h3 {
+            font-size: 24px;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        .mode-card p {
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .mode-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            display: block;
+        }
+
+        /* Mode toggle styles */
+        .mode-toggle {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            background: var(--bg);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .mode-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--muted);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .mode-btn:hover:not(.active) {
+            background: var(--panel);
+            color: var(--text);
+        }
+
+        /* Chat interface styles */
+        .chat-container {
+            display: none;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+            height: calc(100vh - 220px);
+        }
+
+        .chat-container.active {
+            display: grid;
+        }
+
+        .chat-sidebar {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .chat-main {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            background: var(--panel);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .chat-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: var(--accent);
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: var(--panel);
+            border: 1px solid var(--border);
+        }
+
+        .message-time {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -355,6 +522,14 @@
         <div class="header">
             <h1>🎬 Dynamic Prompt Studio</h1>
             <p>System-agnostic prompt engineering with real project data</p>
+            <div id="mode-toggle" class="mode-toggle" style="display: none;">
+                <button id="builder-mode-btn" class="mode-btn active" onclick="switchMode('builder')">
+                    🛠️ Prompt Builder
+                </button>
+                <button id="chat-mode-btn" class="mode-btn" onclick="switchMode('chat')">
+                    💬 AI Chat
+                </button>
+            </div>
         </div>
 
         <!-- Project Selector -->
@@ -370,8 +545,30 @@
             </div>
         </div>
 
+        <!-- Landing Page -->
+        <div id="landing-page" class="landing-page">
+            <h2>Welcome to Dynamic Prompt Studio</h2>
+            <p style="font-size: 18px; color: var(--muted); margin-bottom: 20px;">Choose your workflow:</p>
+            
+            <div class="mode-selection">
+                <div class="mode-card" onclick="selectMode('builder')">
+                    <span class="mode-icon">🛠️</span>
+                    <h3>Prompt Builder</h3>
+                    <p>Create and manage custom prompt templates using real project data. Build sophisticated prompts with SQL tables and LightRAG knowledge buckets.</p>
+                    <button class="btn btn-primary">Start Building</button>
+                </div>
+                
+                <div class="mode-card" onclick="selectMode('chat')">
+                    <span class="mode-icon">💬</span>
+                    <h3>AI Chat & Brainstorm</h3>
+                    <p>Chat with AI using your custom prompts and real project data. Generate ideas, explore scenes, and brainstorm creative solutions.</p>
+                    <button class="btn btn-success">Start Chatting</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Builder Interface -->
-        <div id="builder" class="builder">
+        <div id="builder" class="builder" style="display: none;">
             <!-- Left: Dynamic Data Blocks -->
             <div class="panel">
                 <div class="panel-header">
@@ -448,6 +645,79 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 </div>
             </div>
         </div>
+
+        <!-- Chat Interface -->
+        <div id="chat-container" class="chat-container">
+            <!-- Left: Chat Controls -->
+            <div class="chat-sidebar">
+                <div class="panel-header">
+                    <span>💬 AI Brainstorm Chat</span>
+                </div>
+                <div class="panel-content">
+                    <div class="block-category">
+                        <h3>📋 Select Prompt Template</h3>
+                        <div id="chat-template-list">
+                            <div class="loading">Loading templates...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="block-category" style="margin-top: 24px;">
+                        <h3>⚙️ Chat Settings</h3>
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Temperature:</label>
+                            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" style="width: 100%;">
+                            <span id="temperature-value" style="font-size: 12px; color: var(--muted);">0.7</span>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Model:</label>
+                            <select id="model-select" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="block-category" style="margin-top: 24px;">
+                        <h3>💾 Chat History</h3>
+                        <div id="chat-history-list">
+                            <div style="font-size: 14px; color: var(--muted); font-style: italic;">No conversations yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Chat Interface -->
+            <div class="chat-main">
+                <div class="panel-header">
+                    <span id="current-template-name">Select a template to start chatting</span>
+                    <button class="btn btn-secondary" onclick="clearChat()" style="font-size: 12px; padding: 6px 12px;">Clear Chat</button>
+                </div>
+                
+                <div id="chat-messages" class="chat-messages">
+                    <div style="text-align: center; color: var(--muted); margin-top: 40px;">
+                        <h3>🤖 AI Brainstorm Assistant</h3>
+                        <p>Select a prompt template from the left to start brainstorming!</p>
+                        <p style="font-size: 14px; margin-top: 16px;">Your prompts will be automatically compiled with real project data before being sent to the AI.</p>
+                    </div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <textarea id="chat-input" class="chat-input" placeholder="Type your message here... (Select a template first)" disabled></textarea>
+                    <div class="chat-controls">
+                        <div>
+                            <label style="font-size: 14px;">
+                                <input type="checkbox" id="use-template-checkbox" checked> Use selected template as system prompt
+                            </label>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" onclick="attachData()" disabled id="attach-btn">📎 Attach Data</button>
+                            <button class="btn btn-primary" onclick="sendMessage()" disabled id="send-btn">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -456,6 +726,237 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         let currentTemplateId = null;
         let currentPrompts = [];
         let isEditingTemplate = false;
+        let currentMode = 'landing';
+        let chatHistory = [];
+        let currentChatTemplate = null;
+
+        // Mode switching functions
+        function selectMode(mode) {
+            currentMode = mode;
+            
+            // Hide landing page
+            document.getElementById('landing-page').style.display = 'none';
+            
+            // Show mode toggle
+            document.getElementById('mode-toggle').style.display = 'flex';
+            
+            if (mode === 'builder') {
+                document.getElementById('builder').style.display = 'grid';
+                document.getElementById('chat-container').classList.remove('active');
+                document.getElementById('builder-mode-btn').classList.add('active');
+                document.getElementById('chat-mode-btn').classList.remove('active');
+                
+                // Ensure builder is activated if project is selected
+                if (currentProject) {
+                    document.getElementById('builder').classList.add('active');
+                }
+            } else if (mode === 'chat') {
+                document.getElementById('builder').style.display = 'none';
+                document.getElementById('builder').classList.remove('active');
+                document.getElementById('chat-container').classList.add('active');
+                document.getElementById('builder-mode-btn').classList.remove('active');
+                document.getElementById('chat-mode-btn').classList.add('active');
+                
+                // Load templates for chat
+                loadChatTemplates();
+            }
+        }
+        
+        function switchMode(mode) {
+            selectMode(mode);
+        }
+        
+        // Chat functionality
+        async function loadChatTemplates() {
+            if (!currentProject) return;
+            
+            const container = document.getElementById('chat-template-list');
+            container.innerHTML = '<div class="loading">Loading templates...</div>';
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayChatTemplates(data.prompts || []);
+                
+            } catch (error) {
+                console.error('Error loading chat templates:', error);
+                container.innerHTML = `<div class="error">Error loading templates: ${error.message}</div>`;
+            }
+        }
+        
+        function displayChatTemplates(prompts) {
+            const container = document.getElementById('chat-template-list');
+            container.innerHTML = '';
+            
+            prompts.forEach(prompt => {
+                const element = createChatTemplateElement(prompt);
+                container.appendChild(element);
+            });
+        }
+        
+        function createChatTemplateElement(prompt) {
+            const div = document.createElement('div');
+            div.className = 'data-block';
+            div.onclick = () => selectChatTemplate(prompt);
+            
+            div.innerHTML = `
+                <div class="block-label">${prompt.name}</div>
+                <div class="block-desc">${prompt.description || 'No description'}</div>
+                <div class="block-sample" style="font-size: 10px;">Click to use for chat</div>
+            `;
+            
+            return div;
+        }
+        
+        async function selectChatTemplate(prompt) {
+            currentChatTemplate = prompt;
+            
+            // Update UI
+            document.getElementById('current-template-name').textContent = `Template: ${prompt.name}`;
+            document.getElementById('chat-input').disabled = false;
+            document.getElementById('chat-input').placeholder = `Ask about your project using the "${prompt.name}" template...`;
+            document.getElementById('send-btn').disabled = false;
+            document.getElementById('attach-btn').disabled = false;
+            
+            // Update active state
+            document.querySelectorAll('#chat-template-list .data-block').forEach(el => el.classList.remove('active'));
+            event.target.closest('.data-block').classList.add('active');
+            
+            // Add system message about template
+            addSystemMessage(`Using template: "${prompt.name}". Your messages will be enhanced with real project data.`);
+        }
+        
+        function addSystemMessage(text) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message system';
+            messageEl.style.cssText = 'background: #f0f9ff; border: 1px solid #0ea5e9; color: #0c4a6e; font-size: 14px; margin: 8px auto; max-width: 90%;';
+            messageEl.innerHTML = `
+                <div>${text}</div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            // Remove welcome message if present
+            const welcomeMsg = messagesContainer.querySelector('div[style*="text-align: center"]');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function addUserMessage(text) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message user';
+            messageEl.innerHTML = `
+                <div>${text}</div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function addAssistantMessage(text) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message assistant';
+            messageEl.innerHTML = `
+                <div>${text}</div>
+                <div class="message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            messagesContainer.appendChild(messageEl);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const userMessage = input.value.trim();
+            
+            if (!userMessage || !currentChatTemplate) return;
+            
+            // Add user message to chat
+            addUserMessage(userMessage);
+            
+            // Clear input
+            input.value = '';
+            
+            // Show loading
+            const loadingEl = document.createElement('div');
+            loadingEl.className = 'message assistant';
+            loadingEl.innerHTML = '<div class="loading"><span class="spinner"></span>Thinking...</div>';
+            document.getElementById('chat-messages').appendChild(loadingEl);
+            
+            try {
+                // Prepare the chat request
+                const useTemplate = document.getElementById('use-template-checkbox').checked;
+                const temperature = parseFloat(document.getElementById('temperature-slider').value);
+                const model = document.getElementById('model-select').value;
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        template_id: useTemplate ? currentChatTemplate.id : null,
+                        user_message: userMessage,
+                        temperature: temperature,
+                        model: model,
+                        chat_history: chatHistory.slice(-10) // Last 10 messages for context
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // Remove loading message
+                loadingEl.remove();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Add assistant response
+                addAssistantMessage(data.response);
+                
+                // Update chat history
+                chatHistory.push({
+                    role: 'user',
+                    content: userMessage,
+                    timestamp: new Date().toISOString()
+                });
+                chatHistory.push({
+                    role: 'assistant', 
+                    content: data.response,
+                    timestamp: new Date().toISOString()
+                });
+                
+            } catch (error) {
+                loadingEl.remove();
+                addAssistantMessage(`Error: ${error.message}`);
+            }
+        }
+        
+        function clearChat() {
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.innerHTML = `
+                <div style="text-align: center; color: var(--muted); margin-top: 40px;">
+                    <h3>🤖 AI Brainstorm Assistant</h3>
+                    <p>Chat cleared. Continue brainstorming!</p>
+                </div>
+            `;
+            chatHistory = [];
+        }
+        
+        function attachData() {
+            // Show modal or panel to select specific data to attach
+            alert('Data attachment feature coming soon! For now, your template already includes relevant project data.');
+        }
 
         // Templates are now loaded dynamically from the database
 
@@ -505,7 +1006,15 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 displayProjectInfo(schema);
                 populateDataBlocks(schema);
                 loadProjectTemplates();
-                document.getElementById('builder').classList.add('active');
+                
+                // Show landing page if no mode selected, otherwise activate current mode
+                if (currentMode === 'landing') {
+                    document.getElementById('landing-page').style.display = 'flex';
+                } else if (currentMode === 'builder') {
+                    document.getElementById('builder').classList.add('active');
+                } else if (currentMode === 'chat') {
+                    loadChatTemplates();
+                }
                 
             } catch (error) {
                 console.error('Error loading project:', error);
@@ -912,6 +1421,19 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadProjects();
+            
+            // Temperature slider update
+            document.getElementById('temperature-slider').addEventListener('input', function() {
+                document.getElementById('temperature-value').textContent = this.value;
+            });
+            
+            // Enter key support for chat
+            document.getElementById('chat-input').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
         });
     </script>
 </body>
