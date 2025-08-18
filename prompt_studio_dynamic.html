@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Prompt Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 18px;
+            color: var(--muted);
+        }
+
+        .project-selector {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .project-dropdown {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 200px;
+            margin: 0 12px;
+        }
+
+        .project-info {
+            margin-top: 16px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .builder {
+            display: grid;
+            grid-template-columns: 320px 1fr 400px;
+            gap: 24px;
+            height: calc(100vh - 220px);
+            opacity: 0.5;
+            pointer-events: none;
+            transition: all 0.3s;
+        }
+
+        .builder.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #f1f5f9;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            padding: 20px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+
+        /* Data Blocks */
+        .block-category {
+            margin-bottom: 24px;
+        }
+
+        .block-category h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .data-block {
+            display: block;
+            width: 100%;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 14px;
+            color: var(--text);
+            position: relative;
+        }
+
+        .data-block:hover {
+            background: #f1f5f9;
+            border-color: var(--accent);
+            transform: translateY(-1px);
+        }
+
+        .data-block.sql {
+            border-left: 4px solid var(--success);
+        }
+
+        .data-block.lightrag {
+            border-left: 4px solid var(--warning);
+        }
+
+        .data-block.context {
+            border-left: 4px solid var(--accent);
+        }
+
+        .block-label {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .block-desc {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .block-sample {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: 'SF Mono', monospace;
+            background: #f8fafc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+
+        .block-count {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--muted);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        /* Templates */
+        .template-grid {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .template-btn {
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .template-btn:hover {
+            border-color: var(--accent);
+            background: #f8fafc;
+        }
+
+        .template-btn.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: white;
+        }
+
+        .template-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .template-btn.active .template-desc {
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Editor */
+        .editor {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 20px;
+            border: none;
+            background: var(--panel);
+            color: var(--text);
+            resize: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .editor:focus {
+            outline: none;
+        }
+
+        /* Preview */
+        .preview {
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 16px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        /* Action buttons */
+        .actions {
+            display: flex;
+            gap: 12px;
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .error {
+            color: var(--danger);
+            background: #fee;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--accent);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Dynamic Prompt Studio</h1>
+            <p>System-agnostic prompt engineering with real project data</p>
+        </div>
+
+        <!-- Project Selector -->
+        <div class="project-selector">
+            <label for="project-select" style="font-weight: 600; margin-right: 12px;">Select Project:</label>
+            <select id="project-select" class="project-dropdown" onchange="loadProject()">
+                <option value="">Loading projects...</option>
+            </select>
+            <button class="btn btn-secondary" onclick="refreshProjects()" style="margin-left: 12px;">🔄 Refresh</button>
+            
+            <div id="project-info" class="project-info" style="display: none;">
+                <div class="loading">Analyzing project schema...</div>
+            </div>
+        </div>
+
+        <!-- Main Builder Interface -->
+        <div id="builder" class="builder">
+            <!-- Left: Dynamic Data Blocks -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📊 Data Blocks</span>
+                    <span id="block-count" style="font-size: 12px; color: var(--muted);">0 blocks</span>
+                </div>
+                <div class="panel-content">
+                    
+                    <div class="block-category">
+                        <h3>📋 Templates</h3>
+                        <div class="template-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <button class="btn btn-secondary" onclick="newTemplate()" style="font-size: 12px; padding: 8px 12px;">+ New</button>
+                            <button class="btn btn-secondary" onclick="duplicateTemplate()" style="font-size: 12px; padding: 8px 12px;">📋 Duplicate</button>
+                        </div>
+                        <div id="template-list" class="template-grid">
+                            <div class="loading">Loading templates...</div>
+                        </div>
+                    </div>
+
+                    <div id="sql-blocks" class="block-category" style="display: none;">
+                        <h3><span class="spinner" style="width: 12px; height: 12px;"></span>🗄️ Project Data</h3>
+                        <div class="loading">Discovering database schema...</div>
+                    </div>
+
+                    <div id="lightrag-blocks" class="block-category" style="display: none;">
+                        <h3>📚 LightRAG Buckets</h3>
+                        <div class="loading">Discovering knowledge buckets...</div>
+                    </div>
+
+                    <div id="context-blocks" class="block-category" style="display: none;">
+                        <h3>🎯 Context Variables</h3>
+                        <div class="loading">Loading context options...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Editor -->
+            <div class="panel">
+                <div class="panel-header">✏️ Prompt Editor</div>
+                <textarea id="prompt-editor" class="editor" placeholder="Select a template (left) or write your own prompt...
+
+Click data blocks to insert variables from your project's real data.
+
+Variables will be replaced with actual content when you brainstorm."></textarea>
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="clearEditor()">Clear</button>
+                    <button class="btn btn-secondary" onclick="previewPrompt()">Preview</button>
+                    <button class="btn btn-primary" onclick="saveCurrentPrompt()">💾 Save</button>
+                    <button class="btn btn-success" onclick="startBrainstorm()">→ Brainstorm</button>
+                </div>
+            </div>
+
+            <!-- Right: Preview & Info -->
+            <div class="panel">
+                <div class="panel-header">👁️ Live Preview</div>
+                <div class="panel-content">
+                    <div id="preview-area" class="preview">
+Select a project and click "Preview" to see your prompt compiled with real data...
+                    </div>
+                    
+                    <div id="project-stats" style="margin-top: 24px; display: none;">
+                        <h3 style="font-size: 16px; margin-bottom: 12px;">📊 Project Stats</h3>
+                        <div id="stats-content" style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 14px;"></div>
+                    </div>
+
+                    <h3 style="margin: 24px 0 12px; font-size: 16px;">💡 Tips</h3>
+                    <ul style="font-size: 14px; color: var(--muted); line-height: 1.6;">
+                        <li>Select any project to auto-discover its data</li>
+                        <li>SQL blocks use real database content</li>
+                        <li>LightRAG blocks query knowledge buckets</li>
+                        <li>Context blocks add session metadata</li>
+                        <li>Preview shows actual data substitution</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProject = null;
+        let currentSchema = null;
+        let currentTemplateId = null;
+        let currentPrompts = [];
+        let isEditingTemplate = false;
+
+        // Templates are now loaded dynamically from the database
+
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                const select = document.getElementById('project-select');
+                select.innerHTML = '<option value="">Select a project...</option>';
+                
+                data.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project;
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                document.getElementById('project-select').innerHTML = '<option value="">Error loading projects</option>';
+            }
+        }
+
+        async function loadProject() {
+            const select = document.getElementById('project-select');
+            const projectName = select.value;
+            
+            if (!projectName) {
+                document.getElementById('builder').classList.remove('active');
+                return;
+            }
+            
+            currentProject = projectName;
+            document.getElementById('project-info').style.display = 'block';
+            document.getElementById('project-info').innerHTML = '<div class="loading"><span class="spinner"></span>Analyzing project schema...</div>';
+            
+            try {
+                const response = await fetch(`/api/project/${projectName}/schema`);
+                const schema = await response.json();
+                
+                if (schema.error) {
+                    throw new Error(schema.error);
+                }
+                
+                currentSchema = schema;
+                displayProjectInfo(schema);
+                populateDataBlocks(schema);
+                loadProjectTemplates();
+                document.getElementById('builder').classList.add('active');
+                
+            } catch (error) {
+                console.error('Error loading project:', error);
+                document.getElementById('project-info').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function displayProjectInfo(schema) {
+            const tableCount = Object.keys(schema.tables).length;
+            const totalRows = Object.values(schema.tables).reduce((sum, table) => sum + table.row_count, 0);
+            const blockCount = Object.values(schema.data_blocks).reduce((sum, blocks) => sum + blocks.length, 0);
+            
+            document.getElementById('project-info').innerHTML = `
+                <strong>Project:</strong> ${schema.project_name} | 
+                <strong>Tables:</strong> ${tableCount} | 
+                <strong>Rows:</strong> ${totalRows} | 
+                <strong>Data Blocks:</strong> ${blockCount}
+            `;
+            
+            document.getElementById('block-count').textContent = `${blockCount} blocks`;
+            
+            // Update project stats panel
+            document.getElementById('project-stats').style.display = 'block';
+            document.getElementById('stats-content').innerHTML = `
+                <strong>Database:</strong> ${schema.project_name}.sqlite<br>
+                <strong>Tables:</strong> ${Object.keys(schema.tables).join(', ')}<br>
+                <strong>Total Records:</strong> ${totalRows}<br>
+                <strong>Available Blocks:</strong> ${blockCount}
+            `;
+        }
+
+        function populateDataBlocks(schema) {
+            // Populate SQL blocks
+            const sqlContainer = document.getElementById('sql-blocks');
+            sqlContainer.style.display = 'block';
+            sqlContainer.innerHTML = '<h3>🗄️ Project Data</h3>';
+            
+            schema.data_blocks.sql.forEach(block => {
+                const blockElement = createDataBlock(block, 'sql');
+                sqlContainer.appendChild(blockElement);
+            });
+            
+            // Populate LightRAG blocks
+            const lightragContainer = document.getElementById('lightrag-blocks');
+            lightragContainer.style.display = 'block';
+            lightragContainer.innerHTML = '<h3>📚 LightRAG Buckets</h3>';
+            
+            schema.data_blocks.lightrag.forEach(block => {
+                const blockElement = createDataBlock(block, 'lightrag');
+                lightragContainer.appendChild(blockElement);
+            });
+            
+            // Populate Context blocks
+            const contextContainer = document.getElementById('context-blocks');
+            contextContainer.style.display = 'block';
+            contextContainer.innerHTML = '<h3>🎯 Context Variables</h3>';
+            
+            schema.data_blocks.context.forEach(block => {
+                const blockElement = createDataBlock(block, 'context');
+                contextContainer.appendChild(blockElement);
+            });
+        }
+
+        function createDataBlock(block, type) {
+            const button = document.createElement('button');
+            button.className = `data-block ${type}`;
+            button.onclick = () => insertBlock(block.key);
+            
+            let content = `
+                <div class="block-label">${block.label}</div>
+                <div class="block-desc">${block.description}</div>
+            `;
+            
+            if (block.sample) {
+                content += `<div class="block-sample">${block.sample}</div>`;
+            }
+            
+            if (block.doc_count && block.doc_count > 0) {
+                content += `<div class="block-count">${block.doc_count}</div>`;
+            }
+            
+            button.innerHTML = content;
+            return button;
+        }
+
+        function insertBlock(blockKey) {
+            const editor = document.getElementById('prompt-editor');
+            const cursorPos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, cursorPos);
+            const textAfter = editor.value.substring(cursorPos);
+            
+            const variable = `{${blockKey}}`;
+            editor.value = textBefore + variable + textAfter;
+            editor.focus();
+            editor.setSelectionRange(cursorPos + variable.length, cursorPos + variable.length);
+        }
+
+        async function loadProjectTemplates() {
+            if (!currentProject) return;
+            
+            const container = document.getElementById('template-list');
+            container.innerHTML = '<div class="loading">Loading templates...</div>';
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentPrompts = data.prompts || [];
+                displayTemplates(currentPrompts);
+                
+                // Auto-select first template
+                if (currentPrompts.length > 0) {
+                    selectTemplate(currentPrompts[0].id);
+                }
+                
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                container.innerHTML = `<div class="error">Error loading templates: ${error.message}</div>`;
+            }
+        }
+        
+        function displayTemplates(prompts) {
+            const container = document.getElementById('template-list');
+            container.innerHTML = '';
+            
+            prompts.forEach(prompt => {
+                const element = createTemplateElement(prompt);
+                container.appendChild(element);
+            });
+        }
+        
+        function createTemplateElement(prompt) {
+            const div = document.createElement('div');
+            div.className = 'template-btn';
+            div.onclick = () => selectTemplate(prompt.id);
+            
+            div.innerHTML = `
+                <div class="template-name">${prompt.name}</div>
+                <div class="template-desc">${prompt.description || 'No description'}</div>
+                <div class="template-actions" style="margin-top: 8px;">
+                    <button class="btn btn-secondary" onclick="event.stopPropagation(); editTemplate(${prompt.id})" style="font-size: 10px; padding: 4px 8px; margin-right: 4px;">✏️</button>
+                    ${prompt.name !== 'System Brainstorm' ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); deleteTemplate(${prompt.id})" style="font-size: 10px; padding: 4px 8px; background: var(--danger); color: white;">🗑️</button>` : ''}
+                </div>
+            `;
+            
+            return div;
+        }
+
+        function selectTemplate(templateId, element = null) {
+            const prompt = currentPrompts.find(p => p.id === templateId);
+            if (!prompt) return;
+            
+            currentTemplateId = templateId;
+            isEditingTemplate = false;
+            
+            // Update active state
+            document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Find the clicked element or the one with matching template ID
+            if (element) {
+                element.classList.add('active');
+            } else {
+                // Find by data attribute or content
+                const templateElements = document.querySelectorAll('.template-btn');
+                templateElements.forEach(btn => {
+                    const nameEl = btn.querySelector('.template-name');
+                    if (nameEl && nameEl.textContent === prompt.name) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+            
+            // Load template
+            const editor = document.getElementById('prompt-editor');
+            editor.value = prompt.template || '';
+        }
+        
+        function newTemplate() {
+            const name = prompt('Template name:');
+            if (!name) return;
+            
+            const description = prompt('Template description (optional):') || '';
+            
+            // Load with empty template
+            const editor = document.getElementById('prompt-editor');
+            editor.value = '';
+            
+            // Set editing mode
+            isEditingTemplate = true;
+            currentTemplateId = null;
+            
+            // Update UI to show we're creating new
+            document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+        }
+        
+        function duplicateTemplate() {
+            if (!currentTemplateId) {
+                alert('Please select a template to duplicate');
+                return;
+            }
+            
+            const currentPrompt = currentPrompts.find(p => p.id === currentTemplateId);
+            if (!currentPrompt) return;
+            
+            const name = prompt('Name for duplicated template:', currentPrompt.name + ' Copy');
+            if (!name) return;
+            
+            const description = prompt('Description:', currentPrompt.description || '');
+            
+            // Load current template content
+            const editor = document.getElementById('prompt-editor');
+            editor.value = currentPrompt.template;
+            
+            // Set editing mode for new template
+            isEditingTemplate = true;
+            currentTemplateId = null;
+            
+            document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+        }
+        
+        function editTemplate(templateId) {
+            const prompt = currentPrompts.find(p => p.id === templateId);
+            if (!prompt) return;
+            
+            currentTemplateId = templateId;
+            isEditingTemplate = true;
+            
+            // Load template for editing
+            const editor = document.getElementById('prompt-editor');
+            editor.value = prompt.template;
+            
+            // Update UI
+            document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.closest('.template-btn').classList.add('active');
+        }
+        
+        async function deleteTemplate(templateId) {
+            const prompt = currentPrompts.find(p => p.id === templateId);
+            if (!prompt) return;
+            
+            if (!confirm(`Delete template "${prompt.name}"?`)) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts/${templateId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Reload templates
+                await loadProjectTemplates();
+                
+                alert('Template deleted successfully!');
+                
+            } catch (error) {
+                alert(`Error deleting template: ${error.message}`);
+            }
+        }
+
+        function clearEditor() {
+            document.getElementById('prompt-editor').value = '';
+        }
+
+        async function previewPrompt() {
+            const editor = document.getElementById('prompt-editor');
+            const preview = document.getElementById('preview-area');
+            const template = editor.value;
+            
+            if (!currentProject || !template.trim()) {
+                preview.textContent = 'No project selected or template empty...';
+                return;
+            }
+            
+            preview.innerHTML = '<div class="loading"><span class="spinner"></span>Compiling with real project data...</div>';
+            
+            try {
+                const response = await fetch('/api/compile-prompt', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        template: template
+                    })
+                });
+                
+                const data = await response.json();
+                preview.textContent = data.compiled || 'Compilation failed';
+                
+            } catch (error) {
+                preview.textContent = `Error compiling: ${error.message}`;
+            }
+        }
+
+        async function saveCurrentPrompt() {
+            const editor = document.getElementById('prompt-editor');
+            const template = editor.value.trim();
+            
+            if (!template) {
+                alert('Please enter a template to save');
+                return;
+            }
+            
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            
+            let name, description;
+            
+            if (isEditingTemplate && currentTemplateId) {
+                // Updating existing template
+                const currentPrompt = currentPrompts.find(p => p.id === currentTemplateId);
+                name = currentPrompt.name;
+                description = currentPrompt.description;
+                
+                // Allow editing name/description
+                const newName = prompt('Template name:', name);
+                if (!newName) return;
+                
+                const newDescription = prompt('Template description:', description || '');
+                
+                try {
+                    const response = await fetch(`/api/project/${currentProject}/prompts/${currentTemplateId}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            name: newName,
+                            template: template,
+                            description: newDescription || ''
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    await loadProjectTemplates();
+                    alert('Template updated successfully!');
+                    
+                } catch (error) {
+                    alert(`Error updating template: ${error.message}`);
+                }
+                
+            } else {
+                // Creating new template
+                name = prompt('Template name:');
+                if (!name) return;
+                
+                description = prompt('Template description (optional):') || '';
+                
+                try {
+                    const response = await fetch(`/api/project/${currentProject}/prompts`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            name: name,
+                            template: template,
+                            description: description
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    await loadProjectTemplates();
+                    alert(`Template "${name}" saved successfully!`);
+                    
+                } catch (error) {
+                    alert(`Error saving template: ${error.message}`);
+                }
+            }
+            
+            isEditingTemplate = false;
+        }
+
+        function startBrainstorm() {
+            const editor = document.getElementById('prompt-editor');
+            if (!editor.value.trim() || !currentProject) {
+                alert('Please select a project and create a prompt first!');
+                return;
+            }
+            
+            console.log('Starting brainstorm:', currentProject, editor.value);
+            alert(`🚀 Starting brainstorm session!\n\nProject: ${currentProject}\nData blocks: Real database content\nLightRAG: Active buckets\n\n(In production, this would launch the brainstorm interface)`);
+        }
+
+        function refreshProjects() {
+            loadProjects();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+        });
+    </script>
+</body>
+</html>

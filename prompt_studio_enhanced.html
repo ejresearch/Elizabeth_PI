@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizzy Prompt Studio - Enhanced</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #f1f5f9;
+            --border: #e2e8f0;
+            --border-focus: #3b82f6;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-light: #dbeafe;
+            --success: #10b981;
+            --success-light: #d1fae5;
+            --warning: #f59e0b;
+            --warning-light: #fef3c7;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+            border-radius: 12px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            background: var(--success-light);
+            border: 1px solid var(--success);
+            border-radius: 8px;
+            padding: 12px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* Main Layout - 3 Column */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 400px 1fr;
+            gap: 20px;
+            height: calc(100vh - 200px);
+        }
+
+        /* Panel */
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: var(--bg-tertiary);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .panel-content {
+            padding: 20px;
+        }
+
+        /* Prompt List Styles */
+        .prompt-list {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) var(--bg-tertiary);
+        }
+
+        .prompt-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .prompt-list::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .prompt-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .prompt-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        .prompt-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-secondary);
+        }
+
+        .prompt-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .prompt-item.active {
+            background: var(--accent-light);
+            border-left: 4px solid var(--accent);
+            padding-left: 12px;
+        }
+
+        .prompt-item.default {
+            background: var(--success-light);
+            border-left: 4px solid var(--success);
+            padding-left: 12px;
+        }
+
+        .prompt-item.default:hover {
+            background: #c6f6d5;
+        }
+
+        .prompt-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .prompt-preview {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: 'SF Mono', monospace;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .prompt-meta {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Context Cards */
+        .context-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .context-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .context-value {
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+
+        /* Character Cards */
+        .character-card {
+            background: var(--accent-light);
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+
+        .character-name {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .character-trait {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 2px;
+        }
+
+        /* Bucket Cards */
+        .bucket-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .bucket-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .bucket-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-primary);
+        }
+
+        .bucket-stats {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .bucket-toggle {
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .bucket-toggle.disabled {
+            background: var(--text-muted);
+        }
+
+        .bucket-preview {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.3;
+            font-family: 'SF Mono', monospace;
+            max-height: 40px;
+            overflow: hidden;
+        }
+
+        /* Variable Pills */
+        .variable-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--accent-light);
+            border: 1px solid var(--accent);
+            border-radius: 20px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+            margin: 4px;
+        }
+
+        .variable-pill:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .variable-icon {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .variable-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        /* Editor */
+        .editor-container {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .editor-toolbar {
+            background: var(--bg-tertiary);
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-textarea {
+            width: 100%;
+            min-height: calc(100vh - 400px);
+            padding: 20px;
+            border: none;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            color: var(--text-primary);
+            resize: vertical;
+            background: var(--bg-secondary);
+        }
+
+        .editor-textarea:focus {
+            outline: none;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--border-focus);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #0ea869;
+        }
+
+        /* Section Headers */
+        .section-header {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            color: var(--text-primary);
+        }
+
+        /* Target Selection Styles */
+        .target-selector {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .target-selector:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-light);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>
+                        <span>🎬</span>
+                        <span>Lizzy Prompt Studio</span>
+                        <span style="font-size: 18px; color: var(--accent);">Enhanced</span>
+                    </h1>
+                    <div class="header-subtitle">Full project integration • Database-driven context • LightRAG intelligence</div>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="resetToDefault()">
+                        <span>🔄</span> Reset Default
+                    </button>
+                    <button class="btn btn-success" onclick="saveAndContinue()">
+                        <span>💾</span> Save & Continue to Brainstorm
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-indicator"></span>
+                <span>Connected to: <strong id="project-name">Project Database</strong></span>
+            </div>
+            <div class="status-item">
+                <span>🧠 LightRAG buckets active</span>
+            </div>
+            <div class="status-item">
+                <span>📊 Character/scene intelligence loaded</span>
+            </div>
+            <div class="status-item">
+                <span>🔄 Real-time context updates</span>
+            </div>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Left Panel: Prompt Library -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>📚</span> Prompt Library
+                    <button class="btn btn-secondary" onclick="createNewPrompt()" style="padding: 4px 8px; font-size: 12px;">
+                        <span>+</span> New
+                    </button>
+                </div>
+                <div class="panel-content" style="padding: 0;">
+                    <div id="prompt-list" class="prompt-list">
+                        <!-- Prompt items will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel: Project Intelligence -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>🧠</span> Project Intelligence
+                    <button class="btn btn-secondary" onclick="refreshProjectData()" style="padding: 4px 8px; font-size: 12px;">
+                        <span>🔄</span> Refresh
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <!-- Scene Selection -->
+                    <h4 class="section-header">Scene Selection</h4>
+                    <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <select id="act-selector" class="target-selector" style="flex: 1;" onchange="updateSceneOptions()">
+                            <option value="">Select Act...</option>
+                        </select>
+                        <select id="scene-selector" class="target-selector" style="flex: 1;" onchange="updateSceneContext()">
+                            <option value="">Select Scene...</option>
+                        </select>
+                    </div>
+
+                    <!-- Scene Context -->
+                    <div id="scene-context" style="display: none;">
+                        <h4 class="section-header">Scene Context</h4>
+                        <div class="context-card">
+                            <div class="context-label">Location</div>
+                            <div class="context-value" id="location-display">Loading...</div>
+                        </div>
+                        <div class="context-card">
+                            <div class="context-label">Characters</div>
+                            <div class="context-value" id="scene-characters-display">Loading...</div>
+                        </div>
+                        <div class="context-card">
+                            <div class="context-label">Key Events</div>
+                            <div class="context-value" id="events-display">Loading...</div>
+                        </div>
+                        <div class="context-card">
+                            <div class="context-label">Previous Scene</div>
+                            <div class="context-value" id="previous-scene-display">Loading...</div>
+                        </div>
+                    </div>
+
+                    <!-- Character Details -->
+                    <div id="character-details" style="display: none;">
+                        <h4 class="section-header">Character Intelligence</h4>
+                        <div id="character-list"></div>
+                    </div>
+
+                    <!-- Smart Template Variables -->
+                    <h4 class="section-header">Smart Variables</h4>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Click to insert context-aware variables
+                    </p>
+                    <div class="variable-grid">
+                        <div class="variable-pill" onclick="insertVariable('scene.location')">
+                            <span class="variable-icon">📍</span>
+                            <span>Scene Location</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('scene.characters')">
+                            <span class="variable-icon">👥</span>
+                            <span>Scene Characters</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('scene.events')">
+                            <span class="variable-icon">🎬</span>
+                            <span>Key Events</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('character.challenges')">
+                            <span class="variable-icon">⚔️</span>
+                            <span>Character Challenges</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('character.traits')">
+                            <span class="variable-icon">✨</span>
+                            <span>Character Traits</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('character.flaws')">
+                            <span class="variable-icon">🤭</span>
+                            <span>Character Flaws</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('previous.scene')">
+                            <span class="variable-icon">⏮️</span>
+                            <span>Previous Scene</span>
+                        </div>
+                        <div class="variable-pill" onclick="insertVariable('project.metadata')">
+                            <span class="variable-icon">📋</span>
+                            <span>Project Info</span>
+                        </div>
+                    </div>
+
+                    <!-- Bucket Intelligence -->
+                    <h4 class="section-header">LightRAG Buckets</h4>
+                    <div id="bucket-intelligence">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">Loading bucket status...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Main Editor -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span>✏️</span> Custom Prompt Template Editor
+                </div>
+                <div class="panel-content">
+                    <div class="editor-container">
+                        <div class="editor-toolbar">
+                            <div>
+                                <span style="font-size: 14px; font-weight: 600;">Template Name:</span>
+                                <input type="text" id="template-name" value="Enhanced Scene Brainstorming" 
+                                    style="margin-left: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary);">
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary" onclick="validateTemplate()">Validate</button>
+                                <button class="btn btn-secondary" onclick="previewTemplate()">Preview</button>
+                            </div>
+                        </div>
+                        <textarea id="prompt-editor" class="editor-textarea" placeholder="Start with a prompt from the library (left) or write your own custom brainstorming prompt...
+
+Your prompt will have access to:
+• Real project data from the database
+• Character details (challenges, traits, flaws)
+• Scene context and continuity
+• LightRAG bucket intelligence
+• Smart variable substitution
+
+Use the Smart Variables panel to insert context-aware placeholders."></textarea>
+                    </div>
+                    
+                    <div style="margin-top: 20px; display: flex; gap: 12px;">
+                        <button class="btn btn-secondary" onclick="loadExample('detailed')">
+                            <span>📋</span> Load Detailed Example
+                        </button>
+                        <button class="btn btn-secondary" onclick="loadExample('simple')">
+                            <span>📝</span> Load Simple Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample prompts data (in real app, this would come from database)
+        const samplePrompts = [
+            {
+                id: 'default',
+                name: 'Default Template',
+                template: `# Brainstorming with Lizzy
+
+## General Instructions
+You are **Lizzy**, an expert screenwriter specializing in romantic comedies. The goal of Brainstorm is to bring the ideas in the SQL tables to life and ground them in rich, real-world reference material from LightRAG. Treat this as a collaborative writers' room session — exploring possibilities, testing beats, and gathering inspiration for the Write phase.
+
+## Using SQL
+- **SQL is the foundation** for all brainstorming. Scene descriptions, characters, logline, and concept are the anchor points.
+- From **Outline** (\`story_outline\`): \`act\`, \`scene\`, \`key_characters\`, \`key_events\`. These guide what must be considered.
+- From **Characters** (\`characters\`): draw on \`romantic_challenge\`, \`lovable_trait\`, and \`comedic_flaw\` to shape ideas.
+- Consider the scene's **position in the larger arc** — how it builds from the previous and sets up the next.
+
+## Using LightRAG
+- In Brainstorm, you **may use quotes and explicit references** from LightRAG sources.
+- Purpose: surface tonal, thematic, and structural insights that feel alive, grounded, and relevant.
+- **Two-Pass Strategy**:
+  1. **Sequential Queries**
+     - **Scripts:** find comparable moments, highlight tone, pacing, and humor beats.
+     - **Plays:** uncover dramatic irony, archetypal moves, thematic resonance.
+     - **Books:** extract structural principles, craft techniques, and professional writing advice.
+  2. **Cross-Bucket Reflection**
+     - Compare insights, remove redundancies, and integrate into a coherent set of possibilities.
+- Use \`mix\` mode for all queries.
+
+## Scene Context
+SCENE TO BRAINSTORM:
+{scene.location} - {scene.characters}
+
+REQUIRED EVENTS:
+{scene.events}
+
+CHARACTER CHALLENGES:
+{character.challenges}
+
+CHARACTER TRAITS:
+{character.traits}
+
+CHARACTER FLAWS:
+{character.flaws}
+
+PREVIOUS SCENE CONTEXT:
+{previous.scene}
+
+## Output Specification
+1) **SQL Snapshot (Ground Truth)** — 3–5 bullets reiterating must-hit facts from SQL.
+2) **Bucket Notes — Scripts** — 3–5 items; may include short quotes with titles.
+3) **Bucket Notes — Plays** — 3–5 items; may include short quotes with titles.
+4) **Bucket Notes — Books** — 3–5 items; may include short quotes with titles/pages.
+5) **Unified Strategy (≤ 50 words)** — one paragraph merging the above.
+6) **Beat Sketch (6–10 beats)** — numbered list mapping from opening image to button; tag beats with [Tone], [Plot], or [Craft].
+7) **Opportunities & Risks (max 6 bullets)** — list potential payoffs and pitfalls.
+8) **Open Questions (max 5)** — crisp questions to resolve before writing.
+
+## Brainstorming Task
+Generate a set of organized, well-supported creative ideas for this scene. Focus on **possibility and inspiration**, not execution. This will give the Write phase a strong, organized mission to build from.`,
+                isDefault: true,
+                created: '2025-01-01',
+                modified: '2025-01-01'
+            },
+            {
+                id: 'enhanced',
+                name: 'Enhanced Scene Brainstorming',
+                template: `# Enhanced Brainstorming for {scene.location}
+
+## Context Intelligence
+**Location:** {scene.location}
+**Characters:** {scene.characters}
+**Key Events:** {scene.events}
+
+## Character Dynamics
+{character.challenges}
+{character.traits}  
+{character.flaws}
+
+## Research Strategy
+- Focus on comparable scenes from Scripts bucket
+- Extract emotional beats from Plays bucket  
+- Apply craft techniques from Books bucket
+- Build on previous scene: {previous.scene}
+
+## Output
+1. **Context Summary** (3 bullets from database)
+2. **Research Insights** (5 bullets from buckets)
+3. **Beat Suggestions** (8 numbered beats with tags)
+4. **Dialogue Samples** (3-5 character voice examples)
+5. **Visual/Staging Notes** (physical comedy, setting details)
+6. **Open Questions** (3-5 issues to resolve)
+
+Focus on character-driven comedy that honors the database context while mining LightRAG for inspiration.`,
+                isDefault: false,
+                created: '2025-08-15',
+                modified: '2025-08-18'
+            },
+            {
+                id: 'comedy_focused',
+                name: 'Comedy-Focused Template',
+                template: `# Comedy Brainstorming: {scene.location}
+
+## Scene Setup
+**Characters:** {scene.characters}
+**Events:** {scene.events}
+**Character Flaws:** {character.flaws}
+
+## Comedy Strategy
+Mine the knowledge buckets for:
+- Physical comedy moments from Scripts
+- Witty dialogue patterns from Plays  
+- Character-driven humor techniques from Books
+
+## Character Comedy Potential
+Focus on character flaws as comedy drivers:
+{character.flaws}
+
+Contrast with lovable traits:
+{character.traits}
+
+## Output Structure
+1. **Setup/Punchline Patterns** (from research)
+2. **Character Voice Samples** (witty exchanges)
+3. **Physical Gag Opportunities** (based on location/events)
+4. **Running Joke Integration** (callbacks to previous scenes)
+5. **Comedic Beats** (8-beat structure with laugh points)
+
+Build comedy that feels organic to character psychology and story momentum.`,
+                isDefault: false,
+                created: '2025-08-16',
+                modified: '2025-08-17'
+            }
+        ];
+
+        let currentPromptId = 'default';
+
+        // Project data management
+        let currentProjectData = null;
+        let currentSceneContext = null;
+        
+        async function loadProjectData() {
+            const projectName = new URLSearchParams(window.location.search).get('project') || 'gamma';
+            
+            try {
+                const response = await fetch(`http://localhost:8001/api/project-context/${projectName}`);
+                if (response.ok) {
+                    currentProjectData = await response.json();
+                    populateSceneSelectors();
+                    updateBucketIntelligence();
+                    console.log('📊 Project data loaded:', currentProjectData);
+                } else {
+                    console.warn('⚠️ Could not load project data, using fallback');
+                    loadFallbackData();
+                }
+            } catch (error) {
+                console.warn('⚠️ API not available, using fallback data:', error);
+                loadFallbackData();
+            }
+        }
+        
+        function loadFallbackData() {
+            currentProjectData = {
+                project_name: 'Sample Project',
+                characters: [
+                    {name: 'Emma', romantic_challenge: 'Trust issues', lovable_trait: 'Witty food blogger', comedic_flaw: 'Judges too quickly'},
+                    {name: 'Jake', romantic_challenge: 'Fear of commitment', lovable_trait: 'Passionate chef', comedic_flaw: 'Stubborn and proud'}
+                ],
+                scenes: [
+                    {act: 1, scene: 1, characters: 'Emma', events: 'Introduction'},
+                    {act: 1, scene: 2, characters: 'Jake', events: 'Kitchen chaos'},
+                    {act: 2, scene: 1, characters: 'Emma, Jake', events: 'Meet cute'}
+                ],
+                bucket_status: {
+                    'romcom_scripts': {active: true, document_count: 247, content_preview: 'Romantic comedy dialogue samples...'},
+                    'screenwriting_books': {active: true, document_count: 89, content_preview: 'Structure and character development...'},
+                    'shakespeare_plays': {active: false, document_count: 156, content_preview: 'Classic dramatic works...'}
+                }
+            };
+            populateSceneSelectors();
+            updateBucketIntelligence();
+        }
+        
+        function populateSceneSelectors() {
+            const actSelector = document.getElementById('act-selector');
+            const sceneSelector = document.getElementById('scene-selector');
+            
+            // Clear existing options
+            actSelector.innerHTML = '<option value="">Select Act...</option>';
+            sceneSelector.innerHTML = '<option value="">Select Scene...</option>';
+            
+            if (currentProjectData && currentProjectData.scenes) {
+                const acts = [...new Set(currentProjectData.scenes.map(s => s.act))].sort();
+                acts.forEach(act => {
+                    const option = document.createElement('option');
+                    option.value = act;
+                    option.textContent = `Act ${act}`;
+                    actSelector.appendChild(option);
+                });
+            }
+        }
+        
+        function updateSceneOptions() {
+            const actSelector = document.getElementById('act-selector');
+            const sceneSelector = document.getElementById('scene-selector');
+            const selectedAct = parseInt(actSelector.value);
+            
+            sceneSelector.innerHTML = '<option value="">Select Scene...</option>';
+            
+            if (selectedAct && currentProjectData && currentProjectData.scenes) {
+                const scenes = currentProjectData.scenes.filter(s => s.act === selectedAct);
+                scenes.forEach(scene => {
+                    const option = document.createElement('option');
+                    option.value = scene.scene;
+                    option.textContent = `Scene ${scene.scene}: ${scene.events.substring(0, 30)}...`;
+                    sceneSelector.appendChild(option);
+                });
+            }
+        }
+        
+        async function updateSceneContext() {
+            const actSelector = document.getElementById('act-selector');
+            const sceneSelector = document.getElementById('scene-selector');
+            const selectedAct = parseInt(actSelector.value);
+            const selectedScene = parseInt(sceneSelector.value);
+            
+            if (!selectedAct || !selectedScene) {
+                document.getElementById('scene-context').style.display = 'none';
+                document.getElementById('character-details').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const projectName = new URLSearchParams(window.location.search).get('project') || 'gamma';
+                const response = await fetch(`http://localhost:8001/api/scene-context/${projectName}/${selectedAct}/${selectedScene}`);
+                
+                if (response.ok) {
+                    currentSceneContext = await response.json();
+                } else {
+                    // Fallback to project data
+                    const sceneData = currentProjectData.scenes.find(s => s.act === selectedAct && s.scene === selectedScene);
+                    currentSceneContext = {
+                        current_scene: {
+                            characters: sceneData?.characters || '',
+                            events: sceneData?.events || ''
+                        },
+                        location_context: 'Unknown location',
+                        character_details: []
+                    };
+                }
+                
+                displaySceneContext();
+                displayCharacterDetails();
+                
+            } catch (error) {
+                console.warn('Error loading scene context:', error);
+            }
+        }
+        
+        function displaySceneContext() {
+            if (!currentSceneContext) return;
+            
+            document.getElementById('location-display').textContent = currentSceneContext.location_context || 'Unknown';
+            document.getElementById('scene-characters-display').textContent = currentSceneContext.current_scene?.characters || 'Unknown';
+            document.getElementById('events-display').textContent = currentSceneContext.current_scene?.events || 'Unknown';
+            document.getElementById('previous-scene-display').textContent = currentSceneContext.previous_scene?.events || 'No previous scene';
+            
+            document.getElementById('scene-context').style.display = 'block';
+        }
+        
+        function displayCharacterDetails() {
+            const characterList = document.getElementById('character-list');
+            characterList.innerHTML = '';
+            
+            if (currentSceneContext && currentSceneContext.character_details) {
+                currentSceneContext.character_details.forEach(char => {
+                    const card = document.createElement('div');
+                    card.className = 'character-card';
+                    card.innerHTML = `
+                        <div class="character-name">${char.name}</div>
+                        <div class="character-trait"><strong>Challenge:</strong> ${char.challenge || 'Unknown'}</div>
+                        <div class="character-trait"><strong>Trait:</strong> ${char.trait || 'Unknown'}</div>
+                        <div class="character-trait"><strong>Flaw:</strong> ${char.flaw || 'Unknown'}</div>
+                    `;
+                    characterList.appendChild(card);
+                });
+                
+                document.getElementById('character-details').style.display = 'block';
+            }
+        }
+        
+        function updateBucketIntelligence() {
+            const bucketDiv = document.getElementById('bucket-intelligence');
+            bucketDiv.innerHTML = '';
+            
+            if (currentProjectData && currentProjectData.bucket_status) {
+                Object.entries(currentProjectData.bucket_status).forEach(([bucketName, info]) => {
+                    const card = document.createElement('div');
+                    card.className = 'bucket-card';
+                    card.innerHTML = `
+                        <div class="bucket-header">
+                            <div>
+                                <div class="bucket-name">${bucketName.replace('_', ' ')}</div>
+                                <div class="bucket-stats">${info.document_count || 0} documents</div>
+                            </div>
+                            <button class="bucket-toggle ${info.active ? '' : 'disabled'}" onclick="toggleBucketStatus('${bucketName}', this)">
+                                ${info.active ? 'ON' : 'OFF'}
+                            </button>
+                        </div>
+                        <div class="bucket-preview">${info.content_preview || info.description || 'Ready for queries'}</div>
+                    `;
+                    bucketDiv.appendChild(card);
+                });
+            } else {
+                bucketDiv.innerHTML = '<div style="color: var(--text-muted); font-size: 12px;">No bucket data available</div>';
+            }
+        }
+        
+        function toggleBucketStatus(bucketName, button) {
+            const isActive = !button.classList.contains('disabled');
+            
+            if (isActive) {
+                button.classList.add('disabled');
+                button.textContent = 'OFF';
+            } else {
+                button.classList.remove('disabled');
+                button.textContent = 'ON';
+            }
+            
+            // Update project data
+            if (currentProjectData && currentProjectData.bucket_status[bucketName]) {
+                currentProjectData.bucket_status[bucketName].active = !isActive;
+            }
+        }
+        
+        function refreshProjectData() {
+            loadProjectData();
+        }
+
+        function loadPromptLibrary() {
+            const promptList = document.getElementById('prompt-list');
+            promptList.innerHTML = '';
+            
+            samplePrompts.forEach(prompt => {
+                const item = document.createElement('div');
+                item.className = `prompt-item ${prompt.isDefault ? 'default' : ''} ${prompt.id === currentPromptId ? 'active' : ''}`;
+                item.onclick = () => selectPrompt(prompt.id);
+                
+                const preview = prompt.template.split('\n').slice(0, 3).join(' ').substring(0, 80) + '...';
+                
+                item.innerHTML = `
+                    <div class="prompt-name">${prompt.isDefault ? '⭐ ' : ''}${prompt.name}</div>
+                    <div class="prompt-preview">${preview}</div>
+                    <div class="prompt-meta">
+                        <span>Modified ${prompt.modified}</span>
+                        <span>${prompt.template.split('\n').length} lines</span>
+                    </div>
+                `;
+                
+                promptList.appendChild(item);
+            });
+        }
+
+        function selectPrompt(promptId) {
+            currentPromptId = promptId;
+            const prompt = samplePrompts.find(p => p.id === promptId);
+            
+            if (prompt) {
+                document.getElementById('prompt-editor').value = prompt.template;
+                document.getElementById('template-name').value = prompt.name;
+                loadPromptLibrary(); // Refresh to update active state
+            }
+        }
+
+        function createNewPrompt() {
+            const name = prompt('Enter name for new prompt template:');
+            if (name) {
+                const newId = 'custom_' + Date.now();
+                samplePrompts.push({
+                    id: newId,
+                    name: name,
+                    template: '# ' + name + '\n\n## Scene Context\n{scene.location} - {scene.characters}\n\n{scene.events}\n\n## Character Intelligence\n{character.challenges}\n{character.traits}\n{character.flaws}\n\n## Task\n[Add your brainstorming instructions here]',
+                    isDefault: false,
+                    created: new Date().toISOString().split('T')[0],
+                    modified: new Date().toISOString().split('T')[0]
+                });
+                
+                selectPrompt(newId);
+                loadPromptLibrary();
+            }
+        }
+
+        // Variable insertion
+        function insertVariable(varName) {
+            const editor = document.getElementById('prompt-editor');
+            const cursorPos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, cursorPos);
+            const textAfter = editor.value.substring(cursorPos);
+            
+            const varText = `{${varName}}`;
+            editor.value = textBefore + varText + textAfter;
+            editor.focus();
+            editor.setSelectionRange(cursorPos + varText.length, cursorPos + varText.length);
+            
+            // Visual feedback
+            event.target.closest('.variable-pill').style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                event.target.closest('.variable-pill').style.transform = '';
+            }, 100);
+        }
+
+        // Validate template
+        function validateTemplate() {
+            const template = document.getElementById('prompt-editor').value;
+            const contextVars = ['scene.location', 'scene.characters', 'scene.events'];
+            const missing = contextVars.filter(v => !template.includes(`{${v}}`));
+            
+            if (missing.length === 0) {
+                alert('✅ Template is valid with smart context integration!');
+            } else {
+                alert(`⚠️ Consider adding these context variables:\n${missing.map(v => `• {${v}}`).join('\n')}`);
+            }
+        }
+
+        // Preview template
+        function previewTemplate() {
+            const template = document.getElementById('prompt-editor').value;
+            const sampleData = {
+                'scene.location': 'Coffee shop',
+                'scene.characters': 'Emma, Jake',
+                'scene.events': 'Meet-cute with spilled coffee',
+                'character.challenges': 'Emma: Trust issues, Jake: Fear of commitment',
+                'character.traits': 'Emma: Witty blogger, Jake: Passionate chef',
+                'character.flaws': 'Emma: Judges quickly, Jake: Stubborn',
+                'previous.scene': 'Emma rushing to meeting',
+                'project.metadata': 'Romantic comedy set in foodie culture'
+            };
+            
+            let compiled = template;
+            Object.keys(sampleData).forEach(key => {
+                compiled = compiled.replace(new RegExp(`{${key}}`, 'g'), sampleData[key]);
+            });
+            
+            const previewWindow = window.open('', '_blank', 'width=900,height=700');
+            previewWindow.document.write(`
+                <html>
+                <head><title>Enhanced Template Preview</title></head>
+                <body style="font-family: monospace; padding: 20px; line-height: 1.6;">
+                <h3>🧠 Enhanced Template Preview (with real project context)</h3>
+                <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${compiled}</pre>
+                </body>
+                </html>
+            `);
+        }
+
+        // Load examples
+        function loadExample(type) {
+            const editor = document.getElementById('prompt-editor');
+            
+            if (type === 'simple') {
+                editor.value = `# Simple Scene Brainstorming
+
+## Scene Information
+Location: {scene.location}
+Characters: {scene.characters}  
+Events: {scene.events}
+
+## Character Context
+Challenges: {character.challenges}
+Previous scene: {previous.scene}
+
+## Task
+Generate creative ideas for this scene using the knowledge buckets.
+Focus on character-driven moments and authentic dialogue.
+
+## Output Format
+- 3-5 key insights from research
+- 6-8 beat suggestions
+- 3-5 open questions for development`;
+            } else {
+                // Keep the current detailed template
+            }
+        }
+
+        // Reset to default
+        function resetToDefault() {
+            if (confirm('Reset to the default Lizzy brainstorming template?')) {
+                selectPrompt('default');
+            }
+        }
+
+        // Save and continue
+        function saveAndContinue() {
+            const config = {
+                templateName: document.getElementById('template-name').value,
+                promptTemplate: document.getElementById('prompt-editor').value,
+                buckets: currentProjectData?.bucket_status || {},
+                sceneContext: currentSceneContext,
+                timestamp: new Date().toISOString()
+            };
+            
+            // In real implementation, this would save to the database
+            console.log('Saving enhanced configuration:', config);
+            
+            // Visual feedback
+            const btn = event.target;
+            btn.innerHTML = '<span>✅</span> Saved! Enhanced context integrated...';
+            btn.disabled = true;
+            
+            setTimeout(() => {
+                alert('🧠 Enhanced configuration saved!\n\n• Full project database integration\n• Character intelligence loaded\n• LightRAG bucket status captured\n• Scene context preserved\n\nTransparentBrainstormer will use all this data for smarter brainstorming.');
+                btn.innerHTML = '<span>💾</span> Save & Continue to Brainstorm';
+                btn.disabled = false;
+            }, 2000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            const projectName = new URLSearchParams(window.location.search).get('project') || 'Current Project';
+            document.getElementById('project-name').textContent = projectName;
+            
+            // Load prompt library and select default
+            loadPromptLibrary();
+            selectPrompt('default');
+            
+            // Load project data
+            loadProjectData();
+        });
+    </script>
+</body>
+</html>

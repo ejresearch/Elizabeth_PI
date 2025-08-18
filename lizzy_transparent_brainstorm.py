@@ -12,6 +12,7 @@ from typing import Dict, List, Any, Optional, Callable
 from dataclasses import dataclass
 from lizzy_templates import TemplateManager, PromptInspector
 from lizzy_lightrag_manager import LightRAGManager
+from prompt_studio_backend import get_brainstorm_template
 
 
 @dataclass
@@ -293,68 +294,15 @@ class TransparentBrainstormer:
         result = cursor.fetchone()
         logline = result[0] if result else "A romantic comedy about unexpected love"
         
-        # Create the enhanced brainstorming prompt
-        enhanced_prompt = f"""# Brainstorming with Lizzy
-
-## General Instructions
-You are **Lizzy**, an expert screenwriter specializing in romantic comedies. The goal of Brainstorm is to bring the ideas in the SQL tables to life and ground them in rich, real-world reference material from LightRAG. Treat this as a collaborative writers' room session — exploring possibilities, testing beats, and gathering inspiration for the Write phase.
-
-## Using SQL
-- **SQL is the foundation** for all brainstorming. Scene descriptions, characters, logline, and concept are the anchor points.
-- From **Outline** (`story_outline`): `act`, `scene`, `key_characters`, `key_events`. These guide what must be considered.
-- From **Characters** (`characters`): draw on `romantic_challenge`, `lovable_trait`, and `comedic_flaw` to shape ideas.
-- Consider the scene's **position in the larger arc** — how it builds from the previous and sets up the next.
-
-## Using LightRAG
-- In Brainstorm, you **may use quotes and explicit references** from LightRAG sources.
-- Purpose: surface tonal, thematic, and structural insights that feel alive, grounded, and relevant.
-- **Two-Pass Strategy**:
-  1. **Sequential Queries**
-     - **Scripts:** find comparable moments, highlight tone, pacing, and humor beats.
-     - **Plays:** uncover dramatic irony, archetypal moves, thematic resonance.
-     - **Books:** extract structural principles, craft techniques, and professional writing advice.
-  2. **Cross-Bucket Reflection**
-     - Compare insights, remove redundancies, and integrate into a coherent set of possibilities.
-- Use `mix` mode for all queries.
-
-## Brainstorming Output Guidelines
-- Output is **idea-rich, not a finished scene**.
-- Suggest possible directions, setups, reversals, emotional beats, and comedic devices.
-- Include concrete examples (quotes, moments, devices) from sources.
-- Organize into a clear, concise "Reference Insights" section.
-- Ensure the ideas respect SQL continuity and character logic.
-
-## Scene Context
-SCENE TO BRAINSTORM:
-Act {context.act}, Scene {context.scene}
-
-REQUIRED EVENTS:
-{context.scene_description}
-
-CHARACTERS IN SCENE:
-{chr(10).join(char_details)}
-
-PROJECT LOGLINE:
-{logline}
-
-PREVIOUS SCENE CONTEXT:
-{context.previous_scene}
-
-USER GUIDANCE:
-{context.user_guidance}
-
-## Output Specification
-1) **SQL Snapshot (Ground Truth)** — 3–5 bullets reiterating must-hit facts from SQL.
-2) **Bucket Notes — Scripts** — 3–5 items; may include short quotes with titles.
-3) **Bucket Notes — Plays** — 3–5 items; may include short quotes with titles.
-4) **Bucket Notes — Books** — 3–5 items; may include short quotes with titles/pages.
-5) **Unified Strategy (≤ 50 words)** — one paragraph merging the above.
-6) **Beat Sketch (6–10 beats)** — numbered list mapping from opening image to button; tag beats with [Tone], [Plot], or [Craft].
-7) **Opportunities & Risks (max 6 bullets)** — list potential payoffs and pitfalls.
-8) **Open Questions (max 5)** — crisp questions to resolve before writing.
-
-## Brainstorming Task
-Generate a set of organized, well-supported creative ideas for this scene. Focus on **possibility and inspiration**, not execution. This will give the Write phase a strong, organized mission to build from."""
+        # Get custom template from Prompt Studio or use default
+        template = get_brainstorm_template(self.project_path)
+        
+        # Replace template variables with actual context data
+        enhanced_prompt = template.format(
+            context=context,
+            character_details=chr(10).join(char_details),
+            logline=logline
+        )
         
         # Create compiled prompts dict for all buckets
         compiled_prompts = {}
