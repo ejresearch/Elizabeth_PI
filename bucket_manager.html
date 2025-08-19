@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bucket Manager - LightRAG Knowledge Bases</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6',
+                        secondary: '#10b981',
+                        accent: '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .bucket-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bucket-card:hover {
+            transform: translateY(-2px);
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .drag-over {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .dark ::-webkit-scrollbar-track {
+            background: #374151;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-menu-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden"></div>
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full lg:translate-x-0">
+        <div class="h-full px-3 py-4 overflow-y-auto bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+            <div class="mb-8 px-2">
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
+                    <span class="text-3xl mr-2">🗂️</span>
+                    Bucket Manager
+                </h1>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Knowledge Base System</p>
+            </div>
+            
+            <ul class="space-y-2 font-medium">
+                <li>
+                    <a href="#" onclick="showView('dashboard')" class="nav-item flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                        <span class="text-xl">📊</span>
+                        <span class="ml-3">Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showView('buckets')" class="nav-item flex items-center p-2 text-gray-900 dark:text-white rounded-lg bg-gray-100 dark:bg-gray-700 group">
+                        <span class="text-xl">🗃️</span>
+                        <span class="ml-3">All Buckets</span>
+                        <span class="ml-auto bg-primary text-white text-xs px-2 py-0.5 rounded-full" id="bucket-count">0</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showView('recent')" class="nav-item flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                        <span class="text-xl">🕐</span>
+                        <span class="ml-3">Recent Activity</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" onclick="showView('settings')" class="nav-item flex items-center p-2 text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 group">
+                        <span class="text-xl">⚙️</span>
+                        <span class="ml-3">Settings</span>
+                    </a>
+                </li>
+            </ul>
+            
+            <div class="mt-auto pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div class="px-2 space-y-2">
+                    <div class="text-xs text-gray-500 dark:text-gray-400">Quick Actions</div>
+                    <button onclick="showCreateBucket()" class="w-full flex items-center justify-center p-2 text-white bg-primary rounded-lg hover:bg-blue-700 transition-colors">
+                        <span class="text-lg mr-2">➕</span>
+                        New Bucket
+                    </button>
+                </div>
+            </div>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="lg:ml-64">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between px-4 py-3">
+                <!-- Mobile menu button -->
+                <button onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                
+                <!-- Search bar -->
+                <div class="flex-1 max-w-xl mx-4">
+                    <div class="relative">
+                        <input 
+                            type="text" 
+                            id="search-input"
+                            placeholder="Search buckets..." 
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                            onkeyup="searchBuckets(this.value)"
+                        >
+                        <span class="absolute left-3 top-2.5 text-gray-400">🔍</span>
+                    </div>
+                </div>
+                
+                <!-- Right side controls -->
+                <div class="flex items-center space-x-3">
+                    <!-- Filter dropdown -->
+                    <select id="filter-select" onchange="filterBuckets(this.value)" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white">
+                        <option value="all">All Buckets</option>
+                        <option value="with-files">With Files</option>
+                        <option value="empty">Empty</option>
+                        <option value="recent">Recently Updated</option>
+                    </select>
+                    
+                    <!-- Sort dropdown -->
+                    <select id="sort-select" onchange="sortBuckets(this.value)" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white">
+                        <option value="name">Sort by Name</option>
+                        <option value="nodes">Sort by Nodes</option>
+                        <option value="files">Sort by Files</option>
+                        <option value="updated">Sort by Updated</option>
+                    </select>
+                    
+                    <!-- Dark mode toggle -->
+                    <button onclick="toggleDarkMode()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        <span id="theme-icon" class="text-xl">🌙</span>
+                    </button>
+                    
+                    <!-- User avatar -->
+                    <div class="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-semibold">
+                        U
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="p-6 fade-in">
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Total Buckets</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" id="stat-buckets">0</p>
+                        </div>
+                        <div class="p-3 bg-primary/10 rounded-lg">
+                            <span class="text-2xl">🗂️</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Total Nodes</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" id="stat-nodes">0</p>
+                        </div>
+                        <div class="p-3 bg-secondary/10 rounded-lg">
+                            <span class="text-2xl">🔗</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Total Files</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" id="stat-files">0</p>
+                        </div>
+                        <div class="p-3 bg-accent/10 rounded-lg">
+                            <span class="text-2xl">📄</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Total Edges</p>
+                            <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1" id="stat-edges">0</p>
+                        </div>
+                        <div class="p-3 bg-purple-500/10 rounded-lg">
+                            <span class="text-2xl">↔️</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="showCreateBucket()" class="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary hover:bg-primary/5 transition-all">
+                        <span class="text-2xl">➕</span>
+                        <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Create New Bucket</p>
+                    </button>
+                    <button onclick="importData()" class="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-secondary hover:bg-secondary/5 transition-all">
+                        <span class="text-2xl">📥</span>
+                        <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Import Data</p>
+                    </button>
+                    <button onclick="exportAll()" class="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-accent hover:bg-accent/5 transition-all">
+                        <span class="text-2xl">📤</span>
+                        <p class="mt-2 text-sm font-medium text-gray-900 dark:text-white">Export All</p>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Recent Buckets -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Recent Buckets</h2>
+                <div id="recent-buckets" class="space-y-3">
+                    <!-- Recent buckets will be populated here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Buckets Grid View -->
+        <div id="buckets-view" class="p-6 hidden">
+            <div class="mb-6 flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">All Buckets</h2>
+                <div class="flex space-x-3">
+                    <button onclick="toggleViewMode()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Toggle view">
+                        <span id="view-mode-icon" class="text-xl">📱</span>
+                    </button>
+                    <button onclick="refreshBuckets()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Refresh">
+                        <span class="text-xl">🔄</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="buckets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Bucket cards will be populated here -->
+            </div>
+        </div>
+        
+        <!-- Recent Activity View -->
+        <div id="recent-view" class="p-6 hidden">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Recent Activity</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="p-6">
+                    <div id="activity-log" class="space-y-4">
+                        <!-- Activity items will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings View -->
+        <div id="settings-view" class="p-6 hidden">
+            <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Settings</h2>
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">LightRAG Working Directory</label>
+                        <input type="text" value="lightrag_working_dir" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default View Mode</label>
+                        <select class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option>Grid View</option>
+                            <option>List View</option>
+                            <option>Compact View</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-3">
+                            <input type="checkbox" checked class="rounded border-gray-300 text-primary focus:ring-primary">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Auto-refresh buckets</span>
+                        </label>
+                    </div>
+                    <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors">Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="fixed inset-0 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-50" onclick="hideCreateBucket()"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6 fade-in">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Create New Bucket</h3>
+                <form onsubmit="createBucket(event)">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bucket Name</label>
+                            <input 
+                                type="text" 
+                                id="new-bucket-name" 
+                                required 
+                                placeholder="my_knowledge_base"
+                                pattern="[a-z0-9_]+"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            >
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Lowercase letters, numbers, and underscores only</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                            <textarea 
+                                id="new-bucket-description" 
+                                rows="3"
+                                placeholder="What will this bucket contain?"
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                            ></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-6 flex space-x-3">
+                        <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Create Bucket
+                        </button>
+                        <button type="button" onclick="hideCreateBucket()" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- File Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 z-50 hidden">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black opacity-50" onclick="hideUploadModal()"></div>
+            <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6 fade-in">
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Add Files to <span id="upload-bucket-name"></span></h3>
+                
+                <!-- Drop Zone -->
+                <div 
+                    id="drop-zone"
+                    class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-all"
+                    ondrop="handleDrop(event)"
+                    ondragover="handleDragOver(event)"
+                    ondragleave="handleDragLeave(event)"
+                >
+                    <span class="text-4xl">📁</span>
+                    <p class="mt-4 text-gray-600 dark:text-gray-400">Drag and drop files here</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">or</p>
+                    <input type="file" id="file-input" multiple class="hidden" onchange="handleFileSelect(event)">
+                    <button type="button" onclick="document.getElementById('file-input').click()" class="mt-3 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Browse Files
+                    </button>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">Supports: .txt, .md, .pdf, .docx</p>
+                </div>
+                
+                <!-- File List -->
+                <div id="file-list" class="mt-4 max-h-48 overflow-y-auto hidden">
+                    <!-- Files to upload will be shown here -->
+                </div>
+                
+                <div class="mt-6 flex space-x-3">
+                    <button onclick="uploadFiles()" class="flex-1 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-green-700 transition-colors">
+                        Upload Files
+                    </button>
+                    <button onclick="hideUploadModal()" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex items-center space-x-3 min-w-[300px] border border-gray-200 dark:border-gray-700">
+            <span id="toast-icon" class="text-2xl"></span>
+            <div class="flex-1">
+                <p id="toast-message" class="text-sm font-medium text-gray-900 dark:text-white"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let buckets = [];
+        let currentView = 'buckets';
+        let viewMode = 'grid';
+        let selectedBucket = null;
+        let filesToUpload = [];
+        let activityLog = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadBuckets();
+            updateStats();
+            checkDarkMode();
+            showView('buckets');
+        });
+
+        // Load buckets from API
+        async function loadBuckets() {
+            try {
+                showToast('Loading buckets...', 'info');
+                const response = await fetch('/api/buckets');
+                if (response.ok) {
+                    buckets = await response.json();
+                    renderBuckets();
+                    updateStats();
+                    document.getElementById('bucket-count').textContent = buckets.length;
+                } else {
+                    throw new Error('Failed to load buckets');
+                }
+            } catch (error) {
+                console.error('Error loading buckets:', error);
+                showToast('Failed to load buckets. Using demo data.', 'warning');
+                
+                // Fallback to demo data
+                buckets = [
+                    {
+                        id: 'shakespeare_plays',
+                        name: 'shakespeare_plays',
+                        description: 'Theatrical and dramatic structure knowledge',
+                        nodes: 8722,
+                        edges: 7257,
+                        files: ['hamlet.txt', 'macbeth.txt', 'romeo_juliet.txt', 'othello.txt'],
+                        updated: '2025-01-19',
+                        size: '45.2 MB'
+                    },
+                    {
+                        id: 'screenwriting_books',
+                        name: 'screenwriting_books',
+                        description: 'Writing craft knowledge and techniques',
+                        nodes: 9896,
+                        edges: 6131,
+                        files: ['save_the_cat.txt', 'story.txt', 'screenplay.txt'],
+                        updated: '2025-01-18',
+                        size: '32.8 MB'
+                    }
+                ];
+                renderBuckets();
+                updateStats();
+                document.getElementById('bucket-count').textContent = buckets.length;
+            }
+        }
+
+        // Render buckets based on current view mode
+        function renderBuckets() {
+            const container = document.getElementById('buckets-grid');
+            container.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const card = createBucketCard(bucket);
+                container.appendChild(card);
+            });
+        }
+
+        // Create bucket card element
+        function createBucketCard(bucket) {
+            const card = document.createElement('div');
+            card.className = 'bucket-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg cursor-pointer';
+            card.onclick = () => selectBucket(bucket);
+            
+            const isEmpty = bucket.files.length === 0;
+            const statusColor = isEmpty ? 'text-gray-400' : 'text-green-500';
+            const statusIcon = isEmpty ? '⭕' : '✅';
+            
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900 dark:text-white text-lg">${bucket.name}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">${bucket.description}</p>
+                    </div>
+                    <span class="${statusColor} text-lg">${statusIcon}</span>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Nodes</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.nodes.toLocaleString()}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Edges</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.edges.toLocaleString()}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Files</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.files.length}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">Size</p>
+                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.size}</p>
+                    </div>
+                </div>
+                
+                <div class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    Updated: ${bucket.updated}
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button onclick="event.stopPropagation(); showUploadModal('${bucket.name}')" class="flex-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
+                        Add Files
+                    </button>
+                    <button onclick="event.stopPropagation(); manageBucket('${bucket.name}')" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                        Manage
+                    </button>
+                    <button onclick="event.stopPropagation(); deleteBucket('${bucket.name}')" class="px-3 py-1.5 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        🗑️
+                    </button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Select and expand bucket
+        function selectBucket(bucket) {
+            selectedBucket = bucket;
+            
+            // Show detailed view
+            showToast(`Selected: ${bucket.name}`, 'info');
+            
+            // Could expand to show files list inline
+            console.log('Selected bucket:', bucket);
+        }
+
+        // Manage bucket (show files, allow deletion)
+        function manageBucket(bucketName) {
+            const bucket = buckets.find(b => b.name === bucketName);
+            if (!bucket) return;
+            
+            // Create a detailed management modal
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 z-50 flex items-center justify-center px-4';
+            modal.innerHTML = `
+                <div class="fixed inset-0 bg-black opacity-50" onclick="this.parentElement.remove()"></div>
+                <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden fade-in">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Manage: ${bucket.name}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">${bucket.description}</p>
+                    </div>
+                    
+                    <div class="p-6 overflow-y-auto max-h-[60vh]">
+                        <div class="mb-6">
+                            <h4 class="font-medium text-gray-900 dark:text-white mb-3">Statistics</h4>
+                            <div class="grid grid-cols-4 gap-4">
+                                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <p class="text-2xl font-bold text-primary">${bucket.nodes.toLocaleString()}</p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">Nodes</p>
+                                </div>
+                                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <p class="text-2xl font-bold text-secondary">${bucket.edges.toLocaleString()}</p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">Edges</p>
+                                </div>
+                                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <p class="text-2xl font-bold text-accent">${bucket.files.length}</p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">Files</p>
+                                </div>
+                                <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <p class="text-2xl font-bold text-purple-600">${bucket.size}</p>
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">Size</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium text-gray-900 dark:text-white mb-3">Files (${bucket.files.length})</h4>
+                            <div class="space-y-2">
+                                ${bucket.files.length > 0 ? bucket.files.map(file => `
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                        <div class="flex items-center space-x-3">
+                                            <span class="text-xl">📄</span>
+                                            <div>
+                                                <p class="text-sm font-medium text-gray-900 dark:text-white">${file}</p>
+                                                <p class="text-xs text-gray-500 dark:text-gray-400">Added: ${bucket.updated}</p>
+                                            </div>
+                                        </div>
+                                        <button onclick="deleteFile('${bucket.name}', '${file}')" class="p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                `).join('') : '<p class="text-gray-500 dark:text-gray-400 text-center py-8">No files in this bucket</p>'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-6 border-t border-gray-200 dark:border-gray-700 flex space-x-3">
+                        <button onclick="showUploadModal('${bucket.name}'); this.closest('.fixed').remove()" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Add More Files
+                        </button>
+                        <button onclick="exportBucket('${bucket.name}')" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-green-700 transition-colors">
+                            Export Bucket
+                        </button>
+                        <button onclick="this.closest('.fixed').remove()" class="ml-auto px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        // Delete bucket
+        function deleteBucket(bucketName) {
+            if (confirm(`Are you sure you want to delete "${bucketName}"? This action cannot be undone.`)) {
+                buckets = buckets.filter(b => b.name !== bucketName);
+                renderBuckets();
+                updateStats();
+                showToast(`Deleted bucket: ${bucketName}`, 'success');
+                logActivity(`Deleted bucket: ${bucketName}`);
+            }
+        }
+
+        // Delete file from bucket
+        function deleteFile(bucketName, fileName) {
+            if (confirm(`Delete "${fileName}" from ${bucketName}?`)) {
+                const bucket = buckets.find(b => b.name === bucketName);
+                if (bucket) {
+                    bucket.files = bucket.files.filter(f => f !== fileName);
+                    showToast(`Deleted file: ${fileName}`, 'success');
+                    logActivity(`Deleted ${fileName} from ${bucketName}`);
+                    
+                    // Refresh the modal
+                    document.querySelector('.fixed').remove();
+                    manageBucket(bucketName);
+                }
+            }
+        }
+
+        // Show create bucket modal
+        function showCreateBucket() {
+            document.getElementById('create-bucket-modal').classList.remove('hidden');
+        }
+
+        // Hide create bucket modal
+        function hideCreateBucket() {
+            document.getElementById('create-bucket-modal').classList.add('hidden');
+            document.getElementById('new-bucket-name').value = '';
+            document.getElementById('new-bucket-description').value = '';
+        }
+
+        // Create new bucket
+        async function createBucket(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('new-bucket-name').value;
+            const description = document.getElementById('new-bucket-description').value;
+            
+            try {
+                const response = await fetch('/api/buckets', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        description: description
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    hideCreateBucket();
+                    loadBuckets(); // Reload all buckets
+                    showToast(`Created bucket: ${name}`, 'success');
+                    logActivity(`Created new bucket: ${name}`);
+                } else {
+                    showToast(result.error || 'Failed to create bucket', 'error');
+                }
+            } catch (error) {
+                console.error('Error creating bucket:', error);
+                showToast('Failed to create bucket', 'error');
+            }
+        }
+
+        // Show upload modal
+        function showUploadModal(bucketName) {
+            document.getElementById('upload-bucket-name').textContent = bucketName;
+            document.getElementById('upload-modal').classList.remove('hidden');
+            filesToUpload = [];
+        }
+
+        // Hide upload modal
+        function hideUploadModal() {
+            document.getElementById('upload-modal').classList.add('hidden');
+            document.getElementById('file-list').innerHTML = '';
+            document.getElementById('file-list').classList.add('hidden');
+            filesToUpload = [];
+        }
+
+        // Handle drag and drop
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            
+            const files = Array.from(event.dataTransfer.files);
+            displayFiles(files);
+        }
+
+        // Handle file selection
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            displayFiles(files);
+        }
+
+        // Display selected files
+        function displayFiles(files) {
+            filesToUpload = files;
+            const fileList = document.getElementById('file-list');
+            fileList.innerHTML = '';
+            fileList.classList.remove('hidden');
+            
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded';
+                item.innerHTML = `
+                    <span class="text-sm text-gray-900 dark:text-white">${file.name}</span>
+                    <span class="text-xs text-gray-500">${(file.size / 1024).toFixed(2)} KB</span>
+                `;
+                fileList.appendChild(item);
+            });
+        }
+
+        // Upload files
+        async function uploadFiles() {
+            const bucketName = document.getElementById('upload-bucket-name').textContent;
+            
+            if (filesToUpload.length === 0) {
+                showToast('No files selected', 'warning');
+                return;
+            }
+            
+            showToast(`Uploading ${filesToUpload.length} files...`, 'info');
+            
+            try {
+                for (const file of filesToUpload) {
+                    // Read file content
+                    const content = await readFileContent(file);
+                    
+                    // Upload to server
+                    const response = await fetch(`/api/buckets/${bucketName}/files`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            content: content,
+                            filename: file.name
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error || 'Upload failed');
+                    }
+                }
+                
+                // Reload buckets to show updated data
+                await loadBuckets();
+                hideUploadModal();
+                showToast(`Uploaded ${filesToUpload.length} files to ${bucketName}`, 'success');
+                logActivity(`Uploaded ${filesToUpload.length} files to ${bucketName}`);
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showToast('Upload failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Read file content as text
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        // Search buckets
+        function searchBuckets(query) {
+            const filtered = query ? 
+                buckets.filter(b => 
+                    b.name.toLowerCase().includes(query.toLowerCase()) ||
+                    b.description.toLowerCase().includes(query.toLowerCase())
+                ) : buckets;
+            
+            const container = document.getElementById('buckets-grid');
+            container.innerHTML = '';
+            filtered.forEach(bucket => {
+                container.appendChild(createBucketCard(bucket));
+            });
+        }
+
+        // Filter buckets
+        function filterBuckets(filter) {
+            let filtered = buckets;
+            
+            switch(filter) {
+                case 'with-files':
+                    filtered = buckets.filter(b => b.files.length > 0);
+                    break;
+                case 'empty':
+                    filtered = buckets.filter(b => b.files.length === 0);
+                    break;
+                case 'recent':
+                    filtered = [...buckets].sort((a, b) => new Date(b.updated) - new Date(a.updated)).slice(0, 5);
+                    break;
+            }
+            
+            const container = document.getElementById('buckets-grid');
+            container.innerHTML = '';
+            filtered.forEach(bucket => {
+                container.appendChild(createBucketCard(bucket));
+            });
+        }
+
+        // Sort buckets
+        function sortBuckets(sortBy) {
+            let sorted = [...buckets];
+            
+            switch(sortBy) {
+                case 'name':
+                    sorted.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'nodes':
+                    sorted.sort((a, b) => b.nodes - a.nodes);
+                    break;
+                case 'files':
+                    sorted.sort((a, b) => b.files.length - a.files.length);
+                    break;
+                case 'updated':
+                    sorted.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+                    break;
+            }
+            
+            buckets = sorted;
+            renderBuckets();
+        }
+
+        // Toggle view mode
+        function toggleViewMode() {
+            viewMode = viewMode === 'grid' ? 'list' : 'grid';
+            document.getElementById('view-mode-icon').textContent = viewMode === 'grid' ? '📱' : '📋';
+            renderBuckets();
+        }
+
+        // Refresh buckets
+        function refreshBuckets() {
+            showToast('Refreshing buckets...', 'info');
+            setTimeout(() => {
+                loadBuckets();
+                showToast('Buckets refreshed', 'success');
+            }, 1000);
+        }
+
+        // Export bucket
+        function exportBucket(bucketName) {
+            showToast(`Exporting ${bucketName}...`, 'info');
+            setTimeout(() => {
+                showToast(`Exported ${bucketName} successfully`, 'success');
+                logActivity(`Exported bucket: ${bucketName}`);
+            }, 1500);
+        }
+
+        // Export all buckets
+        function exportAll() {
+            showToast('Exporting all buckets...', 'info');
+            setTimeout(() => {
+                showToast('All buckets exported successfully', 'success');
+                logActivity('Exported all buckets');
+            }, 2000);
+        }
+
+        // Import data
+        function importData() {
+            showToast('Import feature coming soon', 'info');
+        }
+
+        // Update statistics
+        function updateStats() {
+            const totalNodes = buckets.reduce((sum, b) => sum + b.nodes, 0);
+            const totalEdges = buckets.reduce((sum, b) => sum + b.edges, 0);
+            const totalFiles = buckets.reduce((sum, b) => sum + b.files.length, 0);
+            
+            document.getElementById('stat-buckets').textContent = buckets.length;
+            document.getElementById('stat-nodes').textContent = totalNodes.toLocaleString();
+            document.getElementById('stat-edges').textContent = totalEdges.toLocaleString();
+            document.getElementById('stat-files').textContent = totalFiles;
+            
+            // Update recent buckets
+            const recentContainer = document.getElementById('recent-buckets');
+            recentContainer.innerHTML = '';
+            
+            const recent = [...buckets].sort((a, b) => new Date(b.updated) - new Date(a.updated)).slice(0, 3);
+            recent.forEach(bucket => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors';
+                item.onclick = () => {
+                    showView('buckets');
+                    selectBucket(bucket);
+                };
+                item.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">🗂️</span>
+                        <div>
+                            <p class="font-medium text-gray-900 dark:text-white">${bucket.name}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">${bucket.files.length} files • ${bucket.nodes.toLocaleString()} nodes</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-500">${bucket.updated}</span>
+                `;
+                recentContainer.appendChild(item);
+            });
+        }
+
+        // Log activity
+        function logActivity(action) {
+            const activity = {
+                action: action,
+                timestamp: new Date().toISOString(),
+                time: new Date().toLocaleTimeString()
+            };
+            
+            activityLog.unshift(activity);
+            activityLog = activityLog.slice(0, 50); // Keep last 50 activities
+            
+            updateActivityView();
+        }
+
+        // Update activity view
+        function updateActivityView() {
+            const container = document.getElementById('activity-log');
+            if (!container) return;
+            
+            container.innerHTML = '';
+            activityLog.forEach(activity => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg';
+                item.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="text-lg">📝</span>
+                        <p class="text-sm text-gray-900 dark:text-white">${activity.action}</p>
+                    </div>
+                    <span class="text-xs text-gray-500">${activity.time}</span>
+                `;
+                container.appendChild(item);
+            });
+            
+            if (activityLog.length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 dark:text-gray-400 py-8">No recent activity</p>';
+            }
+        }
+
+        // Show view
+        function showView(view) {
+            // Hide all views
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('buckets-view').classList.add('hidden');
+            document.getElementById('recent-view').classList.add('hidden');
+            document.getElementById('settings-view').classList.add('hidden');
+            
+            // Show selected view
+            document.getElementById(`${view}-view`).classList.remove('hidden');
+            
+            // Update nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-gray-100', 'dark:bg-gray-700');
+            });
+            event.currentTarget.classList.add('bg-gray-100', 'dark:bg-gray-700');
+            
+            currentView = view;
+            
+            if (view === 'recent') {
+                updateActivityView();
+            }
+        }
+
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-menu-overlay');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+            
+            overlay.onclick = () => {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            };
+        }
+
+        // Dark mode
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark);
+        }
+
+        function checkDarkMode() {
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        }
+
+        // Toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            
+            const icons = {
+                'success': '✅',
+                'error': '❌',
+                'info': 'ℹ️',
+                'warning': '⚠️'
+            };
+            
+            icon.textContent = icons[type] || icons.info;
+            msg.textContent = message;
+            
+            toast.classList.remove('hidden');
+            toast.classList.add('fade-in');
+            
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LightRAG Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'graph': '#3b82f6',
+                        'entity': '#10b981',
+                        'relation': '#f59e0b',
+                        'query': '#8b5cf6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .graph-container {
+            height: calc(100vh - 120px);
+        }
+        
+        .sidebar {
+            transition: transform 0.3s ease;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+        }
+        
+        .entity-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .entity-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px -4px rgba(59, 130, 246, 0.25);
+        }
+        
+        .query-result {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .typing {
+            border-right: 2px solid #3b82f6;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { border-right-color: transparent; }
+            51%, 100% { border-right-color: #3b82f6; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-2xl font-bold text-graph">🕸️ LightRAG Explorer</h1>
+                <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span id="current-bucket" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">No bucket selected</span>
+                    <div id="graph-stats" class="flex space-x-4">
+                        <span>📊 <span id="entity-count">0</span> entities</span>
+                        <span>🔗 <span id="relation-count">0</span> relations</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Bucket Selector -->
+                <select id="bucket-selector" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="">Select Knowledge Base...</option>
+                </select>
+                
+                <!-- Add Bucket Button -->
+                <button id="add-bucket-btn" class="px-3 py-2 bg-entity text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    <span>Add Knowledge Base</span>
+                </button>
+                
+                <!-- View Controls -->
+                <div class="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                    <button id="graph-view-btn" class="px-3 py-1 rounded text-sm font-medium bg-graph text-white">Graph</button>
+                    <button id="chat-view-btn" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Chat</button>
+                    <button id="data-view-btn" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Data</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="flex h-full">
+        
+        <!-- Left Sidebar -->
+        <div id="sidebar" class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 sidebar">
+            
+            <!-- Graph View Sidebar -->
+            <div id="graph-sidebar" class="p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">🎯 Graph Controls</h3>
+                
+                <!-- Search -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Search Entities</label>
+                    <input 
+                        type="text" 
+                        id="entity-search" 
+                        placeholder="Search entities, relations..."
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-graph focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                </div>
+                
+                <!-- Filters -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Entity Types</label>
+                    <div id="entity-types" class="space-y-2">
+                        <!-- Entity type filters will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Selected Node Info -->
+                <div id="node-info" class="hidden">
+                    <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Selected Node</h4>
+                    <div id="node-details" class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                        <!-- Node details will appear here -->
+                    </div>
+                </div>
+                
+                <!-- Graph Settings -->
+                <div class="mt-6">
+                    <h4 class="text-md font-semibold text-gray-900 dark:text-white mb-3">Display Settings</h4>
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="show-labels" checked class="rounded border-gray-300 text-graph focus:ring-graph">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Show node labels</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="show-relations" checked class="rounded border-gray-300 text-graph focus:ring-graph">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Show relationships</span>
+                        </label>
+                        <div>
+                            <label class="block text-sm text-gray-700 dark:text-gray-300 mb-1">Max nodes: <span id="max-nodes-value">100</span></label>
+                            <input type="range" id="max-nodes" min="10" max="500" value="100" class="w-full">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat View Sidebar -->
+            <div id="chat-sidebar" class="p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">💬 Query Modes</h3>
+                
+                <div class="space-y-3 mb-6">
+                    <button onclick="setQueryMode('naive')" class="query-mode-btn w-full text-left p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-query hover:bg-query/5">
+                        <div class="font-medium text-gray-900 dark:text-white">🔍 Naive</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Simple vector search</div>
+                    </button>
+                    
+                    <button onclick="setQueryMode('local')" class="query-mode-btn w-full text-left p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-query hover:bg-query/5">
+                        <div class="font-medium text-gray-900 dark:text-white">🏠 Local</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Entity-focused search</div>
+                    </button>
+                    
+                    <button onclick="setQueryMode('global')" class="query-mode-btn w-full text-left p-3 border border-query bg-query/5 border-2 rounded-lg">
+                        <div class="font-medium text-gray-900 dark:text-white">🌐 Global</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Community-based search</div>
+                    </button>
+                    
+                    <button onclick="setQueryMode('hybrid')" class="query-mode-btn w-full text-left p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-query hover:bg-query/5">
+                        <div class="font-medium text-gray-900 dark:text-white">⚡ Hybrid</div>
+                        <div class="text-sm text-gray-600 dark:text-gray-400">Combined approach</div>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Quick Questions</label>
+                    <div class="space-y-2">
+                        <button onclick="askPredefined('What are the main themes?')" class="w-full text-left text-sm p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            What are the main themes?
+                        </button>
+                        <button onclick="askPredefined('Show me character relationships')" class="w-full text-left text-sm p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            Show me character relationships
+                        </button>
+                        <button onclick="askPredefined('What are the key concepts?')" class="w-full text-left text-sm p-2 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            What are the key concepts?
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data View Sidebar -->
+            <div id="data-sidebar" class="p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">📊 Data Browser</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Top Entities</h4>
+                        <div id="top-entities" class="space-y-2">
+                            <!-- Top entities list -->
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Relationship Types</h4>
+                        <div id="relationship-types" class="space-y-2">
+                            <!-- Relationship types list -->
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Document Sources</h4>
+                        <div id="document-sources" class="space-y-2">
+                            <!-- Document sources list -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col">
+            
+            <!-- Graph View -->
+            <div id="graph-view" class="flex-1">
+                <div id="graph-network" class="graph-container bg-white dark:bg-gray-800">
+                    <div class="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                        <div class="text-center">
+                            <div class="text-6xl mb-4">🕸️</div>
+                            <div class="text-xl mb-2">Select a knowledge base to explore</div>
+                            <div class="text-sm">Choose from the dropdown above to visualize your LightRAG graph</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Graph Controls -->
+                <div class="absolute bottom-4 left-4 flex space-x-2 z-10">
+                    <button onclick="fitGraph()" class="px-3 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                        🎯 Fit All
+                    </button>
+                    <button onclick="resetGraph()" class="px-3 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                        🔄 Reset
+                    </button>
+                    <button onclick="exportGraph()" class="px-3 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-700">
+                        📸 Export
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Chat View -->
+            <div id="chat-view" class="flex-1 flex flex-col hidden">
+                <!-- Chat Messages -->
+                <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-12">
+                        <div class="text-4xl mb-4">💬</div>
+                        <div class="text-lg mb-2">Chat with your knowledge graph</div>
+                        <div class="text-sm">Ask questions and get insights from your LightRAG data</div>
+                    </div>
+                </div>
+                
+                <!-- Chat Input -->
+                <div class="border-t border-gray-200 dark:border-gray-700 p-6">
+                    <div class="flex space-x-4">
+                        <input 
+                            type="text" 
+                            id="chat-input" 
+                            placeholder="Ask about your knowledge graph..."
+                            class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-query focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            onkeypress="if(event.key==='Enter') sendQuery()"
+                        >
+                        <button 
+                            onclick="sendQuery()" 
+                            class="px-6 py-3 bg-query text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        >
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data View -->
+            <div id="data-view" class="flex-1 p-6 hidden overflow-y-auto">
+                <div class="max-w-6xl mx-auto">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        
+                        <!-- Entities Table -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">🏷️ Entities</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entity</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Connections</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="entities-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Entities will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Relationships Table -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">🔗 Relationships</h3>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-gray-700">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">From</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Relation</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">To</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="relationships-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                        <!-- Relationships will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bucket Modal -->
+    <div id="add-bucket-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New Knowledge Base</h3>
+                <button onclick="closeAddBucketModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form id="add-bucket-form" onsubmit="createNewBucket(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                        <input 
+                            type="text" 
+                            id="new-bucket-name" 
+                            required 
+                            placeholder="e.g., my_research_notes"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-entity focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        >
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use lowercase letters, numbers, and underscores only</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                        <textarea 
+                            id="new-bucket-description" 
+                            rows="3"
+                            placeholder="What kind of knowledge will this contain?"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-entity focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        ></textarea>
+                    </div>
+                    
+                    <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                        <h4 class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-2">💡 Next Steps</h4>
+                        <p class="text-sm text-blue-800 dark:text-blue-300">After creation, you can:</p>
+                        <ul class="text-sm text-blue-700 dark:text-blue-400 mt-1 list-disc list-inside">
+                            <li>Upload documents to build the knowledge graph</li>
+                            <li>Query the knowledge base with natural language</li>
+                            <li>Visualize relationships between entities</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                    <button 
+                        type="submit" 
+                        class="flex-1 bg-entity text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        Create Knowledge Base
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="closeAddBucketModal()" 
+                        class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Documents Modal -->
+    <div id="upload-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-lg w-full p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Add Documents</h3>
+                <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- File Upload -->
+                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center" 
+                     id="upload-dropzone" 
+                     ondrop="handleFileDrop(event)" 
+                     ondragover="handleDragOver(event)" 
+                     ondragleave="handleDragLeave(event)">
+                    <div class="text-4xl mb-4">📄</div>
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Drop files here</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">Or click to browse</p>
+                    <input type="file" id="file-input" multiple accept=".txt,.md,.pdf,.docx" class="hidden">
+                    <button onclick="document.getElementById('file-input').click()" class="px-4 py-2 bg-graph text-white rounded-lg hover:bg-blue-600">Choose Files</button>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Supports: .txt, .md, .pdf, .docx</p>
+                </div>
+                
+                <!-- Text Input -->
+                <div class="border-t pt-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Or paste text directly:</label>
+                    <textarea 
+                        id="direct-text-input" 
+                        rows="6"
+                        placeholder="Paste your text here..."
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-graph focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    ></textarea>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button 
+                        onclick="addDirectText()" 
+                        class="flex-1 bg-graph text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        Add Text
+                    </button>
+                    <button 
+                        onclick="closeUploadModal()" 
+                        class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let currentBucket = null;
+        let currentView = 'graph';
+        let queryMode = 'global';
+        let network = null;
+        let graphData = { nodes: [], edges: [] };
+        let rawData = { entities: [], relationships: [] };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAvailableBuckets();
+            setupEventListeners();
+            initializeGraph();
+        });
+
+        function setupEventListeners() {
+            // View switching
+            document.getElementById('graph-view-btn').addEventListener('click', () => switchView('graph'));
+            document.getElementById('chat-view-btn').addEventListener('click', () => switchView('chat'));
+            document.getElementById('data-view-btn').addEventListener('click', () => switchView('data'));
+            
+            // Bucket selection
+            document.getElementById('bucket-selector').addEventListener('change', loadBucket);
+            
+            // Add bucket functionality
+            document.getElementById('add-bucket-btn').addEventListener('click', openAddBucketModal);
+            
+            // Graph controls
+            document.getElementById('entity-search').addEventListener('input', filterGraph);
+            document.getElementById('show-labels').addEventListener('change', updateGraphDisplay);
+            document.getElementById('show-relations').addEventListener('change', updateGraphDisplay);
+            document.getElementById('max-nodes').addEventListener('input', function(e) {
+                document.getElementById('max-nodes-value').textContent = e.target.value;
+                updateGraphDisplay();
+            });
+        }
+
+        async function loadAvailableBuckets() {
+            // Load from your LightRAG bucket configuration
+            try {
+                const response = await fetch('/api/buckets');
+                const buckets = await response.json();
+                
+                const selector = document.getElementById('bucket-selector');
+                selector.innerHTML = '<option value="">Select Knowledge Base...</option>';
+                
+                buckets.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.name;
+                    option.textContent = `${bucket.name} (${bucket.entities} entities, ${bucket.relationships} relations)`;
+                    selector.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Failed to load buckets:', error);
+                
+                // Fallback with sample data
+                const sampleBuckets = [
+                    { name: 'shakespeare_plays', entities: 8665, relationships: 7257 },
+                    { name: 'screenwriting_books', entities: 9896, relationships: 6131 },
+                    { name: 'cultural_sources', entities: 598, relationships: 464 }
+                ];
+                
+                const selector = document.getElementById('bucket-selector');
+                selector.innerHTML = '<option value="">Select Knowledge Base...</option>';
+                
+                sampleBuckets.forEach(bucket => {
+                    const option = document.createElement('option');
+                    option.value = bucket.name;
+                    option.textContent = `${bucket.name} (${bucket.entities} entities, ${bucket.relationships} relations)`;
+                    selector.appendChild(option);
+                });
+            }
+        }
+
+        async function loadBucket(event) {
+            const bucketName = event.target.value;
+            if (!bucketName) return;
+            
+            currentBucket = bucketName;
+            document.getElementById('current-bucket').textContent = bucketName;
+            
+            showLoadingIndicator(true);
+            
+            try {
+                // Load graph data from your LightRAG system
+                const response = await fetch(`/api/buckets/${bucketName}/graph`);
+                const data = await response.json();
+                
+                rawData = data;
+                processGraphData(data);
+                updateUI();
+                
+            } catch (error) {
+                console.error('Failed to load bucket data:', error);
+                
+                // Generate sample data for demo
+                generateSampleData(bucketName);
+            }
+            
+            showLoadingIndicator(false);
+        }
+
+        function generateSampleData(bucketName) {
+            // Generate realistic sample data based on bucket name
+            const sampleData = {
+                entities: [],
+                relationships: []
+            };
+            
+            if (bucketName.includes('shakespeare')) {
+                sampleData.entities = [
+                    { id: 1, name: 'Hamlet', type: 'CHARACTER', description: 'Prince of Denmark' },
+                    { id: 2, name: 'Ophelia', type: 'CHARACTER', description: 'Daughter of Polonius' },
+                    { id: 3, name: 'Revenge', type: 'THEME', description: 'Central theme of the play' },
+                    { id: 4, name: 'Soliloquy', type: 'TECHNIQUE', description: 'Dramatic monologue technique' },
+                    { id: 5, name: 'Denmark', type: 'LOCATION', description: 'Setting of the play' }
+                ];
+                
+                sampleData.relationships = [
+                    { from: 1, to: 2, type: 'LOVES', description: 'Hamlet loves Ophelia' },
+                    { from: 1, to: 3, type: 'EMBODIES', description: 'Hamlet embodies revenge theme' },
+                    { from: 1, to: 4, type: 'USES', description: 'Hamlet uses soliloquy technique' },
+                    { from: 5, to: 1, type: 'SETTING_FOR', description: 'Denmark is setting for Hamlet' }
+                ];
+                
+            } else if (bucketName.includes('screenwriting')) {
+                sampleData.entities = [
+                    { id: 1, name: 'Three-Act Structure', type: 'CONCEPT', description: 'Classic story structure' },
+                    { id: 2, name: 'Character Arc', type: 'CONCEPT', description: 'Character development pattern' },
+                    { id: 3, name: 'Dialogue', type: 'TECHNIQUE', description: 'Character speech technique' },
+                    { id: 4, name: 'Conflict', type: 'ELEMENT', description: 'Driving force of story' },
+                    { id: 5, name: 'Robert McKee', type: 'PERSON', description: 'Screenwriting theorist' }
+                ];
+                
+                sampleData.relationships = [
+                    { from: 1, to: 2, type: 'CONTAINS', description: 'Three-act structure contains character arcs' },
+                    { from: 2, to: 3, type: 'EXPRESSED_THROUGH', description: 'Character arc expressed through dialogue' },
+                    { from: 4, to: 1, type: 'DRIVES', description: 'Conflict drives three-act structure' },
+                    { from: 5, to: 1, type: 'TEACHES', description: 'McKee teaches three-act structure' }
+                ];
+            }
+            
+            rawData = sampleData;
+            processGraphData(sampleData);
+            updateUI();
+        }
+
+        function processGraphData(data) {
+            // Convert raw data to vis.js format
+            const nodes = new vis.DataSet(
+                data.entities.map(entity => ({
+                    id: entity.id,
+                    label: entity.name,
+                    title: entity.description || entity.name,
+                    group: entity.type,
+                    color: getColorForType(entity.type),
+                    size: Math.min(30, Math.max(10, (entity.connections || 5) * 2))
+                }))
+            );
+            
+            const edges = new vis.DataSet(
+                data.relationships.map(rel => ({
+                    from: rel.from,
+                    to: rel.to,
+                    label: rel.type,
+                    title: rel.description || rel.type,
+                    arrows: 'to',
+                    color: { color: '#666666', opacity: 0.7 }
+                }))
+            );
+            
+            graphData = { nodes, edges };
+            
+            if (network) {
+                network.setData(graphData);
+                network.fit();
+            }
+        }
+
+        function getColorForType(type) {
+            const colors = {
+                'CHARACTER': '#10b981',
+                'PERSON': '#10b981', 
+                'LOCATION': '#f59e0b',
+                'THEME': '#8b5cf6',
+                'CONCEPT': '#3b82f6',
+                'TECHNIQUE': '#ef4444',
+                'ELEMENT': '#06b6d4'
+            };
+            return colors[type] || '#6b7280';
+        }
+
+        function initializeGraph() {
+            const container = document.getElementById('graph-network');
+            
+            const options = {
+                nodes: {
+                    font: {
+                        color: '#ffffff',
+                        size: 14,
+                        strokeWidth: 2,
+                        strokeColor: '#000000'
+                    },
+                    borderWidth: 2,
+                    borderWidthSelected: 4,
+                    chosen: true,
+                    shadow: true
+                },
+                edges: {
+                    font: {
+                        color: '#666666',
+                        size: 12,
+                        strokeWidth: 2,
+                        strokeColor: '#ffffff'
+                    },
+                    arrows: {
+                        to: { enabled: true, scaleFactor: 0.8 }
+                    },
+                    color: { opacity: 0.7 },
+                    smooth: {
+                        enabled: true,
+                        type: 'dynamic'
+                    }
+                },
+                physics: {
+                    enabled: true,
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.01,
+                        springLength: 200,
+                        springConstant: 0.08,
+                        damping: 0.4
+                    },
+                    maxVelocity: 50,
+                    solver: 'forceAtlas2Based',
+                    timestep: 0.35,
+                    stabilization: {
+                        enabled: true,
+                        iterations: 150,
+                        updateInterval: 25
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true
+                }
+            };
+            
+            network = new vis.Network(container, graphData, options);
+            
+            // Event listeners
+            network.on('selectNode', function(params) {
+                if (params.nodes.length > 0) {
+                    showNodeInfo(params.nodes[0]);
+                }
+            });
+            
+            network.on('deselectNode', function() {
+                hideNodeInfo();
+            });
+        }
+
+        function showNodeInfo(nodeId) {
+            const node = graphData.nodes.get(nodeId);
+            const connectedEdges = network.getConnectedEdges(nodeId);
+            
+            document.getElementById('node-info').classList.remove('hidden');
+            document.getElementById('node-details').innerHTML = `
+                <div class="space-y-2">
+                    <div class="font-semibold text-lg">${node.label}</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Type: ${node.group}</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">Connections: ${connectedEdges.length}</div>
+                    ${node.title !== node.label ? `<div class="text-sm mt-2">${node.title}</div>` : ''}
+                    <button onclick="focusOnNode(${nodeId})" class="mt-2 px-3 py-1 bg-graph text-white text-sm rounded hover:bg-blue-700">
+                        Focus on Node
+                    </button>
+                </div>
+            `;
+        }
+
+        function hideNodeInfo() {
+            document.getElementById('node-info').classList.add('hidden');
+        }
+
+        function focusOnNode(nodeId) {
+            network.focus(nodeId, {
+                scale: 1.5,
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }
+
+        function switchView(view) {
+            currentView = view;
+            
+            // Update buttons
+            document.querySelectorAll('[id$="-view-btn"]').forEach(btn => {
+                btn.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600';
+            });
+            document.getElementById(`${view}-view-btn`).className = `px-3 py-1 rounded text-sm font-medium bg-${view === 'graph' ? 'graph' : view === 'chat' ? 'query' : 'entity'} text-white`;
+            
+            // Update sidebars
+            document.getElementById('graph-sidebar').classList.toggle('hidden', view !== 'graph');
+            document.getElementById('chat-sidebar').classList.toggle('hidden', view !== 'chat');
+            document.getElementById('data-sidebar').classList.toggle('hidden', view !== 'data');
+            
+            // Update main views
+            document.getElementById('graph-view').classList.toggle('hidden', view !== 'graph');
+            document.getElementById('chat-view').classList.toggle('hidden', view !== 'chat');
+            document.getElementById('data-view').classList.toggle('hidden', view !== 'data');
+            
+            if (view === 'data' && currentBucket) {
+                populateDataTables();
+            }
+        }
+
+        function setQueryMode(mode) {
+            queryMode = mode;
+            
+            // Update UI to show selected mode
+            document.querySelectorAll('.query-mode-btn').forEach(btn => {
+                btn.className = 'query-mode-btn w-full text-left p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-query hover:bg-query/5';
+            });
+            event.target.closest('.query-mode-btn').className = 'query-mode-btn w-full text-left p-3 border border-query bg-query/5 border-2 rounded-lg';
+        }
+
+        function askPredefined(question) {
+            document.getElementById('chat-input').value = question;
+            sendQuery();
+        }
+
+        async function sendQuery() {
+            const input = document.getElementById('chat-input');
+            const question = input.value.trim();
+            
+            if (!question || !currentBucket) return;
+            
+            input.value = '';
+            
+            // Add user message
+            addChatMessage('user', question);
+            
+            // Add loading message
+            const assistantId = addChatMessage('assistant', '', true);
+            
+            try {
+                // Query your LightRAG system
+                const response = await fetch(`/api/buckets/${currentBucket}/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        question: question, 
+                        mode: queryMode 
+                    })
+                });
+                
+                const result = await response.json();
+                updateChatMessage(assistantId, result.response);
+                
+            } catch (error) {
+                console.error('Query failed:', error);
+                
+                // Generate sample response for demo
+                const sampleResponse = generateSampleResponse(question);
+                updateChatMessage(assistantId, sampleResponse);
+            }
+        }
+
+        function addChatMessage(sender, content, isLoading = false) {
+            const container = document.getElementById('chat-messages');
+            const messageId = `msg-${Date.now()}`;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.id = messageId;
+            messageDiv.className = 'query-result';
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="flex justify-end mb-4">
+                        <div class="bg-query text-white rounded-lg px-4 py-3 max-w-2xl">
+                            ${content}
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start space-x-3 mb-4">
+                        <div class="w-8 h-8 bg-graph rounded-full flex items-center justify-center text-white font-bold">
+                            🧠
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-1">
+                            ${isLoading ? '<div class="text-gray-500">Thinking<span class="typing">...</span></div>' : content}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            return messageId;
+        }
+
+        function updateChatMessage(messageId, content) {
+            const messageDiv = document.getElementById(messageId);
+            if (messageDiv) {
+                const contentDiv = messageDiv.querySelector('.bg-white, .dark\\:bg-gray-800');
+                if (contentDiv) {
+                    contentDiv.innerHTML = content;
+                }
+            }
+        }
+
+        function generateSampleResponse(question) {
+            const responses = {
+                'themes': 'The main themes in this knowledge base include character development, conflict resolution, dramatic structure, and narrative techniques. These themes are interconnected through various relationships in the graph.',
+                'relationships': 'Character relationships form a complex network with protagonists connected to antagonists through conflict, and supporting characters linked through various social and dramatic relationships.',
+                'concepts': 'Key concepts include three-act structure, character arcs, dialogue techniques, dramatic tension, and narrative pacing. These concepts are fundamental building blocks of effective storytelling.'
+            };
+            
+            const lowerQuestion = question.toLowerCase();
+            
+            if (lowerQuestion.includes('theme')) return responses.themes;
+            if (lowerQuestion.includes('relationship') || lowerQuestion.includes('character')) return responses.relationships;
+            if (lowerQuestion.includes('concept') || lowerQuestion.includes('key')) return responses.concepts;
+            
+            return `Based on your question "${question}", I found relevant information in the knowledge graph. The entities and relationships suggest connections between various concepts in your data.`;
+        }
+
+        function populateDataTables() {
+            // Populate entities table
+            const entitiesTable = document.getElementById('entities-table');
+            entitiesTable.innerHTML = '';
+            
+            rawData.entities.slice(0, 10).forEach(entity => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${entity.name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${entity.type}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${entity.connections || 0}</td>
+                `;
+                entitiesTable.appendChild(row);
+            });
+            
+            // Populate relationships table
+            const relationshipsTable = document.getElementById('relationships-table');
+            relationshipsTable.innerHTML = '';
+            
+            rawData.relationships.slice(0, 10).forEach(rel => {
+                const fromEntity = rawData.entities.find(e => e.id === rel.from);
+                const toEntity = rawData.entities.find(e => e.id === rel.to);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${fromEntity?.name || rel.from}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${rel.type}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${toEntity?.name || rel.to}</td>
+                `;
+                relationshipsTable.appendChild(row);
+            });
+        }
+
+        function updateUI() {
+            if (!rawData) return;
+            
+            // Update stats
+            document.getElementById('entity-count').textContent = rawData.entities.length;
+            document.getElementById('relation-count').textContent = rawData.relationships.length;
+            
+            // If we're in graph view, fit the graph
+            if (currentView === 'graph' && network) {
+                setTimeout(() => network.fit(), 500);
+            }
+            
+            // Add upload button when a bucket is selected
+            addUploadButton();
+        }
+
+        function filterGraph() {
+            const searchTerm = document.getElementById('entity-search').value.toLowerCase();
+            
+            if (!searchTerm) {
+                network.setData(graphData);
+                return;
+            }
+            
+            const filteredNodes = graphData.nodes.get().filter(node => 
+                node.label.toLowerCase().includes(searchTerm) ||
+                (node.title && node.title.toLowerCase().includes(searchTerm))
+            );
+            
+            const nodeIds = new Set(filteredNodes.map(n => n.id));
+            const filteredEdges = graphData.edges.get().filter(edge => 
+                nodeIds.has(edge.from) || nodeIds.has(edge.to)
+            );
+            
+            network.setData({
+                nodes: new vis.DataSet(filteredNodes),
+                edges: new vis.DataSet(filteredEdges)
+            });
+        }
+
+        function updateGraphDisplay() {
+            if (!network) return;
+            
+            const showLabels = document.getElementById('show-labels').checked;
+            const showRelations = document.getElementById('show-relations').checked;
+            
+            const options = {
+                nodes: {
+                    font: { size: showLabels ? 14 : 0 }
+                },
+                edges: {
+                    font: { size: showRelations ? 12 : 0 },
+                    label: showRelations ? undefined : ''
+                }
+            };
+            
+            network.setOptions(options);
+        }
+
+        function fitGraph() {
+            if (network) network.fit();
+        }
+
+        function resetGraph() {
+            if (network) {
+                network.setData(graphData);
+                network.fit();
+            }
+        }
+
+        function exportGraph() {
+            if (network) {
+                const canvas = network.canvas.getContext();
+                const dataURL = canvas.canvas.toDataURL();
+                
+                const link = document.createElement('a');
+                link.download = `${currentBucket}_graph.png`;
+                link.href = dataURL;
+                link.click();
+            }
+        }
+
+        function showLoadingIndicator(show) {
+            // Simple loading state - could be enhanced
+            const container = document.getElementById('graph-network');
+            if (show) {
+                container.style.opacity = '0.5';
+            } else {
+                container.style.opacity = '1';
+            }
+        }
+
+        // Bucket creation functionality
+        function openAddBucketModal() {
+            document.getElementById('add-bucket-modal').classList.remove('hidden');
+        }
+
+        function closeAddBucketModal() {
+            document.getElementById('add-bucket-modal').classList.add('hidden');
+            document.getElementById('add-bucket-form').reset();
+        }
+
+        async function createNewBucket(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('new-bucket-name').value.trim();
+            const description = document.getElementById('new-bucket-description').value.trim();
+            
+            if (!name) {
+                alert('Please enter a name for the knowledge base');
+                return;
+            }
+            
+            // Validate name format
+            if (!/^[a-z0-9_]+$/.test(name)) {
+                alert('Name must contain only lowercase letters, numbers, and underscores');
+                return;
+            }
+            
+            try {
+                showToast('Creating knowledge base...', 'info');
+                
+                const response = await fetch('/api/buckets/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showToast('Knowledge base created successfully!', 'success');
+                    closeAddBucketModal();
+                    
+                    // Reload buckets and select the new one
+                    await loadAvailableBuckets();
+                    document.getElementById('bucket-selector').value = name;
+                    
+                    // Ask if they want to add documents
+                    if (confirm('Would you like to add some documents to get started?')) {
+                        openUploadModal();
+                    }
+                    
+                } else {
+                    showToast(result.error || 'Failed to create knowledge base', 'error');
+                }
+                
+            } catch (error) {
+                console.error('Error creating bucket:', error);
+                showToast('Error creating knowledge base', 'error');
+            }
+        }
+
+        // Document upload functionality
+        function openUploadModal() {
+            if (!currentBucket) {
+                alert('Please select a knowledge base first');
+                return;
+            }
+            document.getElementById('upload-modal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.add('hidden');
+            document.getElementById('direct-text-input').value = '';
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('border-graph', 'bg-blue-50', 'dark:bg-blue-900/20');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('border-graph', 'bg-blue-50', 'dark:bg-blue-900/20');
+        }
+
+        async function handleFileDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('border-graph', 'bg-blue-50', 'dark:bg-blue-900/20');
+            
+            const files = Array.from(event.dataTransfer.files);
+            await processFiles(files);
+        }
+
+        async function processFiles(files) {
+            if (!currentBucket) {
+                alert('Please select a knowledge base first');
+                return;
+            }
+            
+            for (const file of files) {
+                try {
+                    showToast(`Processing ${file.name}...`, 'info');
+                    
+                    const text = await readFileAsText(file);
+                    await addDocumentToBucket(currentBucket, text, file.name);
+                    
+                } catch (error) {
+                    console.error(`Error processing ${file.name}:`, error);
+                    showToast(`Error processing ${file.name}`, 'error');
+                }
+            }
+            
+            closeUploadModal();
+            
+            // Reload current bucket to show new data
+            if (currentBucket) {
+                loadBucket({ target: { value: currentBucket } });
+            }
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        async function addDirectText() {
+            const text = document.getElementById('direct-text-input').value.trim();
+            
+            if (!text) {
+                alert('Please enter some text');
+                return;
+            }
+            
+            if (!currentBucket) {
+                alert('Please select a knowledge base first');
+                return;
+            }
+            
+            try {
+                showToast('Adding text to knowledge base...', 'info');
+                await addDocumentToBucket(currentBucket, text, 'Direct Input');
+                showToast('Text added successfully!', 'success');
+                closeUploadModal();
+                
+                // Reload current bucket
+                loadBucket({ target: { value: currentBucket } });
+                
+            } catch (error) {
+                console.error('Error adding text:', error);
+                showToast('Error adding text', 'error');
+            }
+        }
+
+        async function addDocumentToBucket(bucketName, content, filename) {
+            const response = await fetch(`/api/buckets/${bucketName}/documents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    content: content,
+                    filename: filename || 'document.txt'
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to add document');
+            }
+            
+            return result;
+        }
+
+        function showToast(message, type = 'info') {
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white max-w-sm ${
+                type === 'success' ? 'bg-green-500' :
+                type === 'error' ? 'bg-red-500' :
+                'bg-blue-500'
+            }`;
+            
+            toast.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Add button to upload documents to existing buckets
+        function addUploadButton() {
+            if (currentBucket) {
+                // Add upload button to graph view when a bucket is selected
+                const graphView = document.getElementById('graph-view');
+                let uploadBtn = document.getElementById('upload-docs-btn');
+                
+                if (!uploadBtn) {
+                    uploadBtn = document.createElement('button');
+                    uploadBtn.id = 'upload-docs-btn';
+                    uploadBtn.className = 'absolute top-4 right-4 z-10 px-3 py-1 bg-entity text-white rounded text-sm hover:bg-green-700 transition-colors';
+                    uploadBtn.innerHTML = '📄 Add Documents';
+                    uploadBtn.onclick = openUploadModal;
+                    graphView.appendChild(uploadBtn);
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>

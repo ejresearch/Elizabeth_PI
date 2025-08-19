@@ -15,9 +15,9 @@ from openai import OpenAI
 
 # Optional imports with graceful fallbacks
 try:
-    from lizzy_templates import TemplateManager
-    from admin import LizzyAdmin
-    from autonomous_agent import AutonomousAgent
+    from core_templates import TemplateManager
+    from util_admin import LizzyAdmin
+    from util_agent import AutonomousAgent
     HAS_TEMPLATE_SYSTEM = True
     HAS_AUTONOMOUS_AGENT = True
 except ImportError:
@@ -26,24 +26,24 @@ except ImportError:
 
 # Import enhanced modules for transparent workflows
 try:
-    from lizzy_transparent_brainstorm import TransparentBrainstormer
-    from lizzy_transparent_write import TransparentWriter
-    from lizzy_export_system import LizzyExporter
-    from lizzy_lightrag_manager import LightRAGManager, BucketInterface
+    from core_brainstorm import TransparentBrainstormer
+    from core_write import TransparentWriter
+    from core_export import LizzyExporter
+    from core_knowledge import LightRAGManager, BucketInterface
     HAS_TRANSPARENT_MODULES = True
 except ImportError:
     HAS_TRANSPARENT_MODULES = False
 
 # Import intake GUI for enhanced data entry
 try:
-    from lizzy_intake_interactive import launch_intake_gui, InteractiveIntake
+    from core_editor import launch_intake_gui, InteractiveIntake
     HAS_INTAKE_GUI = True
 except ImportError:
     HAS_INTAKE_GUI = False
 
 # Import romcom outline module
 try:
-    from lizzy_romcom_outline import RomcomOutlineGUI, RomcomOutlineManager
+    from core_outline import RomcomOutlineGUI, RomcomOutlineManager
     HAS_OUTLINE_MODULE = True
 except ImportError:
     HAS_OUTLINE_MODULE = False
@@ -305,7 +305,7 @@ def create_project():
     
     # Create project using template if available
     if HAS_TEMPLATE_SYSTEM:
-        from lizzy_templates import TemplateManager
+        from core_templates import TemplateManager
         tm = TemplateManager()
         if tm.create_project_from_template(project_name, "romcom"):
             session.set_project(project_name)
@@ -497,7 +497,7 @@ def project_menu():
         print(f"{Colors.CYAN}📝 Complete your romantic comedy in 5 simple steps:{Colors.END}")
         print()
         print(f"   {Colors.BOLD}1.{Colors.END} 🎨 Edit Tables (Characters, Scenes, Notes)")
-        print(f"   {Colors.BOLD}2.{Colors.END} 🗂️  Bucket Manager (LightRAG Knowledge Base)")
+        print(f"   {Colors.BOLD}2.{Colors.END} 🕸️  Knowledge Explorer (Interactive LightRAG Graphs)")
         print(f"   {Colors.BOLD}3.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
         print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write (Create screenplay scenes)")
         print(f"   {Colors.BOLD}5.{Colors.END} 📤 Export (Final screenplay output)")
@@ -589,8 +589,8 @@ def edit_tables_menu():
         except:
             pass
         
-        # Start the web server (web_server_refactored.py) - serves functional web_project_editor.html
-        backend_file = Path(__file__).parent / "web_server_refactored.py"
+        # Start the web server (web_editor_server.py) - serves functional web_editor.html
+        backend_file = Path(__file__).parent / "web_editor_server.py"
         if backend_file.exists():
             # Start the backend server on port 8080
             server_process = subprocess.Popen([
@@ -636,7 +636,7 @@ def edit_tables_menu():
                     # Force kill via system command
                     os.system("lsof -ti:8080 | xargs kill -9 2>/dev/null")
         else:
-            raise FileNotFoundError("web_server_refactored.py not found")
+            raise FileNotFoundError("web_editor_server.py not found")
         
     except Exception as e:
         print(f"{Colors.RED}⚠️ Error launching project editor: {str(e)}{Colors.END}")
@@ -695,71 +695,64 @@ def basic_table_editor():
     wait_for_key()
 
 def bucket_manager_menu():
-    """LightRAG Bucket Manager - Knowledge Base Management"""
-    if not session.current_project:
-        print(f"{Colors.RED}⚠ Project required for bucket management{Colors.END}")
-        wait_for_key()
-        return
-    
+    """Modern Bucket Manager - Web Interface"""
     print_header()
-    print(f"\n{Colors.BOLD}🗂️ BUCKET MANAGER - LightRAG Knowledge Base{Colors.END}")
+    print(f"\n{Colors.BOLD}🗂️ MODERN BUCKET MANAGER{Colors.END}")
     print_separator()
     
-    # Check if LightRAG manager is available
-    if not HAS_TRANSPARENT_MODULES:
-        print(f"{Colors.RED}⚠ LightRAG modules not available. Please install dependencies.{Colors.END}")
-        wait_for_key()
-        return
+    print(f"{Colors.CYAN}🚀 Starting Modern Bucket Manager...{Colors.END}")
+    print(f"{Colors.YELLOW}✨ Features: Modern UI, drag & drop, real-time stats{Colors.END}")
+    print(f"{Colors.GREEN}📊 Will open in your browser at http://localhost:8002{Colors.END}\n")
     
     try:
-        print(f"{Colors.CYAN}🚀 Launching Modern Bucket Manager Interface...{Colors.END}")
-        print(f"{Colors.YELLOW}✨ Features: Interactive graphs, smooth UX, multi-bucket comparison{Colors.END}")
-        print(f"{Colors.GREEN}📊 Opening in your default web browser...{Colors.END}\n")
+        import subprocess
+        import time
+        import webbrowser
         
-        # Get absolute path to the smooth bucket manager
+        # Start the server in a separate process
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        html_file = os.path.join(current_dir, "lizzy_smooth_bucket_manager.html")
+        server_file = os.path.join(current_dir, "bucket_manager_server.py")
         
-        if os.path.exists(html_file):
-            # Launch the web interface
-            import webbrowser
-            webbrowser.open(f"file://{html_file}")
+        if os.path.exists(server_file):
+            print(f"{Colors.CYAN}Starting server...{Colors.END}")
+            
+            # Start server in background
+            server_process = subprocess.Popen(
+                [sys.executable, server_file],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=current_dir
+            )
+            
+            # Give it time to start
+            time.sleep(2)
+            
+            # Open browser
+            webbrowser.open('http://localhost:8002')
             
             print(f"{Colors.GREEN}✅ Bucket Manager launched successfully!{Colors.END}")
-            print(f"{Colors.CYAN}🌐 Web interface opened in your browser{Colors.END}")
-            print(f"\n{Colors.BOLD}Available Features:{Colors.END}")
-            print(f"   {Colors.YELLOW}📚 Library view{Colors.END} - Browse all your knowledge buckets")
-            print(f"   {Colors.YELLOW}🔍 Interactive search{Colors.END} - Find buckets by name, group, or content")
-            print(f"   {Colors.YELLOW}🎯 Focused workspace{Colors.END} - Deep dive into individual buckets")
-            print(f"   {Colors.YELLOW}🌐 Graph exploration{Colors.END} - Interactive knowledge graph visualization")
-            print(f"   {Colors.YELLOW}📊 Multi-bucket compare{Colors.END} - Side-by-side graph comparison")
-            print(f"   {Colors.YELLOW}💾 Smart export{Colors.END} - Multiple format options with plain language")
-            print(f"   {Colors.YELLOW}🌙 Dark/Light theme{Colors.END} - Comfortable viewing experience")
+            print(f"{Colors.GREEN}🌐 Access it at: http://localhost:8002{Colors.END}")
+            print(f"{Colors.YELLOW}💡 Use your browser to manage knowledge buckets{Colors.END}")
+            print(f"{Colors.CYAN}   • View all buckets with real-time stats{Colors.END}")
+            print(f"{Colors.CYAN}   • Create new buckets and upload files{Colors.END}")
+            print(f"{Colors.CYAN}   • Search, filter, and organize knowledge bases{Colors.END}")
+            print()
+            print(f"{Colors.BOLD}Press Enter when done (server will stop){Colors.END}")
             
-            print(f"\n{Colors.BOLD}Quick Tips:{Colors.END}")
-            print(f"   • Hover over bucket cards to see quick actions")
-            print(f"   • Check multiple buckets to enable comparison mode") 
-            print(f"   • Use ⌘K (Mac) or Ctrl+K (Windows) for quick search")
-            print(f"   • Drag files onto upload areas for easy document addition")
-            
-            print(f"\n{Colors.GREEN}🎉 Happy knowledge exploring!{Colors.END}")
+            try:
+                input()  # Wait for user input
+                server_process.terminate()  # Stop server when user is done
+                print(f"{Colors.GREEN}Server stopped.{Colors.END}")
+            except KeyboardInterrupt:
+                server_process.terminate()
+                print(f"\n{Colors.GREEN}Server stopped.{Colors.END}")
             
         else:
-            print(f"{Colors.RED}⚠ Web interface not found at: {html_file}{Colors.END}")
-            print(f"{Colors.YELLOW}Falling back to command-line interface...{Colors.END}")
+            print(f"{Colors.RED}❌ Bucket manager server not found at: {server_file}{Colors.END}")
+            print(f"{Colors.YELLOW}💡 Make sure bucket_manager_server.py is in the same directory{Colors.END}")
             
-            # Fallback to old interface
-            manager = LightRAGManager(base_dir="lightrag_working_dir")
-            if os.path.exists("lightrag_working_dir/bucket_config.json"):
-                manager.load_bucket_config()
-            interface = BucketInterface(manager)
-            interface.manage_buckets_menu()
-            
-    except ImportError:
-        print(f"{Colors.RED}⚠ LightRAG manager not properly installed{Colors.END}")
-        print(f"{Colors.YELLOW}Please ensure lizzy_lightrag_manager.py is available{Colors.END}")
     except Exception as e:
-        print(f"{Colors.RED}⚠ Error launching bucket manager: {str(e)}{Colors.END}")
+        print(f"{Colors.RED}❌ Error starting server: {e}{Colors.END}")
     
     wait_for_key()
 
@@ -794,8 +787,8 @@ def brainstorm_module():
         except:
             pass
         
-        # Start the actual brainstorm backend (prompt_studio_dynamic.py) - serves prompt_studio_dynamic.html with chat/prompt toggle
-        backend_file = Path(__file__).parent / "prompt_studio_dynamic.py"
+        # Start the actual brainstorm backend (web_brainstorm_server.py) - serves web_brainstorm.html with chat/prompt toggle
+        backend_file = Path(__file__).parent / "web_brainstorm_server.py"
         if backend_file.exists():
             # Start the backend server on port 8002
             server_process = subprocess.Popen([
@@ -841,7 +834,7 @@ def brainstorm_module():
                     # Force kill via system command
                     os.system("lsof -ti:8002 | xargs kill -9 2>/dev/null")
         else:
-            raise FileNotFoundError("prompt_studio_dynamic.py not found")
+            raise FileNotFoundError("web_brainstorm_server.py not found")
         
     except Exception as e:
         print(f"{Colors.RED}⚠️ Error launching brainstorm GUI: {str(e)}{Colors.END}")
@@ -903,7 +896,7 @@ def write_module():
         
         try:
             project_path = f"projects/{session.current_project}"
-            from lizzy_transparent_write import TransparentWriter
+            from core_write import TransparentWriter
             writer = TransparentWriter(project_path=project_path)
             
             print(f"\n{Colors.CYAN}✍️ Starting enhanced writing session...{Colors.END}")

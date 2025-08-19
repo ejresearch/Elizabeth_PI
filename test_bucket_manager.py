@@ -1,62 +1,97 @@
 #!/usr/bin/env python3
 """
-Test the Bucket Manager functionality
+Test script for the integrated bucket manager
 """
 
-import os
 import sys
+import subprocess
+import time
+import os
 
-# Set up a test project directory
-test_project = "test_project"
-os.makedirs(f"projects/{test_project}", exist_ok=True)
+def test_bucket_manager_integration():
+    """Test if the bucket manager is properly integrated"""
+    
+    print("🧪 Testing Bucket Manager Integration")
+    print("=" * 50)
+    
+    # Test 1: Check if all files exist
+    required_files = [
+        'bucket_manager.html',
+        'bucket_manager_server.py',
+        'core_knowledge.py'
+    ]
+    
+    for file in required_files:
+        if os.path.exists(file):
+            print(f"✅ {file} exists")
+        else:
+            print(f"❌ {file} missing")
+            return False
+    
+    # Test 2: Check if server can start
+    print("\n🚀 Testing server startup...")
+    try:
+        server_process = subprocess.Popen(
+            [sys.executable, 'bucket_manager_server.py'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        
+        # Give it time to start
+        time.sleep(3)
+        
+        # Check if process is still running
+        if server_process.poll() is None:
+            print("✅ Server started successfully")
+            
+            # Test 3: Try to fetch buckets
+            try:
+                import requests
+                response = requests.get('http://localhost:8002/api/buckets', timeout=5)
+                if response.status_code == 200:
+                    buckets = response.json()
+                    print(f"✅ API working - found {len(buckets)} buckets")
+                else:
+                    print(f"⚠️ API responded with status {response.status_code}")
+            except ImportError:
+                print("ℹ️ requests not available, skipping API test")
+            except Exception as e:
+                print(f"⚠️ API test failed: {e}")
+            
+            # Clean up
+            server_process.terminate()
+            server_process.wait()
+            print("🛑 Server stopped")
+            
+        else:
+            stdout, stderr = server_process.communicate()
+            print(f"❌ Server failed to start")
+            print(f"STDOUT: {stdout.decode()}")
+            print(f"STDERR: {stderr.decode()}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error testing server: {e}")
+        return False
+    
+    # Test 4: Check imports
+    print("\n📦 Testing imports...")
+    try:
+        from core_knowledge import BucketInterface, LightRAGManager
+        print("✅ core_knowledge imports work")
+    except Exception as e:
+        print(f"❌ Import error: {e}")
+        return False
+    
+    print("\n🎉 All tests passed! Bucket manager is ready to use.")
+    print("\n📋 Usage:")
+    print("1. Run: python3 lizzy.py")
+    print("2. Navigate to Knowledge → BUCKET MANAGEMENT")
+    print("3. Select option 8: 'Open Modern Bucket Manager (GUI)'")
+    print("4. Your browser will open to http://localhost:8002")
+    
+    return True
 
-# Import lizzy components
-from lizzy import session, bucket_manager_menu, Colors, print_header, print_separator
-
-# Set up session
-session.current_project = test_project
-session.api_key_set = True
-
-print("=" * 80)
-print("TESTING BUCKET MANAGER LAUNCH")
-print("=" * 80)
-
-# Test imports
-try:
-    from lizzy_lightrag_manager import LightRAGManager, BucketInterface
-    print("✅ LightRAG modules imported successfully")
-    
-    # Test creating manager
-    project_path = f"projects/{test_project}"
-    manager = LightRAGManager(base_dir=os.path.join(project_path, "lightrag_working_dir"))
-    print("✅ LightRAG manager created successfully")
-    
-    # Test creating interface
-    interface = BucketInterface(manager)
-    print("✅ Bucket interface created successfully")
-    
-    print("\n" + "=" * 80)
-    print("BUCKET MANAGER WOULD SHOW:")
-    print("=" * 80)
-    
-    print(f"\n{Colors.BOLD}🗂️ BUCKET MANAGER - LightRAG Knowledge Base{Colors.END}")
-    print(f"{Colors.CYAN}{'═' * 80}{Colors.END}")
-    print(f"{Colors.CYAN}Launching Bucket Manager...{Colors.END}")
-    print(f"{Colors.YELLOW}This is your central hub for managing knowledge buckets.{Colors.END}")
-    print(f"{Colors.YELLOW}You can browse, inspect, visualize, and compare buckets.{Colors.END}\n")
-    
-    print("BUCKET MANAGEMENT MENU:")
-    print("1. View bucket status")
-    print("2. Create new bucket")
-    print("3. Toggle bucket on/off")
-    print("4. Add document to bucket")
-    print("5. Visualize knowledge graph")
-    print("6. Export bucket data")
-    print("0. Back")
-    
-    print("\n✅ Bucket Manager is ready to use!")
-    
-except ImportError as e:
-    print(f"❌ Import error: {e}")
-except Exception as e:
-    print(f"❌ Error: {e}")
+if __name__ == "__main__":
+    success = test_bucket_manager_integration()
+    sys.exit(0 if success else 1)

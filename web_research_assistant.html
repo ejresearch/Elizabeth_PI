@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizzy Research Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'research': '#3b82f6',
+                        'writing': '#059669', 
+                        'insight': '#7c3aed',
+                        'accent': '#f59e0b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .research-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .research-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+        }
+        
+        .knowledge-item {
+            animation: slideInUp 0.4s ease-out;
+        }
+        
+        @keyframes slideInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+        
+        .typing-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .chat-message {
+            animation: fadeInMessage 0.5s ease-out;
+        }
+        
+        @keyframes fadeInMessage {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+
+    <!-- Main Container -->
+    <div class="min-h-screen flex">
+        
+        <!-- Left Panel: Research Mode -->
+        <div id="research-panel" class="flex-1 flex flex-col">
+            <!-- Header -->
+            <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-research">🔍 Research Assistant</h1>
+                        <p class="text-gray-600 dark:text-gray-400">Ask questions, discover insights, build knowledge</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button id="toggle-writing" class="px-4 py-2 bg-writing text-white rounded-lg hover:bg-green-700 transition-colors">
+                            ✍️ Start Writing
+                        </button>
+                        <button id="view-collections" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            📚 Collections
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Research Chat Interface -->
+            <div class="flex-1 flex flex-col">
+                
+                <!-- Chat Messages -->
+                <div id="chat-container" class="flex-1 overflow-y-auto p-6 space-y-4">
+                    
+                    <!-- Welcome Message -->
+                    <div class="chat-message max-w-3xl">
+                        <div class="bg-research/10 border border-research/20 rounded-lg p-6">
+                            <div class="flex items-start space-x-4">
+                                <div class="w-10 h-10 bg-research rounded-full flex items-center justify-center text-white font-semibold">
+                                    🧠
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Welcome to your Research Assistant!</h3>
+                                    <p class="text-gray-700 dark:text-gray-300 mb-4">I can help you research and write by finding relevant information from your knowledge collections. Try asking:</p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <button onclick="askQuestion('How do I write a compelling coffee shop meet-cute scene?')" class="research-card bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-left">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">Coffee shop scenes</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Romance writing techniques</div>
+                                        </button>
+                                        <button onclick="askQuestion('What are some witty dialogue examples from successful romantic comedies?')" class="research-card bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-left">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">Witty dialogue</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Comedy writing examples</div>
+                                        </button>
+                                        <button onclick="askQuestion('Show me character development techniques from Shakespeare')" class="research-card bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-left">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">Character development</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Classical techniques</div>
+                                        </button>
+                                        <button onclick="askQuestion('What are the essential elements of three-act structure?')" class="research-card bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 text-left">
+                                            <div class="text-sm font-medium text-gray-900 dark:text-white">Story structure</div>
+                                            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">Narrative techniques</div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Research Input -->
+                <div class="border-t border-gray-200 dark:border-gray-700 p-6">
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <input 
+                                type="text" 
+                                id="research-input" 
+                                placeholder="Ask anything about your research topic..."
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-research focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                                onkeypress="if(event.key==='Enter') askQuestion()"
+                            >
+                        </div>
+                        <button 
+                            onclick="askQuestion()" 
+                            id="ask-button"
+                            class="px-6 py-3 bg-research text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                            Ask
+                        </button>
+                    </div>
+                    
+                    <!-- Smart Suggestions -->
+                    <div id="suggestions" class="mt-3 flex flex-wrap gap-2 hidden">
+                        <!-- Dynamic suggestions will appear here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Writing Mode (Initially Hidden) -->
+        <div id="writing-panel" class="hidden flex-1 flex flex-col border-l border-gray-200 dark:border-gray-700">
+            <!-- Writing Header -->
+            <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold text-writing">✍️ Smart Writing</h1>
+                        <p class="text-gray-600 dark:text-gray-400">Write with AI-powered knowledge support</p>
+                    </div>
+                    <button id="toggle-research" class="px-4 py-2 bg-research text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        🔍 Research Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Writing Interface -->
+            <div class="flex-1 flex flex-col">
+                
+                <!-- Document Title -->
+                <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+                    <input 
+                        type="text" 
+                        id="document-title"
+                        placeholder="Document title..."
+                        class="w-full text-xl font-semibold bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400"
+                    >
+                </div>
+
+                <!-- Writing Area with Knowledge Sidebar -->
+                <div class="flex-1 flex">
+                    
+                    <!-- Main Writing Area -->
+                    <div class="flex-1 p-6">
+                        <textarea 
+                            id="writing-area"
+                            placeholder="Start writing... As you write, relevant research will appear on the right."
+                            class="w-full h-full resize-none bg-transparent border-none focus:ring-0 focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 text-lg leading-relaxed"
+                            oninput="updateKnowledge()"
+                        ></textarea>
+                    </div>
+
+                    <!-- Knowledge Sidebar -->
+                    <div id="knowledge-sidebar" class="w-80 bg-gray-50 dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 p-4 overflow-y-auto">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">💡 Related Knowledge</h3>
+                        
+                        <div id="live-knowledge" class="space-y-3">
+                            <div class="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+                                Start writing to see relevant insights and examples appear here automatically.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Collections Panel (Initially Hidden) -->
+        <div id="collections-panel" class="hidden w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">📚 Knowledge Collections</h2>
+                    <button id="close-collections" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-4 space-y-3" id="collections-list">
+                <!-- Collections will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let currentMode = 'research';
+        let knowledgeCollections = [];
+        let activeCollections = new Set();
+        let chatHistory = [];
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadKnowledgeCollections();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Mode toggle buttons
+            document.getElementById('toggle-writing').addEventListener('click', () => switchMode('writing'));
+            document.getElementById('toggle-research').addEventListener('click', () => switchMode('research'));
+            document.getElementById('view-collections').addEventListener('click', toggleCollections);
+            document.getElementById('close-collections').addEventListener('click', toggleCollections);
+            
+            // Writing area live updates
+            let typingTimer;
+            document.getElementById('writing-area').addEventListener('input', function() {
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(updateKnowledge, 1000); // Debounce
+            });
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            if (mode === 'writing') {
+                document.getElementById('research-panel').classList.add('hidden');
+                document.getElementById('writing-panel').classList.remove('hidden');
+                document.getElementById('writing-area').focus();
+            } else {
+                document.getElementById('writing-panel').classList.add('hidden');
+                document.getElementById('research-panel').classList.remove('hidden');
+                document.getElementById('research-input').focus();
+            }
+        }
+
+        function toggleCollections() {
+            const panel = document.getElementById('collections-panel');
+            panel.classList.toggle('hidden');
+            
+            if (!panel.classList.contains('hidden')) {
+                renderCollections();
+            }
+        }
+
+        async function loadKnowledgeCollections() {
+            // Load from your LightRAG bucket system
+            try {
+                // This would connect to your actual LightRAG API
+                knowledgeCollections = [
+                    {
+                        name: "shakespeare_plays",
+                        displayName: "🎭 Shakespeare's Plays",
+                        description: "Character development and dramatic structure",
+                        documents: 1334,
+                        entities: 8665,
+                        active: true
+                    },
+                    {
+                        name: "screenwriting_books", 
+                        displayName: "📚 Screenwriting Craft",
+                        description: "Writing techniques and industry practices",
+                        documents: 875,
+                        entities: 9896,
+                        active: true
+                    },
+                    {
+                        name: "romcom_scripts",
+                        displayName: "💕 Romance Comedy Scripts", 
+                        description: "Dialogue patterns and story beats",
+                        documents: 642,
+                        entities: 7234,
+                        active: false
+                    },
+                    {
+                        name: "cultural_sources",
+                        displayName: "🌍 Cultural Context",
+                        description: "Social and cultural analysis",
+                        documents: 39,
+                        entities: 598,
+                        active: false
+                    }
+                ];
+                
+                // Set active collections
+                knowledgeCollections.forEach(collection => {
+                    if (collection.active) {
+                        activeCollections.add(collection.name);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Failed to load collections:', error);
+            }
+        }
+
+        function renderCollections() {
+            const container = document.getElementById('collections-list');
+            container.innerHTML = '';
+            
+            knowledgeCollections.forEach(collection => {
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-lg border cursor-pointer transition-all ${
+                    collection.active 
+                        ? 'border-research bg-research/5 shadow-sm' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`;
+                
+                div.innerHTML = `
+                    <div class="flex items-start justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <div class="text-lg">${collection.displayName.split(' ')[0]}</div>
+                            <div class="font-medium text-gray-900 dark:text-white">${collection.displayName.split(' ').slice(1).join(' ')}</div>
+                        </div>
+                        <input type="checkbox" ${collection.active ? 'checked' : ''} 
+                               onchange="toggleCollection('${collection.name}')"
+                               class="rounded border-gray-300 text-research focus:ring-research">
+                    </div>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">${collection.description}</p>
+                    <div class="text-xs text-gray-500 dark:text-gray-500">
+                        ${collection.documents.toLocaleString()} documents • ${collection.entities.toLocaleString()} entities
+                    </div>
+                `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        function toggleCollection(collectionName) {
+            const collection = knowledgeCollections.find(c => c.name === collectionName);
+            if (collection) {
+                collection.active = !collection.active;
+                
+                if (collection.active) {
+                    activeCollections.add(collectionName);
+                } else {
+                    activeCollections.delete(collectionName);
+                }
+                
+                renderCollections();
+                
+                // Show feedback
+                showToast(`${collection.displayName.split(' ').slice(1).join(' ')} ${collection.active ? 'activated' : 'deactivated'}`);
+            }
+        }
+
+        function askQuestion(question) {
+            if (!question) {
+                question = document.getElementById('research-input').value.trim();
+            }
+            
+            if (!question) return;
+            
+            // Clear input
+            document.getElementById('research-input').value = '';
+            
+            // Add user question to chat
+            addChatMessage('user', question);
+            
+            // Show typing indicator
+            const assistantId = addChatMessage('assistant', '', true);
+            
+            // Simulate research (replace with actual LightRAG query)
+            setTimeout(() => {
+                const response = generateResearchResponse(question);
+                updateChatMessage(assistantId, response);
+            }, 1500 + Math.random() * 1000);
+        }
+
+        function addChatMessage(sender, content, isTyping = false) {
+            const container = document.getElementById('chat-container');
+            const messageId = `msg-${Date.now()}-${Math.random()}`;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.id = messageId;
+            messageDiv.className = 'chat-message max-w-3xl';
+            
+            if (sender === 'user') {
+                messageDiv.innerHTML = `
+                    <div class="flex justify-end">
+                        <div class="bg-research text-white rounded-lg px-4 py-3 max-w-2xl">
+                            ${content}
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                            🧠
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex-1">
+                            ${isTyping ? '<div class="typing-indicator"></div>' : content}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+            
+            return messageId;
+        }
+
+        function updateChatMessage(messageId, content) {
+            const messageDiv = document.getElementById(messageId);
+            if (messageDiv) {
+                const contentDiv = messageDiv.querySelector('.bg-white, .dark\\:bg-gray-800');
+                if (contentDiv) {
+                    contentDiv.innerHTML = content;
+                }
+            }
+        }
+
+        function generateResearchResponse(question) {
+            // This would connect to your actual LightRAG system
+            // For now, simulating intelligent responses based on question content
+            
+            const responses = {
+                'coffee shop': `
+                    <div class="space-y-4">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">☕ Coffee Shop Meet-Cute Techniques</h4>
+                        <p class="text-gray-700 dark:text-gray-300">Found several patterns from your screenplay collection:</p>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h5 class="font-medium text-gray-900 dark:text-white mb-2">🎬 Classic Setup</h5>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">"The Spilled Drink" - character bumps into love interest, creating physical contact and excuse for conversation</p>
+                        </div>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <h5 class="font-medium text-gray-900 dark:text-white mb-2">💬 Dialogue Starter</h5>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">"Order mix-up" - characters get each other's drinks, revealing personality through coffee preferences</p>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="startWriting('coffee shop scene')" class="px-3 py-1 bg-writing text-white text-sm rounded">✍️ Start Writing</button>
+                            <button onclick="findMore('coffee shop examples')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded">📖 More Examples</button>
+                        </div>
+                    </div>
+                `,
+                'dialogue': `
+                    <div class="space-y-4">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">💬 Witty Dialogue Examples</h4>
+                        <p class="text-gray-700 dark:text-gray-300">From your Shakespeare and comedy script collections:</p>
+                        
+                        <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                            <h5 class="font-medium text-blue-900 dark:text-blue-300 mb-2">🎭 Shakespeare Technique</h5>
+                            <p class="text-sm text-blue-800 dark:text-blue-300 italic mb-2">"I would challenge you to a battle of wits, but I see you are unarmed."</p>
+                            <p class="text-xs text-blue-600 dark:text-blue-400">Uses contrast and unexpected imagery</p>
+                        </div>
+                        
+                        <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                            <h5 class="font-medium text-green-900 dark:text-green-300 mb-2">💕 Modern Rom-Com Pattern</h5>
+                            <p class="text-sm text-green-800 dark:text-green-300 italic mb-2">"You're not my type." "That's lucky. I wasn't trying to be."</p>
+                            <p class="text-xs text-green-600 dark:text-green-400">Subverts expectation with confidence</p>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="startWriting('witty dialogue')" class="px-3 py-1 bg-writing text-white text-sm rounded">✍️ Write Dialogue</button>
+                            <button onclick="findMore('dialogue examples')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded">📚 Shakespeare Wit</button>
+                        </div>
+                    </div>
+                `,
+                'character': `
+                    <div class="space-y-4">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">🎭 Character Development Insights</h4>
+                        <p class="text-gray-700 dark:text-gray-300">Techniques from your dramatic works collection:</p>
+                        
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                            <h5 class="font-medium text-purple-900 dark:text-purple-300 mb-2">🎪 The Flaw-Virtue Mirror</h5>
+                            <p class="text-sm text-purple-800 dark:text-purple-300">Every character strength has a corresponding weakness - pride/confidence, loyalty/stubbornness</p>
+                        </div>
+                        
+                        <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
+                            <h5 class="font-medium text-purple-900 dark:text-purple-300 mb-2">🎯 Want vs Need</h5>
+                            <p class="text-sm text-purple-800 dark:text-purple-300">Character wants one thing but needs something else entirely - drives internal conflict</p>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="startWriting('character profile')" class="px-3 py-1 bg-writing text-white text-sm rounded">✍️ Build Character</button>
+                            <button onclick="findMore('character examples')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded">🎭 Shakespeare Characters</button>
+                        </div>
+                    </div>
+                `,
+                'structure': `
+                    <div class="space-y-4">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">📖 Three-Act Structure Essentials</h4>
+                        <p class="text-gray-700 dark:text-gray-300">From your screenwriting guides:</p>
+                        
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+                                <h5 class="font-medium text-orange-900 dark:text-orange-300 text-sm mb-1">Act I (25%)</h5>
+                                <p class="text-xs text-orange-800 dark:text-orange-300">Setup, inciting incident, first plot point</p>
+                            </div>
+                            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+                                <h5 class="font-medium text-orange-900 dark:text-orange-300 text-sm mb-1">Act II (50%)</h5>
+                                <p class="text-xs text-orange-800 dark:text-orange-300">Complications, midpoint, rising action</p>
+                            </div>
+                            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
+                                <h5 class="font-medium text-orange-900 dark:text-orange-300 text-sm mb-1">Act III (25%)</h5>
+                                <p class="text-xs text-orange-800 dark:text-orange-300">Climax, resolution, denouement</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="startWriting('story outline')" class="px-3 py-1 bg-writing text-white text-sm rounded">✍️ Outline Story</button>
+                            <button onclick="findMore('structure examples')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded">📚 Structure Guide</button>
+                        </div>
+                    </div>
+                `
+            };
+            
+            // Simple keyword matching for demo
+            const lowerQuestion = question.toLowerCase();
+            
+            if (lowerQuestion.includes('coffee') || lowerQuestion.includes('meet')) {
+                return responses['coffee shop'];
+            } else if (lowerQuestion.includes('dialogue') || lowerQuestion.includes('witty')) {
+                return responses['dialogue'];
+            } else if (lowerQuestion.includes('character')) {
+                return responses['character'];
+            } else if (lowerQuestion.includes('structure') || lowerQuestion.includes('act')) {
+                return responses['structure'];
+            } else {
+                return `
+                    <div class="space-y-3">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">🔍 Research Results</h4>
+                        <p class="text-gray-700 dark:text-gray-300">I found information related to: <strong>${question}</strong></p>
+                        
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Searching through ${activeCollections.size} knowledge collections...</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">💡 Try being more specific, like asking about "dialogue techniques" or "character development"</p>
+                        </div>
+                        
+                        <div class="flex space-x-2 mt-4">
+                            <button onclick="startWriting('research topic')" class="px-3 py-1 bg-writing text-white text-sm rounded">✍️ Start Writing</button>
+                            <button onclick="askQuestion('Show me related topics')" class="px-3 py-1 bg-gray-200 text-gray-700 text-sm rounded">🔍 Related Topics</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function startWriting(topic) {
+            switchMode('writing');
+            
+            // Pre-fill some context based on research
+            const writingArea = document.getElementById('writing-area');
+            const currentText = writingArea.value;
+            
+            if (!currentText.trim()) {
+                writingArea.value = `[Writing about: ${topic}]\n\n`;
+                writingArea.setSelectionRange(writingArea.value.length, writingArea.value.length);
+            }
+            
+            writingArea.focus();
+            updateKnowledge();
+        }
+
+        function updateKnowledge() {
+            const writingArea = document.getElementById('writing-area');
+            const knowledgeContainer = document.getElementById('live-knowledge');
+            const text = writingArea.value.toLowerCase();
+            
+            // Clear previous knowledge
+            knowledgeContainer.innerHTML = '';
+            
+            if (!text.trim()) {
+                knowledgeContainer.innerHTML = `
+                    <div class="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+                        Start writing to see relevant insights and examples appear here automatically.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Generate contextual knowledge based on what they're writing
+            const suggestions = generateWritingKnowledge(text);
+            
+            suggestions.forEach((suggestion, index) => {
+                setTimeout(() => {
+                    const div = document.createElement('div');
+                    div.className = 'knowledge-item bg-white dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600';
+                    div.innerHTML = suggestion;
+                    knowledgeContainer.appendChild(div);
+                }, index * 200);
+            });
+        }
+
+        function generateWritingKnowledge(text) {
+            const suggestions = [];
+            
+            if (text.includes('coffee') || text.includes('cafe') || text.includes('shop')) {
+                suggestions.push(`
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">☕ Atmosphere Details</h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">From your research: "Steam rising from cups, background jazz, morning light through windows"</p>
+                    <button onclick="insertText('The aroma of fresh coffee and quiet morning conversations filled the air')" class="text-xs bg-research text-white px-2 py-1 rounded">Insert</button>
+                `);
+            }
+            
+            if (text.includes('dialogue') || text.includes('"') || text.includes("'")) {
+                suggestions.push(`
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">💬 Dialogue Tips</h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Make each character sound unique - different rhythm, vocabulary, concerns</p>
+                    <div class="text-xs text-gray-500 dark:text-gray-400">From Shakespeare: Each character has distinct voice</div>
+                `);
+            }
+            
+            if (text.includes('character') || text.includes('she') || text.includes('he')) {
+                suggestions.push(`
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">🎭 Character Depth</h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Show internal conflict through external action</p>
+                    <button onclick="insertText('torn between what she wanted and what she knew was right')" class="text-xs bg-writing text-white px-2 py-1 rounded">Insert</button>
+                `);
+            }
+            
+            if (suggestions.length === 0) {
+                suggestions.push(`
+                    <h4 class="font-medium text-gray-900 dark:text-white mb-2">✍️ Writing Flow</h4>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">Keep writing! I'll suggest relevant insights as your content develops.</p>
+                `);
+            }
+            
+            return suggestions;
+        }
+
+        function insertText(text) {
+            const writingArea = document.getElementById('writing-area');
+            const start = writingArea.selectionStart;
+            const end = writingArea.selectionEnd;
+            
+            const before = writingArea.value.substring(0, start);
+            const after = writingArea.value.substring(end);
+            
+            writingArea.value = before + text + after;
+            writingArea.setSelectionRange(start + text.length, start + text.length);
+            writingArea.focus();
+        }
+
+        function findMore(topic) {
+            addChatMessage('user', `Tell me more about ${topic}`);
+            
+            const assistantId = addChatMessage('assistant', '', true);
+            
+            setTimeout(() => {
+                const response = generateResearchResponse(topic);
+                updateChatMessage(assistantId, response);
+            }, 1000);
+        }
+
+        function showToast(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            toast.textContent = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+    </script>
+
+</body>
+</html>
