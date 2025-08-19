@@ -23,35 +23,118 @@
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
         
         .graph-container {
             height: calc(100vh - 120px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .sidebar {
-            transition: transform 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             max-height: calc(100vh - 60px);
             overflow-y: auto;
         }
         
         .entity-card {
-            transition: all 0.2s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
+            transform: translateZ(0); /* Hardware acceleration */
         }
         
         .entity-card:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 15px -4px rgba(59, 130, 246, 0.25);
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 8px 30px -8px rgba(59, 130, 246, 0.3);
         }
         
         .query-result {
-            animation: slideIn 0.3s ease-out;
+            animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .analytics-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(0);
+        }
+        
+        .analytics-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .progress-bar {
+            transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(0);
+        }
+        
+        .view-transition {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .button-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateZ(0);
+        }
+        
+        .button-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        
+        .loading-pulse {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .slide-up {
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        @keyframes slideInUp {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         .typing {
@@ -62,6 +145,60 @@
         @keyframes blink {
             0%, 50% { border-right-color: transparent; }
             51%, 100% { border-right-color: #3b82f6; }
+        }
+        
+        /* Smooth scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+        
+        /* Loading skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        /* Enhanced focus states */
+        .focus-ring:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 50;
+                height: 100vh;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .graph-container {
+                height: calc(100vh - 80px);
+            }
         }
     </style>
 </head>
@@ -88,7 +225,7 @@
                 </select>
                 
                 <!-- Add Bucket Button -->
-                <button id="add-bucket-btn" class="px-3 py-2 bg-entity text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+                <button id="add-bucket-btn" class="button-hover px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center space-x-2 font-medium focus-ring">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
@@ -100,6 +237,7 @@
                     <button id="graph-view-btn" class="px-3 py-1 rounded text-sm font-medium bg-graph text-white">Graph</button>
                     <button id="chat-view-btn" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Chat</button>
                     <button id="data-view-btn" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Data</button>
+                    <button id="analytics-view-btn" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">📊 Analytics</button>
                 </div>
             </div>
         </div>
@@ -341,6 +479,214 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Analytics View -->
+            <div id="analytics-view" class="flex-1 p-6 hidden overflow-y-auto">
+                <div class="max-w-7xl mx-auto">
+                    <!-- Analytics Header -->
+                    <div class="mb-6">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">📊 Analytics Dashboard</h2>
+                        <p class="text-gray-600 dark:text-gray-400">Comprehensive performance and usage analytics for your LightRAG knowledge bases</p>
+                    </div>
+                    
+                    <!-- Quick Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="analytics-card bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Queries</p>
+                                        <p id="total-queries-stat" class="text-2xl font-bold text-gray-900 dark:text-white">
+                                            <span class="loading-pulse">-</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">
+                                    📈 Live
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analytics-card bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-lg">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Response Time</p>
+                                        <p id="avg-response-time-stat" class="text-2xl font-bold text-gray-900 dark:text-white">
+                                            <span class="loading-pulse">-</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full">
+                                    ⚡ Fast
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analytics-card bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl shadow-lg">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Buckets</p>
+                                        <p id="active-buckets-stat" class="text-2xl font-bold text-gray-900 dark:text-white">
+                                            <span class="loading-pulse">-</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-purple-600 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-full">
+                                    🔄 Active
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="analytics-card bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl p-6 border border-gray-100 dark:border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl shadow-lg">
+                                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Entities</p>
+                                        <p id="total-entities-stat" class="text-2xl font-bold text-gray-900 dark:text-white">
+                                            <span class="loading-pulse">-</span>
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="text-xs text-orange-600 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-full">
+                                    📊 Data
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Performance Charts -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <!-- System Performance -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">🖥️ System Performance</h3>
+                            <div id="system-performance" class="space-y-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">CPU Usage</span>
+                                    <span id="cpu-usage" class="text-sm font-medium">-</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                    <div id="cpu-bar" class="progress-bar bg-gradient-to-r from-blue-400 to-blue-600 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Memory Usage</span>
+                                    <span id="memory-usage" class="text-sm font-medium">-</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                    <div id="memory-bar" class="progress-bar bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Disk Usage</span>
+                                    <span id="disk-usage" class="text-sm font-medium">-</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                                    <div id="disk-bar" class="progress-bar bg-gradient-to-r from-orange-400 to-orange-600 h-3 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Query Mode Distribution -->
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">🎯 Query Mode Usage</h3>
+                            <div id="query-mode-chart" class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Hybrid</span>
+                                    <span id="hybrid-count" class="text-sm font-medium">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="hybrid-bar" class="bg-purple-500 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Global</span>
+                                    <span id="global-count" class="text-sm font-medium">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="global-bar" class="bg-blue-500 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Local</span>
+                                    <span id="local-count" class="text-sm font-medium">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="local-bar" class="bg-green-500 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                                
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Naive</span>
+                                    <span id="naive-count" class="text-sm font-medium">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div id="naive-bar" class="bg-yellow-500 h-2 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Bucket Performance Table -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">📈 Bucket Performance</h3>
+                            <button onclick="refreshAnalytics()" class="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50 dark:bg-gray-700">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bucket</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Queries</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Avg Time</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entities</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Storage</th>
+                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bucket-performance-table" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                    <!-- Performance data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Activity -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">🕐 Recent Activity</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="recent-queries" class="space-y-3 max-h-96 overflow-y-auto">
+                                <!-- Recent queries will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -487,6 +833,7 @@
             document.getElementById('graph-view-btn').addEventListener('click', () => switchView('graph'));
             document.getElementById('chat-view-btn').addEventListener('click', () => switchView('chat'));
             document.getElementById('data-view-btn').addEventListener('click', () => switchView('data'));
+            document.getElementById('analytics-view-btn').addEventListener('click', () => switchView('analytics'));
             
             // Bucket selection
             document.getElementById('bucket-selector').addEventListener('change', loadBucket);
@@ -770,7 +1117,14 @@
             document.querySelectorAll('[id$="-view-btn"]').forEach(btn => {
                 btn.className = 'px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600';
             });
-            document.getElementById(`${view}-view-btn`).className = `px-3 py-1 rounded text-sm font-medium bg-${view === 'graph' ? 'graph' : view === 'chat' ? 'query' : 'entity'} text-white`;
+            
+            const colorMap = {
+                'graph': 'graph',
+                'chat': 'query', 
+                'data': 'entity',
+                'analytics': 'purple-500'
+            };
+            document.getElementById(`${view}-view-btn`).className = `px-3 py-1 rounded text-sm font-medium bg-${colorMap[view]} text-white`;
             
             // Update sidebars
             document.getElementById('graph-sidebar').classList.toggle('hidden', view !== 'graph');
@@ -781,9 +1135,12 @@
             document.getElementById('graph-view').classList.toggle('hidden', view !== 'graph');
             document.getElementById('chat-view').classList.toggle('hidden', view !== 'chat');
             document.getElementById('data-view').classList.toggle('hidden', view !== 'data');
+            document.getElementById('analytics-view').classList.toggle('hidden', view !== 'analytics');
             
             if (view === 'data' && currentBucket) {
                 populateDataTables();
+            } else if (view === 'analytics') {
+                loadAnalyticsDashboard();
             }
         }
 
@@ -1240,6 +1597,267 @@
                     graphView.appendChild(uploadBtn);
                 }
             }
+        }
+        
+        // Analytics Dashboard Functions
+        async function loadAnalyticsDashboard() {
+            try {
+                // Show loading state
+                showAnalyticsLoading(true);
+                
+                // Load overview analytics
+                const response = await fetch('/api/analytics/overview');
+                const analytics = await response.json();
+                
+                if (response.ok) {
+                    // Animate data loading
+                    await animateStatsUpdate(analytics);
+                    await loadPerformanceMetrics();
+                    
+                    showToast('📊 Analytics loaded successfully!', 'success');
+                } else {
+                    throw new Error(analytics.error || 'Failed to load analytics');
+                }
+                
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                showToast('❌ Error loading analytics', 'error');
+                showAnalyticsError();
+            } finally {
+                showAnalyticsLoading(false);
+            }
+        }
+        
+        function showAnalyticsLoading(loading) {
+            const loadingElements = document.querySelectorAll('.loading-pulse');
+            loadingElements.forEach(el => {
+                if (loading) {
+                    el.innerHTML = '<div class="inline-flex items-center"><div class="loading-spinner w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>Loading...</div>';
+                } else {
+                    // Will be updated by data loading functions
+                }
+            });
+        }
+        
+        function showAnalyticsError() {
+            const statElements = ['total-queries-stat', 'avg-response-time-stat', 'active-buckets-stat', 'total-entities-stat'];
+            statElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.innerHTML = '<span class="text-red-500">Error</span>';
+                }
+            });
+        }
+        
+        async function animateStatsUpdate(analytics) {
+            // Animate counter updates
+            const stats = [
+                { id: 'total-queries-stat', value: analytics.overview.total_queries || 0 },
+                { id: 'avg-response-time-stat', value: (analytics.performance_summary.avg_query_time || 0) + 's' },
+                { id: 'active-buckets-stat', value: analytics.overview.active_buckets || 0 },
+                { id: 'total-entities-stat', value: analytics.overview.total_entities || 0 }
+            ];
+            
+            // Stagger the animations
+            for (let i = 0; i < stats.length; i++) {
+                setTimeout(() => {
+                    const element = document.getElementById(stats[i].id);
+                    if (element) {
+                        element.classList.add('fade-in');
+                        if (typeof stats[i].value === 'number') {
+                            animateCounter(element, 0, stats[i].value, 1000);
+                        } else {
+                            element.textContent = stats[i].value;
+                        }
+                    }
+                }, i * 200);
+            }
+            
+            // Update other analytics
+            updateBucketPerformanceTable(analytics.bucket_stats);
+            updateRecentActivity(analytics.recent_activity);
+        }
+        
+        function animateCounter(element, start, end, duration) {
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Easing function for smooth animation
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(start + (end - start) * easeOut);
+                
+                element.textContent = current.toLocaleString();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+        
+        function updateAnalyticsOverview(analytics) {
+            // Update quick stats cards
+            document.getElementById('total-queries-stat').textContent = analytics.overview.total_queries || 0;
+            document.getElementById('avg-response-time-stat').textContent = 
+                (analytics.performance_summary.avg_query_time || 0) + 's';
+            document.getElementById('active-buckets-stat').textContent = analytics.overview.active_buckets || 0;
+            document.getElementById('total-entities-stat').textContent = analytics.overview.total_entities || 0;
+            
+            // Update bucket performance table
+            updateBucketPerformanceTable(analytics.bucket_stats);
+            
+            // Update recent activity
+            updateRecentActivity(analytics.recent_activity);
+        }
+        
+        async function loadPerformanceMetrics() {
+            try {
+                const response = await fetch('/api/analytics/performance');
+                const performance = await response.json();
+                
+                if (response.ok) {
+                    updateSystemPerformance(performance.system);
+                    updateQueryModeDistribution(performance);
+                }
+                
+            } catch (error) {
+                console.error('Error loading performance metrics:', error);
+            }
+        }
+        
+        function updateSystemPerformance(systemMetrics) {
+            if (systemMetrics.error) {
+                document.getElementById('cpu-usage').textContent = 'N/A';
+                document.getElementById('memory-usage').textContent = 'N/A';
+                document.getElementById('disk-usage').textContent = 'N/A';
+                return;
+            }
+            
+            // Update CPU usage
+            const cpuPercent = systemMetrics.cpu_usage_percent || 0;
+            document.getElementById('cpu-usage').textContent = cpuPercent + '%';
+            document.getElementById('cpu-bar').style.width = cpuPercent + '%';
+            
+            // Update Memory usage
+            const memoryPercent = systemMetrics.memory?.used_percent || 0;
+            document.getElementById('memory-usage').textContent = memoryPercent + '%';
+            document.getElementById('memory-bar').style.width = memoryPercent + '%';
+            
+            // Update Disk usage
+            const diskPercent = systemMetrics.disk?.used_percent || 0;
+            document.getElementById('disk-usage').textContent = diskPercent + '%';
+            document.getElementById('disk-bar').style.width = diskPercent + '%';
+        }
+        
+        function updateQueryModeDistribution(performance) {
+            // Calculate total queries across all buckets
+            let totalQueries = 0;
+            const modeCounts = { hybrid: 0, global: 0, local: 0, naive: 0 };
+            
+            // Count from recent queries
+            if (performance.recent_queries) {
+                performance.recent_queries.forEach(query => {
+                    if (query.mode && modeCounts.hasOwnProperty(query.mode)) {
+                        modeCounts[query.mode]++;
+                        totalQueries++;
+                    }
+                });
+            }
+            
+            // Update display
+            Object.keys(modeCounts).forEach(mode => {
+                const count = modeCounts[mode];
+                const percentage = totalQueries > 0 ? (count / totalQueries) * 100 : 0;
+                
+                document.getElementById(`${mode}-count`).textContent = count;
+                document.getElementById(`${mode}-bar`).style.width = percentage + '%';
+            });
+        }
+        
+        function updateBucketPerformanceTable(bucketStats) {
+            const tableBody = document.getElementById('bucket-performance-table');
+            tableBody.innerHTML = '';
+            
+            Object.entries(bucketStats).forEach(([bucketName, stats]) => {
+                const row = document.createElement('tr');
+                
+                const performance = stats.performance || {};
+                const statusClass = stats.entities > 0 ? 'text-green-600' : 'text-gray-400';
+                const statusText = stats.entities > 0 ? 'Active' : 'Empty';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        ${bucketName}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        ${performance.total_queries || 0}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        ${performance.avg_query_time || 0}s
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        ${stats.entities || 0}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        ${performance.storage_size_mb || 0}MB
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${statusClass}">
+                        ${statusText}
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function updateRecentActivity(recentActivity) {
+            const container = document.getElementById('recent-queries');
+            container.innerHTML = '';
+            
+            if (!recentActivity || recentActivity.last_24h_queries === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <p>No recent activity in the last 24 hours</p>
+                        <p class="text-sm">Start querying your knowledge bases to see activity here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Show activity summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg';
+            summaryDiv.innerHTML = `
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-sm font-medium text-blue-900 dark:text-blue-300">
+                            Last 24h: ${recentActivity.last_24h_queries} queries
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-sm text-blue-700 dark:text-blue-400">
+                            Last 7d: ${recentActivity.last_7d_queries} queries
+                        </span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(summaryDiv);
+            
+            // Show placeholder for recent queries (would be populated from actual API data)
+            const placeholderDiv = document.createElement('div');
+            placeholderDiv.className = 'text-sm text-gray-500 dark:text-gray-400';
+            placeholderDiv.innerHTML = `
+                <p>📊 Query details would appear here based on your recent interactions with the knowledge bases.</p>
+            `;
+            container.appendChild(placeholderDiv);
+        }
+        
+        async function refreshAnalytics() {
+            await loadAnalyticsDashboard();
         }
     </script>
 

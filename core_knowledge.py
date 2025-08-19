@@ -8,7 +8,9 @@ import sys
 import json
 import sqlite3
 import webbrowser
-from datetime import datetime
+import time
+import psutil
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
@@ -35,7 +37,13 @@ class LightRAGManager:
         self.buckets = {}
         self.bucket_metadata = {}
         self.active_buckets = set()
+        self.performance_stats = {}
+        self.query_history = []
+        self.system_metrics = {}
         self.load_bucket_config()
+        # Load performance statistics after bucket config
+        self.load_performance_stats()
+        self.initialize_statistics_tracking()
     
     def create_bucket(self, bucket_name: str, description: str = "", auto_activate: bool = True) -> bool:
         """Create a new LightRAG bucket"""
@@ -122,11 +130,12 @@ class LightRAGManager:
         return True
     
     def add_document_to_bucket(self, bucket_name: str, document: str, metadata: Dict = None) -> Dict:
-        """Add a document to a specific bucket"""
+        """Add a document to a specific bucket with performance tracking"""
         if bucket_name not in self.buckets:
             if not self.load_bucket(bucket_name):
                 return {"success": False, "error": "Failed to load bucket", "step": "initialization"}
         
+        start_time = time.time()
         try:
             # Insert document into LightRAG using async method
             print(f"🔄 Processing document: {metadata.get('filename', 'document')} ({len(document)} characters)")
@@ -175,6 +184,13 @@ class LightRAGManager:
             
             print(f"✅ Added document to {bucket_name}")
             
+            # Track performance
+            end_time = time.time()
+            self.track_processing_performance(
+                bucket_name, "document_insert", start_time, end_time, True,
+                {"document_length": len(document), "filename": metadata.get('filename', 'document')}
+            )
+            
             # Return detailed success info
             return {
                 "success": True,
@@ -182,20 +198,30 @@ class LightRAGManager:
                 "filename": metadata.get('filename', 'document'),
                 "document_length": len(document),
                 "bucket": bucket_name,
-                "new_document_count": self.bucket_metadata[bucket_name].get("document_count", 0)
+                "new_document_count": self.bucket_metadata[bucket_name].get("document_count", 0),
+                "processing_time": round(end_time - start_time, 3)
             }
             
         except Exception as e:
+            end_time = time.time()
             print(f"❌ Error adding document to {bucket_name}: {e}")
             print(f"❌ Error type: {type(e).__name__}")
             import traceback
             print(f"❌ Traceback: {traceback.format_exc()}")
+            
+            # Track failed processing
+            self.track_processing_performance(
+                bucket_name, "document_insert", start_time, end_time, False,
+                {"error": str(e), "filename": metadata.get('filename', 'document') if metadata else 'document'}
+            )
+            
             return {
                 "success": False,
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "step": "processing",
-                "filename": metadata.get('filename', 'document') if metadata else 'document'
+                "filename": metadata.get('filename', 'document') if metadata else 'document',
+                "processing_time": round(end_time - start_time, 3)
             }
     
     def toggle_bucket(self, bucket_name: str, active: bool) -> bool:
@@ -215,27 +241,43 @@ class LightRAGManager:
         return True
     
     def query_bucket(self, bucket_name: str, query: str, mode: str = "hybrid") -> Dict:
-        """Query a specific bucket"""
+        """Query a specific bucket with performance tracking"""
         if bucket_name not in self.buckets:
             if not self.load_bucket(bucket_name):
                 return {"error": f"Bucket not found: {bucket_name}"}
         
+        start_time = time.time()
         try:
             result = self.buckets[bucket_name].query(
                 query,
                 param=QueryParam(mode=mode)
             )
             
+            end_time = time.time()
+            
+            # Track performance
+            result_length = len(str(result)) if result else 0
+            self.track_query_performance(bucket_name, query, mode, start_time, end_time, result_length)
+            
             return {
                 "bucket": bucket_name,
                 "query": query,
                 "mode": mode,
                 "response": result,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "response_time": round(end_time - start_time, 3)
             }
             
         except Exception as e:
-            return {"error": str(e)}
+            end_time = time.time()
+            # Track failed query
+            self.track_query_performance(bucket_name, query, mode, start_time, end_time, 0)
+            return {
+                "error": str(e),
+                "bucket": bucket_name,
+                "query": query,
+                "response_time": round(end_time - start_time, 3)
+            }
     
     def query_active_buckets(self, query: str, mode: str = "hybrid") -> List[Dict]:
         """Query all active buckets"""
@@ -302,6 +344,9 @@ class LightRAGManager:
                         stats["relationships"] = len(graph_data.get("relationships", {}))
                 except:
                     pass
+        
+        # Add performance and usage metrics
+        stats.update(self.get_bucket_performance_stats(bucket_name))
         
         return stats
     
@@ -426,6 +471,8 @@ class LightRAGManager:
             # Load active buckets
             for bucket_name in self.active_buckets:
                 self.load_bucket(bucket_name)
+            
+            # Performance stats are loaded in __init__
     
     def get_bucket_list(self) -> List[Dict]:
         """Get list of all buckets with their status"""
@@ -462,6 +509,356 @@ class LightRAGManager:
             comparison["responses"][bucket] = result
         
         return comparison
+    
+    def initialize_statistics_tracking(self):
+        """Initialize comprehensive statistics tracking"""
+        stats_dir = os.path.join(self.base_dir, "_statistics")
+        os.makedirs(stats_dir, exist_ok=True)
+        
+        # Initialize performance tracking file
+        self.perf_file = os.path.join(stats_dir, "performance_metrics.json")
+        if not os.path.exists(self.perf_file):
+            with open(self.perf_file, 'w') as f:
+                json.dump({
+                    "session_start": datetime.now().isoformat(),
+                    "query_history": [],
+                    "processing_times": {},
+                    "bucket_usage": {},
+                    "system_metrics": []
+                }, f, indent=2)
+    
+    def track_query_performance(self, bucket_name: str, query: str, mode: str, start_time: float, end_time: float, result_length: int):
+        """Track query performance metrics"""
+        duration = end_time - start_time
+        
+        query_record = {
+            "timestamp": datetime.now().isoformat(),
+            "bucket": bucket_name,
+            "query": query[:100] + "..." if len(query) > 100 else query,
+            "mode": mode,
+            "duration_seconds": duration,
+            "result_length": result_length,
+            "success": True
+        }
+        
+        # Store in memory
+        self.query_history.append(query_record)
+        
+        # Update bucket usage stats
+        if bucket_name not in self.performance_stats:
+            self.performance_stats[bucket_name] = {
+                "total_queries": 0,
+                "total_time": 0,
+                "avg_response_time": 0,
+                "fastest_query": float('inf'),
+                "slowest_query": 0,
+                "mode_usage": {"naive": 0, "local": 0, "global": 0, "hybrid": 0}
+            }
+        
+        stats = self.performance_stats[bucket_name]
+        stats["total_queries"] += 1
+        stats["total_time"] += duration
+        stats["avg_response_time"] = stats["total_time"] / stats["total_queries"]
+        stats["fastest_query"] = min(stats["fastest_query"], duration)
+        stats["slowest_query"] = max(stats["slowest_query"], duration)
+        stats["mode_usage"][mode] += 1
+        
+        # Save to disk
+        self.save_performance_stats()
+    
+    def track_processing_performance(self, bucket_name: str, operation: str, start_time: float, end_time: float, success: bool, metadata: Dict = None):
+        """Track document processing performance"""
+        duration = end_time - start_time
+        
+        processing_record = {
+            "timestamp": datetime.now().isoformat(),
+            "bucket": bucket_name,
+            "operation": operation,
+            "duration_seconds": duration,
+            "success": success,
+            "metadata": metadata or {}
+        }
+        
+        # Update processing stats
+        if bucket_name not in self.performance_stats:
+            self.performance_stats[bucket_name] = {}
+        
+        if "processing" not in self.performance_stats[bucket_name]:
+            self.performance_stats[bucket_name]["processing"] = {
+                "total_operations": 0,
+                "successful_operations": 0,
+                "total_time": 0,
+                "avg_processing_time": 0
+            }
+        
+        proc_stats = self.performance_stats[bucket_name]["processing"]
+        proc_stats["total_operations"] += 1
+        if success:
+            proc_stats["successful_operations"] += 1
+        proc_stats["total_time"] += duration
+        proc_stats["avg_processing_time"] = proc_stats["total_time"] / proc_stats["total_operations"]
+        
+        self.save_performance_stats()
+    
+    def get_bucket_performance_stats(self, bucket_name: str) -> Dict:
+        """Get detailed performance statistics for a bucket"""
+        bucket_dir = os.path.join(self.base_dir, bucket_name)
+        
+        perf_stats = {
+            "performance": {
+                "total_queries": 0,
+                "avg_query_time": 0,
+                "fastest_query": 0,
+                "slowest_query": 0,
+                "success_rate": 100.0,
+                "processing_time": 0,
+                "storage_size_mb": 0,
+                "last_accessed": None
+            }
+        }
+        
+        # Get from in-memory stats
+        if bucket_name in self.performance_stats:
+            bucket_perf = self.performance_stats[bucket_name]
+            perf_stats["performance"].update({
+                "total_queries": bucket_perf.get("total_queries", 0),
+                "avg_query_time": round(bucket_perf.get("avg_response_time", 0), 3),
+                "fastest_query": round(bucket_perf.get("fastest_query", 0), 3) if bucket_perf.get("fastest_query") != float('inf') else 0,
+                "slowest_query": round(bucket_perf.get("slowest_query", 0), 3)
+            })
+        
+        # Calculate storage size
+        if os.path.exists(bucket_dir):
+            total_size = 0
+            for root, dirs, files in os.walk(bucket_dir):
+                for file in files:
+                    try:
+                        file_path = os.path.join(root, file)
+                        total_size += os.path.getsize(file_path)
+                    except:
+                        pass
+            perf_stats["performance"]["storage_size_mb"] = round(total_size / (1024 * 1024), 2)
+            
+            # Get last accessed time
+            try:
+                perf_stats["performance"]["last_accessed"] = datetime.fromtimestamp(
+                    os.path.getmtime(bucket_dir)
+                ).isoformat()
+            except:
+                pass
+        
+        return perf_stats
+    
+    def get_system_performance_metrics(self) -> Dict:
+        """Get current system performance metrics"""
+        try:
+            # CPU and Memory usage
+            cpu_percent = psutil.cpu_percent(interval=1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            metrics = {
+                "timestamp": datetime.now().isoformat(),
+                "cpu_usage_percent": cpu_percent,
+                "memory": {
+                    "total_gb": round(memory.total / (1024**3), 2),
+                    "available_gb": round(memory.available / (1024**3), 2),
+                    "used_percent": memory.percent
+                },
+                "disk": {
+                    "total_gb": round(disk.total / (1024**3), 2),
+                    "free_gb": round(disk.free / (1024**3), 2),
+                    "used_percent": round((disk.used / disk.total) * 100, 1)
+                },
+                "active_buckets": len(self.active_buckets),
+                "total_buckets": len(self.bucket_metadata)
+            }
+            
+            return metrics
+        except Exception as e:
+            return {"error": f"Could not gather system metrics: {e}"}
+    
+    def get_comprehensive_analytics(self) -> Dict:
+        """Get comprehensive analytics across all buckets"""
+        analytics = {
+            "overview": {
+                "total_buckets": len(self.bucket_metadata),
+                "active_buckets": len(self.active_buckets),
+                "total_entities": 0,
+                "total_relationships": 0,
+                "total_documents": 0,
+                "total_queries": len(self.query_history),
+                "analysis_date": datetime.now().isoformat()
+            },
+            "bucket_stats": {},
+            "performance_summary": {
+                "avg_query_time": 0,
+                "total_processing_time": 0,
+                "success_rate": 100.0,
+                "most_used_bucket": None,
+                "most_used_query_mode": None
+            },
+            "recent_activity": {
+                "last_24h_queries": 0,
+                "last_7d_queries": 0,
+                "recent_query_trends": []
+            },
+            "system_health": self.get_system_performance_metrics()
+        }
+        
+        # Aggregate bucket statistics
+        total_query_time = 0
+        total_queries = 0
+        bucket_query_counts = {}
+        mode_usage = {"naive": 0, "local": 0, "global": 0, "hybrid": 0}
+        
+        for bucket_name in self.bucket_metadata:
+            bucket_stats = self.get_knowledge_graph_stats(bucket_name)
+            analytics["bucket_stats"][bucket_name] = bucket_stats
+            
+            # Aggregate totals
+            analytics["overview"]["total_entities"] += bucket_stats.get("entities", 0)
+            analytics["overview"]["total_relationships"] += bucket_stats.get("relationships", 0)
+            analytics["overview"]["total_documents"] += bucket_stats.get("documents", 0)
+            
+            # Performance aggregation
+            if bucket_name in self.performance_stats:
+                perf = self.performance_stats[bucket_name]
+                bucket_queries = perf.get("total_queries", 0)
+                bucket_query_counts[bucket_name] = bucket_queries
+                total_queries += bucket_queries
+                total_query_time += perf.get("total_time", 0)
+                
+                # Mode usage aggregation
+                for mode, count in perf.get("mode_usage", {}).items():
+                    mode_usage[mode] += count
+        
+        # Calculate performance summary
+        if total_queries > 0:
+            analytics["performance_summary"]["avg_query_time"] = round(total_query_time / total_queries, 3)
+            analytics["performance_summary"]["most_used_bucket"] = max(bucket_query_counts, key=bucket_query_counts.get) if bucket_query_counts else None
+            analytics["performance_summary"]["most_used_query_mode"] = max(mode_usage, key=mode_usage.get) if any(mode_usage.values()) else None
+        
+        # Recent activity analysis
+        now = datetime.now()
+        last_24h = now - timedelta(days=1)
+        last_7d = now - timedelta(days=7)
+        
+        for query in self.query_history:
+            query_time = datetime.fromisoformat(query["timestamp"].replace('Z', '+00:00').replace('+00:00', ''))
+            if query_time >= last_24h:
+                analytics["recent_activity"]["last_24h_queries"] += 1
+            if query_time >= last_7d:
+                analytics["recent_activity"]["last_7d_queries"] += 1
+        
+        return analytics
+    
+    def get_bucket_usage_trends(self, bucket_name: str, days: int = 30) -> Dict:
+        """Get usage trends for a specific bucket over time"""
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        trends = {
+            "bucket": bucket_name,
+            "period_days": days,
+            "daily_queries": [],
+            "query_modes": {"naive": 0, "local": 0, "global": 0, "hybrid": 0},
+            "avg_response_times": [],
+            "total_activity": 0
+        }
+        
+        # Group queries by day
+        daily_counts = {}
+        daily_response_times = {}
+        
+        for query in self.query_history:
+            if query["bucket"] == bucket_name:
+                query_date = datetime.fromisoformat(query["timestamp"].replace('Z', '+00:00').replace('+00:00', ''))
+                if query_date >= cutoff_date:
+                    day_key = query_date.strftime('%Y-%m-%d')
+                    
+                    if day_key not in daily_counts:
+                        daily_counts[day_key] = 0
+                        daily_response_times[day_key] = []
+                    
+                    daily_counts[day_key] += 1
+                    daily_response_times[day_key].append(query["duration_seconds"])
+                    trends["query_modes"][query["mode"]] += 1
+                    trends["total_activity"] += 1
+        
+        # Convert to lists for frontend consumption
+        for day, count in sorted(daily_counts.items()):
+            trends["daily_queries"].append({
+                "date": day,
+                "queries": count,
+                "avg_response_time": sum(daily_response_times[day]) / len(daily_response_times[day])
+            })
+        
+        return trends
+    
+    def save_performance_stats(self):
+        """Save performance statistics to disk"""
+        try:
+            stats_data = {
+                "last_updated": datetime.now().isoformat(),
+                "performance_stats": self.performance_stats,
+                "query_history": self.query_history[-1000:],  # Keep last 1000 queries
+                "system_metrics": self.system_metrics
+            }
+            
+            with open(self.perf_file, 'w') as f:
+                json.dump(stats_data, f, indent=2)
+        except Exception as e:
+            print(f"⚠️ Could not save performance stats: {e}")
+    
+    def load_performance_stats(self):
+        """Load performance statistics from disk"""
+        try:
+            if os.path.exists(self.perf_file):
+                with open(self.perf_file, 'r') as f:
+                    stats_data = json.load(f)
+                
+                self.performance_stats = stats_data.get("performance_stats", {})
+                self.query_history = stats_data.get("query_history", [])
+                self.system_metrics = stats_data.get("system_metrics", {})
+        except Exception as e:
+            print(f"⚠️ Could not load performance stats: {e}")
+    
+    def export_analytics_report(self, format_type: str = "json") -> str:
+        """Export comprehensive analytics report"""
+        analytics = self.get_comprehensive_analytics()
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        if format_type == "json":
+            filename = f"lightrag_analytics_{timestamp}.json"
+            with open(filename, 'w') as f:
+                json.dump(analytics, f, indent=2)
+        
+        elif format_type == "csv":
+            import csv
+            filename = f"lightrag_analytics_{timestamp}.csv"
+            
+            with open(filename, 'w', newline='') as f:
+                writer = csv.writer(f)
+                
+                # Write overview
+                writer.writerow(["Metric", "Value"])
+                for key, value in analytics["overview"].items():
+                    writer.writerow([key, value])
+                
+                writer.writerow([])  # Empty row
+                writer.writerow(["Bucket", "Entities", "Relationships", "Documents"])
+                
+                # Write bucket stats
+                for bucket, stats in analytics["bucket_stats"].items():
+                    writer.writerow([
+                        bucket,
+                        stats.get("entities", 0),
+                        stats.get("relationships", 0),
+                        stats.get("documents", 0)
+                    ])
+        
+        return filename
     
     def batch_process_files(self, bucket_name: str, file_paths: List[str] = None, 
                            directory_path: str = None, file_extensions: List[str] = None) -> Dict:

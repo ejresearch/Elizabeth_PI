@@ -9,6 +9,8 @@ import json
 import sqlite3
 from datetime import datetime
 from typing import Dict, List, Any, Optional
+import sys
+sys.path.append('..')
 from core_knowledge import LightRAGManager
 
 # Create Flask app
@@ -338,7 +340,7 @@ def search_bucket(bucket_name):
 
 @app.route('/api/compare')
 def compare_buckets():
-    """Compare multiple buckets side by side"""
+    """Compare multiple buckets side by side with detailed analytics"""
     try:
         bucket_names = request.args.get('buckets', '').split(',')
         bucket_names = [name.strip() for name in bucket_names if name.strip()]
@@ -348,23 +350,81 @@ def compare_buckets():
         
         comparison = {
             "buckets": {},
-            "comparison_stats": {}
+            "comparison_stats": {},
+            "performance_comparison": {},
+            "detailed_metrics": {}
         }
         
+        total_entities = 0
+        total_relationships = 0
+        total_documents = 0
+        total_queries = 0
+        total_storage = 0
+        
         for bucket_name in bucket_names:
+            # Get basic stats
             stats = lightrag_manager.get_knowledge_graph_stats(bucket_name)
-            comparison["buckets"][bucket_name] = stats
+            
+            # Get performance metrics
+            performance = lightrag_manager.get_bucket_performance_stats(bucket_name)
+            
+            # Combine data
+            bucket_data = {
+                **stats,
+                **performance,
+                "active": bucket_name in lightrag_manager.active_buckets
+            }
+            
+            comparison["buckets"][bucket_name] = bucket_data
+            
+            # Aggregate totals
+            total_entities += stats.get("entities", 0)
+            total_relationships += stats.get("relationships", 0)
+            total_documents += stats.get("documents", 0)
+            total_queries += performance.get("performance", {}).get("total_queries", 0)
+            total_storage += performance.get("performance", {}).get("storage_size_mb", 0)
         
         # Compute comparison statistics
-        total_entities = sum(bucket["entities"] for bucket in comparison["buckets"].values())
-        total_relationships = sum(bucket["relationships"] for bucket in comparison["buckets"].values())
-        
+        num_buckets = len(bucket_names)
         comparison["comparison_stats"] = {
-            "total_buckets": len(bucket_names),
+            "total_buckets": num_buckets,
             "total_entities": total_entities,
             "total_relationships": total_relationships,
-            "avg_entities_per_bucket": round(total_entities / len(bucket_names), 2),
-            "avg_relationships_per_bucket": round(total_relationships / len(bucket_names), 2)
+            "total_documents": total_documents,
+            "total_queries": total_queries,
+            "total_storage_mb": round(total_storage, 2),
+            "avg_entities_per_bucket": round(total_entities / num_buckets, 2),
+            "avg_relationships_per_bucket": round(total_relationships / num_buckets, 2),
+            "avg_documents_per_bucket": round(total_documents / num_buckets, 2),
+            "avg_queries_per_bucket": round(total_queries / num_buckets, 2),
+            "avg_storage_per_bucket_mb": round(total_storage / num_buckets, 2)
+        }
+        
+        # Performance comparison rankings
+        buckets_by_entities = sorted(bucket_names, 
+            key=lambda x: comparison["buckets"][x].get("entities", 0), reverse=True)
+        buckets_by_queries = sorted(bucket_names,
+            key=lambda x: comparison["buckets"][x].get("performance", {}).get("total_queries", 0), reverse=True)
+        buckets_by_size = sorted(bucket_names,
+            key=lambda x: comparison["buckets"][x].get("performance", {}).get("storage_size_mb", 0), reverse=True)
+        
+        comparison["performance_comparison"] = {
+            "largest_by_entities": buckets_by_entities[0] if buckets_by_entities else None,
+            "most_queried": buckets_by_queries[0] if buckets_by_queries else None,
+            "largest_by_storage": buckets_by_size[0] if buckets_by_size else None,
+            "rankings": {
+                "by_entities": buckets_by_entities,
+                "by_queries": buckets_by_queries,
+                "by_storage": buckets_by_size
+            }
+        }
+        
+        # Detailed metrics for visualization
+        comparison["detailed_metrics"] = {
+            "entity_distribution": {bucket: comparison["buckets"][bucket].get("entities", 0) for bucket in bucket_names},
+            "relationship_distribution": {bucket: comparison["buckets"][bucket].get("relationships", 0) for bucket in bucket_names},
+            "query_distribution": {bucket: comparison["buckets"][bucket].get("performance", {}).get("total_queries", 0) for bucket in bucket_names},
+            "storage_distribution": {bucket: comparison["buckets"][bucket].get("performance", {}).get("storage_size_mb", 0) for bucket in bucket_names}
         }
         
         return jsonify(comparison)
@@ -463,6 +523,103 @@ def export_bucket(bucket_name):
         print(f"Error exporting {bucket_name}: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/analytics/overview')
+def get_analytics_overview():
+    """Get comprehensive analytics overview"""
+    try:
+        analytics = lightrag_manager.get_comprehensive_analytics()
+        return jsonify(analytics)
+    except Exception as e:
+        print(f"Error getting analytics overview: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/bucket/<bucket_name>')
+def get_bucket_analytics(bucket_name):
+    """Get detailed analytics for a specific bucket"""
+    try:
+        # Get basic stats
+        stats = lightrag_manager.get_knowledge_graph_stats(bucket_name)
+        
+        # Get performance metrics
+        performance = lightrag_manager.get_bucket_performance_stats(bucket_name)
+        
+        # Get usage trends
+        days = request.args.get('days', 30, type=int)
+        trends = lightrag_manager.get_bucket_usage_trends(bucket_name, days)
+        
+        analytics = {
+            **stats,
+            **performance,
+            "trends": trends,
+            "bucket_name": bucket_name
+        }
+        
+        return jsonify(analytics)
+        
+    except Exception as e:
+        print(f"Error getting bucket analytics for {bucket_name}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/performance')
+def get_performance_metrics():
+    """Get real-time performance metrics"""
+    try:
+        system_metrics = lightrag_manager.get_system_performance_metrics()
+        
+        # Add recent query statistics
+        recent_queries = lightrag_manager.query_history[-50:] if lightrag_manager.query_history else []
+        
+        performance_data = {
+            "system": system_metrics,
+            "recent_queries": recent_queries,
+            "total_queries": len(lightrag_manager.query_history),
+            "buckets_performance": {}
+        }
+        
+        # Add per-bucket performance summary
+        for bucket_name in lightrag_manager.bucket_metadata:
+            bucket_perf = lightrag_manager.get_bucket_performance_stats(bucket_name)
+            performance_data["buckets_performance"][bucket_name] = bucket_perf.get("performance", {})
+        
+        return jsonify(performance_data)
+        
+    except Exception as e:
+        print(f"Error getting performance metrics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/export')
+def export_analytics():
+    """Export comprehensive analytics report"""
+    try:
+        format_type = request.args.get('format', 'json').lower()
+        
+        if format_type not in ['json', 'csv']:
+            return jsonify({"error": "Supported formats: json, csv"}), 400
+        
+        filename = lightrag_manager.export_analytics_report(format_type)
+        
+        return jsonify({
+            "success": True,
+            "filename": filename,
+            "message": f"Analytics exported to {filename}"
+        })
+        
+    except Exception as e:
+        print(f"Error exporting analytics: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analytics/trends/<bucket_name>')
+def get_bucket_trends(bucket_name):
+    """Get usage trends for a specific bucket"""
+    try:
+        days = request.args.get('days', 30, type=int)
+        trends = lightrag_manager.get_bucket_usage_trends(bucket_name, days)
+        return jsonify(trends)
+        
+    except Exception as e:
+        print(f"Error getting trends for {bucket_name}: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     print("🚀 Starting LightRAG Explorer Server on port 8001...")
     print("📊 Available endpoints:")
@@ -479,6 +636,11 @@ if __name__ == '__main__':
     print("  GET  /api/buckets/<name>/search - Search within bucket")
     print("  GET  /api/compare - Compare multiple buckets")
     print("  GET  /api/export/<name> - Export bucket data")
+    print("  🆕 GET  /api/analytics/overview - Comprehensive analytics")
+    print("  🆕 GET  /api/analytics/bucket/<name> - Bucket-specific analytics")
+    print("  🆕 GET  /api/analytics/performance - Real-time performance metrics")
+    print("  🆕 GET  /api/analytics/trends/<name> - Usage trends for bucket")
+    print("  🆕 GET  /api/analytics/export - Export analytics report")
     print()
     print("🕸️ LightRAG Explorer will be available at: http://localhost:8001")
     
