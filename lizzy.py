@@ -30,6 +30,7 @@ try:
     from core_write import TransparentWriter
     from core_export import LizzyExporter
     from core_knowledge import LightRAGManager, BucketInterface
+    from util_apikey import APIKeyManager
     HAS_TRANSPARENT_MODULES = True
 except ImportError:
     HAS_TRANSPARENT_MODULES = False
@@ -205,9 +206,42 @@ def print_status():
     print_separator("─")
 
 def setup_api_key():
-    """Setup OpenAI API key"""
+    """Enhanced API key setup with testing and validation"""
     global client, session
     
+    if HAS_TRANSPARENT_MODULES:
+        # Use enhanced API key manager
+        try:
+            api_manager = APIKeyManager()
+            
+            # Check if we already have a working key
+            current_key = api_manager.get_openai_key()
+            if current_key:
+                print(f"\n{Colors.YELLOW}🔍 Testing existing API key...{Colors.END}")
+                result = api_manager.test_openai_key()
+                
+                if result["success"]:
+                    client = OpenAI(api_key=current_key)
+                    session.api_key_set = True
+                    print(f"{Colors.GREEN}✅ Existing API key is working!{Colors.END}")
+                    return True
+                else:
+                    print(f"{Colors.RED}❌ Existing API key failed: {result['error']}{Colors.END}")
+            
+            # Interactive setup
+            api_manager.interactive_setup()
+            
+            # Test the key after setup
+            final_key = api_manager.get_openai_key()
+            if final_key:
+                client = OpenAI(api_key=final_key)
+                session.api_key_set = True
+                return True
+            
+        except ImportError:
+            pass
+    
+    # Fallback to simple setup
     print(f"\n{Colors.YELLOW}🔑 OPENAI API KEY SETUP{Colors.END}")
     print_separator()
     
@@ -716,12 +750,25 @@ def bucket_manager_menu():
         if os.path.exists(server_file):
             print(f"{Colors.CYAN}Starting server...{Colors.END}")
             
+            # Ensure API key is available for subprocess
+            env = os.environ.copy()
+            try:
+                from util_apikey import APIKeyManager
+                api_manager = APIKeyManager()
+                api_key = api_manager.get_openai_key()
+                if api_key:
+                    env['OPENAI_API_KEY'] = api_key
+                    print(f"{Colors.GREEN}✅ API key loaded for server process{Colors.END}")
+            except Exception as e:
+                print(f"{Colors.YELLOW}⚠️ Could not load API key: {e}{Colors.END}")
+            
             # Start server in background
             server_process = subprocess.Popen(
                 [sys.executable, server_file],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=current_dir
+                cwd=current_dir,
+                env=env
             )
             
             # Give it time to start

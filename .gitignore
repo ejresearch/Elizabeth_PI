@@ -37,6 +37,7 @@ local_cache/
 
 # API Keys and Configs
 config.json
+api_config.json
 .env
 .env.local
 *.key
@@ -50,9 +51,8 @@ api_keys.txt
 
 # LightRAG Working Data (too large for GitHub)
 lightrag_working_dir/
-lightrag_buckets/*/vdb_*.json
-lightrag_buckets/*/kv_store_*.json
-lightrag_buckets/*/graph_*.graphml
+lightrag_buckets/
+lightrag_working_dir_old/
 
 # Project Data (optional - uncomment if you want to exclude user projects)
 # projects/

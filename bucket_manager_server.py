@@ -4,9 +4,43 @@ Bucket Manager Server - Backend for the bucket management GUI
 Provides REST API for LightRAG bucket operations
 """
 
+# Import os first
+import os
+
+# Auto-load environment variables from .env file
+try:
+    from load_env import load_env_file
+    load_env_file()
+except ImportError:
+    pass
+
+# Ensure API key is available
+try:
+    from util_apikey import APIKeyManager
+    api_manager = APIKeyManager()
+    api_key = api_manager.get_openai_key()
+    if api_key:
+        os.environ['OPENAI_API_KEY'] = api_key
+        print(f"✅ API key loaded for server: {api_key[:10]}...")
+        print(f"✅ Environment OPENAI_API_KEY set: {bool(os.environ.get('OPENAI_API_KEY'))}")
+    else:
+        print("❌ No API key found - processing will fail")
+        # Try direct from config file as fallback
+        try:
+            import json
+            with open('api_config.json', 'r') as f:
+                config = json.load(f)
+                fallback_key = config.get('api_keys', {}).get('openai')
+                if fallback_key:
+                    os.environ['OPENAI_API_KEY'] = fallback_key
+                    print(f"✅ Fallback API key loaded: {fallback_key[:10]}...")
+        except Exception as fe:
+            print(f"❌ Fallback also failed: {fe}")
+except Exception as e:
+    print(f"⚠️ Could not load API key: {e}")
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import os
 import json
 import networkx as nx
 from datetime import datetime
@@ -398,13 +432,56 @@ def delete_bucket(bucket_name):
 
 @app.route('/api/buckets/<bucket_name>/files', methods=['POST'])
 def add_file(bucket_name):
-    """Add a file to a bucket"""
+    """Add a file to a bucket and automatically process it"""
     data = request.json
-    result = manager.add_file_to_bucket(
-        bucket_name,
-        data.get('content', ''),
-        data.get('filename', 'document.txt')
-    )
+    filename = data.get('filename', 'document.txt')
+    content = data.get('content', '')
+    
+    # First, add the file to the bucket
+    result = manager.add_file_to_bucket(bucket_name, content, filename)
+    
+    if result.get('success'):
+        # Automatically trigger processing to build knowledge graph
+        try:
+            from core_knowledge import LightRAGManager
+            kg_manager = LightRAGManager()
+            
+            # Process the newly added file immediately
+            process_result = kg_manager.add_document_to_bucket(
+                bucket_name, 
+                content, 
+                metadata={"source_file": filename, "filename": filename}
+            )
+            
+            if process_result.get('success'):
+                # Get updated stats
+                stats = kg_manager.get_knowledge_graph_stats(bucket_name)
+                result['processing'] = {
+                    'success': True,
+                    'stats': stats,
+                    'message': f'✅ Successfully processed {process_result.get("filename", "document")}',
+                    'details': {
+                        'document_length': process_result.get('document_length'),
+                        'new_document_count': process_result.get('new_document_count'),
+                        'processing_step': process_result.get('step')
+                    }
+                }
+            else:
+                result['processing'] = {
+                    'success': False,
+                    'message': f'❌ Processing failed at {process_result.get("step", "unknown")} step',
+                    'error': process_result.get('error', 'Unknown error'),
+                    'error_type': process_result.get('error_type'),
+                    'filename': process_result.get('filename')
+                }
+                
+        except Exception as e:
+            result['processing'] = {
+                'success': False,
+                'error': str(e),
+                'message': 'File uploaded but auto-processing failed'
+            }
+    
     return jsonify(result)
 
 @app.route('/api/buckets/<bucket_name>/files/<filename>', methods=['DELETE'])
@@ -441,6 +518,91 @@ def get_stats():
         "total_edges": total_edges,
         "total_files": total_files
     })
+
+@app.route('/api/apikey/status', methods=['GET'])
+def get_api_key_status():
+    """Get current API key status"""
+    try:
+        from util_apikey import APIKeyManager
+        api_manager = APIKeyManager()
+        status = api_manager.get_api_status()
+        return jsonify(status)
+    except ImportError:
+        return jsonify({"error": "API key management not available"}), 500
+
+@app.route('/api/apikey/set', methods=['POST'])
+def set_api_key():
+    """Set and test API key"""
+    try:
+        from util_apikey import APIKeyManager
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        
+        if not api_key:
+            return jsonify({"success": False, "error": "API key is required"}), 400
+        
+        api_manager = APIKeyManager()
+        
+        # Set the key
+        if not api_manager.set_openai_key(api_key):
+            return jsonify({"success": False, "error": "Invalid API key format"}), 400
+        
+        # Test the key immediately
+        test_result = api_manager.test_openai_key(api_key)
+        
+        return jsonify({
+            "success": test_result["success"],
+            "test_result": test_result
+        })
+        
+    except ImportError:
+        return jsonify({"success": False, "error": "API key management not available"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/apikey/test', methods=['POST'])
+def test_api_key():
+    """Test current API key"""
+    try:
+        from util_apikey import APIKeyManager
+        api_manager = APIKeyManager()
+        result = api_manager.test_openai_key()
+        return jsonify(result)
+    except ImportError:
+        return jsonify({"error": "API key management not available"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/buckets/<bucket_name>/process', methods=['POST'])
+def process_bucket_files(bucket_name):
+    """Process all queued files in a bucket to build knowledge graph"""
+    try:
+        from core_knowledge import LightRAGManager
+        
+        # bucket_name is already passed as parameter
+        kg_manager = LightRAGManager()
+        
+        # Check if bucket exists
+        if bucket_name not in [b['name'] for b in kg_manager.get_bucket_list()]:
+            return jsonify({"success": False, "error": "Bucket not found"}), 404
+        
+        # Process queued files
+        result = kg_manager.batch_process_files(bucket_name)
+        
+        if "error" in result:
+            return jsonify({"success": False, "error": result["error"]}), 400
+        
+        return jsonify({
+            "success": True,
+            "processed": result.get("processed", 0),
+            "failed": result.get("failed", 0),
+            "stats": result.get("final_stats", {})
+        })
+        
+    except ImportError:
+        return jsonify({"success": False, "error": "LightRAG not available"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     print("🚀 Starting Bucket Manager Server...")

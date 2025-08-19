@@ -12,10 +12,18 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
+from lightrag.kg.shared_storage import initialize_pipeline_status
 import networkx as nx
 import matplotlib.pyplot as plt
 from io import StringIO
 from bucket_alt.util_visualizer import create_interactive_graph, create_multi_graph_explorer
+
+# Auto-load environment variables from .env file
+try:
+    from load_env import load_env_file
+    load_env_file()
+except ImportError:
+    pass
 
 
 class LightRAGManager:
@@ -39,11 +47,27 @@ class LightRAGManager:
         os.makedirs(bucket_dir, exist_ok=True)
         
         # Initialize LightRAG instance
-        self.buckets[bucket_name] = LightRAG(
+        rag = LightRAG(
             working_dir=bucket_dir,
             embedding_func=openai_embed,
             llm_model_func=gpt_4o_mini_complete
         )
+        
+        # Initialize storages synchronously for now (async version would be better)
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        # Initialize LightRAG v1.4.7+ requirements
+        async def init_rag():
+            await rag.initialize_storages()
+            await initialize_pipeline_status()
+        
+        loop.run_until_complete(init_rag())
+        self.buckets[bucket_name] = rag
         
         # Store metadata
         self.bucket_metadata[bucket_name] = {
@@ -72,26 +96,63 @@ class LightRAGManager:
             return False
         
         if bucket_name not in self.buckets:
-            self.buckets[bucket_name] = LightRAG(
+            # Create LightRAG instance
+            rag = LightRAG(
                 working_dir=bucket_dir,
                 embedding_func=openai_embed,
                 llm_model_func=gpt_4o_mini_complete
             )
+            
+            # Initialize storages synchronously for LightRAG v1.4.7+
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            # Initialize LightRAG v1.4.7+ requirements
+            async def init_rag():
+                await rag.initialize_storages()
+                await initialize_pipeline_status()
+            
+            loop.run_until_complete(init_rag())
+            self.buckets[bucket_name] = rag
         
         return True
     
-    def add_document_to_bucket(self, bucket_name: str, document: str, metadata: Dict = None) -> bool:
+    def add_document_to_bucket(self, bucket_name: str, document: str, metadata: Dict = None) -> Dict:
         """Add a document to a specific bucket"""
         if bucket_name not in self.buckets:
             if not self.load_bucket(bucket_name):
-                return False
+                return {"success": False, "error": "Failed to load bucket", "step": "initialization"}
         
         try:
-            # Insert document into LightRAG
-            self.buckets[bucket_name].insert(document)
+            # Insert document into LightRAG using async method
+            print(f"🔄 Processing document: {metadata.get('filename', 'document')} ({len(document)} characters)")
+            print(f"📊 Step 1/4: Preparing document for LightRAG insertion...")
+            
+            # Use async insertion method
+            import asyncio
+            async def insert_doc():
+                print(f"📊 Step 2/4: Generating embeddings and extracting entities...")
+                await self.buckets[bucket_name].ainsert(document)
+                print(f"📊 Step 3/4: Building knowledge graph relationships...")
+            
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            loop.run_until_complete(insert_doc())
+            print(f"📊 Step 4/4: Updating metadata and saving to storage...")
+            print(f"✅ Document processing completed successfully!")
             
             # Update metadata
             if bucket_name in self.bucket_metadata:
+                if "document_count" not in self.bucket_metadata[bucket_name]:
+                    self.bucket_metadata[bucket_name]["document_count"] = 0
                 self.bucket_metadata[bucket_name]["document_count"] += 1
                 self.bucket_metadata[bucket_name]["last_updated"] = datetime.now().isoformat()
             
@@ -113,11 +174,29 @@ class LightRAGManager:
                 json.dump(doc_metadata, f, indent=2)
             
             print(f"✅ Added document to {bucket_name}")
-            return True
+            
+            # Return detailed success info
+            return {
+                "success": True,
+                "step": "completed",
+                "filename": metadata.get('filename', 'document'),
+                "document_length": len(document),
+                "bucket": bucket_name,
+                "new_document_count": self.bucket_metadata[bucket_name].get("document_count", 0)
+            }
             
         except Exception as e:
-            print(f"❌ Error adding document: {e}")
-            return False
+            print(f"❌ Error adding document to {bucket_name}: {e}")
+            print(f"❌ Error type: {type(e).__name__}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            return {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "step": "processing",
+                "filename": metadata.get('filename', 'document') if metadata else 'document'
+            }
     
     def toggle_bucket(self, bucket_name: str, active: bool) -> bool:
         """Toggle a bucket on or off"""
@@ -384,6 +463,158 @@ class LightRAGManager:
         
         return comparison
     
+    def batch_process_files(self, bucket_name: str, file_paths: List[str] = None, 
+                           directory_path: str = None, file_extensions: List[str] = None) -> Dict:
+        """Batch process files to build knowledge graph and vector database"""
+        if bucket_name not in self.bucket_metadata:
+            print(f"❌ Bucket not found: {bucket_name}")
+            return {"error": "Bucket not found"}
+        
+        # Determine files to process
+        files_to_process = []
+        
+        if directory_path:
+            # Process all files in directory
+            if not os.path.exists(directory_path):
+                print(f"❌ Directory not found: {directory_path}")
+                return {"error": "Directory not found"}
+            
+            extensions = file_extensions or ['.txt', '.md', '.pdf', '.docx']
+            for root, dirs, files in os.walk(directory_path):
+                for file in files:
+                    if any(file.lower().endswith(ext) for ext in extensions):
+                        files_to_process.append(os.path.join(root, file))
+        
+        elif file_paths:
+            # Process specific files
+            for path in file_paths:
+                if os.path.exists(path):
+                    files_to_process.append(path)
+                else:
+                    print(f"⚠️ File not found, skipping: {path}")
+        
+        else:
+            # Check for processing queue
+            bucket_dir = os.path.join(self.base_dir, bucket_name)
+            queue_file = os.path.join(bucket_dir, "processing_queue.json")
+            if os.path.exists(queue_file):
+                with open(queue_file, 'r') as f:
+                    queue_data = json.load(f)
+                
+                # Process queued files
+                for item in queue_data:
+                    if item.get("status") == "pending_processing":
+                        # Look for the actual file
+                        potential_files = []
+                        for root, dirs, files in os.walk(bucket_dir):
+                            for file in files:
+                                if file == item["filename"]:
+                                    potential_files.append(os.path.join(root, file))
+                        
+                        if potential_files:
+                            files_to_process.extend(potential_files)
+                        else:
+                            print(f"⚠️ Queued file not found: {item['filename']}")
+        
+        if not files_to_process:
+            print(f"❌ No files found to process")
+            return {"error": "No files to process"}
+        
+        # Load the bucket
+        if not self.load_bucket(bucket_name):
+            print(f"❌ Failed to load bucket: {bucket_name}")
+            return {"error": "Failed to load bucket"}
+        
+        print(f"🚀 Starting batch processing for bucket '{bucket_name}'")
+        print(f"📁 Processing {len(files_to_process)} files...")
+        
+        processed = 0
+        failed = 0
+        results = []
+        
+        for file_path in files_to_process:
+            try:
+                print(f"📄 Processing: {os.path.basename(file_path)}")
+                
+                # Read file content
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                
+                # Add to LightRAG bucket
+                success = self.add_document_to_bucket(
+                    bucket_name, 
+                    content, 
+                    metadata={"source_file": file_path, "filename": os.path.basename(file_path)}
+                )
+                
+                if success:
+                    processed += 1
+                    results.append({
+                        "file": file_path,
+                        "status": "success",
+                        "size": len(content)
+                    })
+                    print(f"  ✅ Successfully processed")
+                else:
+                    failed += 1
+                    results.append({
+                        "file": file_path,
+                        "status": "failed",
+                        "error": "LightRAG processing failed"
+                    })
+                    print(f"  ❌ Processing failed")
+                
+            except Exception as e:
+                failed += 1
+                results.append({
+                    "file": file_path,
+                    "status": "error",
+                    "error": str(e)
+                })
+                print(f"  ❌ Error: {e}")
+        
+        # Update queue status if processing from queue
+        bucket_dir = os.path.join(self.base_dir, bucket_name)
+        queue_file = os.path.join(bucket_dir, "processing_queue.json")
+        if os.path.exists(queue_file):
+            try:
+                with open(queue_file, 'r') as f:
+                    queue_data = json.load(f)
+                
+                # Mark processed files as complete
+                for item in queue_data:
+                    if item.get("status") == "pending_processing":
+                        item["status"] = "processed"
+                        item["processed_at"] = datetime.now().isoformat()
+                
+                with open(queue_file, 'w') as f:
+                    json.dump(queue_data, f, indent=2)
+            except Exception as e:
+                print(f"⚠️ Could not update processing queue: {e}")
+        
+        # Generate final statistics
+        stats = self.get_knowledge_graph_stats(bucket_name)
+        
+        summary = {
+            "bucket": bucket_name,
+            "total_files": len(files_to_process),
+            "processed": processed,
+            "failed": failed,
+            "results": results,
+            "final_stats": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        print(f"\n📊 BATCH PROCESSING COMPLETE")
+        print(f"📁 Bucket: {bucket_name}")
+        print(f"✅ Processed: {processed}/{len(files_to_process)} files")
+        print(f"❌ Failed: {failed}")
+        print(f"🔗 Entities: {stats['entities']}")
+        print(f"🔗 Relationships: {stats['relationships']}")
+        print(f"📚 Total Documents: {stats['documents']}")
+        
+        return summary
+
     def export_bucket_data(self, bucket_name: str) -> Dict:
         """Export all data from a bucket"""
         bucket_dir = os.path.join(self.base_dir, bucket_name)
@@ -476,10 +707,12 @@ class BucketInterface:
             print("2. Create new bucket")
             print("3. Toggle bucket on/off")
             print("4. Add document to bucket")
-            print("5. Visualize knowledge graph")
-            print("6. Compare multiple graphs")
-            print("7. Export bucket data")
-            print("8. 🎯 Open Modern Bucket Manager (GUI)")
+            print("5. 🚀 Batch process files (Build Knowledge Graph)")
+            print("6. Visualize knowledge graph")
+            print("7. Compare multiple graphs")
+            print("8. Export bucket data")
+            print("9. 🔑 API Key Management")
+            print("10. 🎯 Open Modern Bucket Manager (GUI)")
             print("0. Back")
             
             choice = input("\nChoice: ").strip()
@@ -516,6 +749,75 @@ class BucketInterface:
                     self.manager.add_document_to_bucket(bucket, doc)
             
             elif choice == "5":
+                # Batch processing
+                buckets = list(self.manager.bucket_metadata.keys())
+                if not buckets:
+                    print("❌ No buckets found. Create a bucket first.")
+                    continue
+                    
+                print("\nSelect bucket for batch processing:")
+                for i, b in enumerate(buckets, 1):
+                    print(f"{i}. {b}")
+                
+                try:
+                    idx = int(input("Select bucket: ")) - 1
+                    if not (0 <= idx < len(buckets)):
+                        print("❌ Invalid bucket selection")
+                        continue
+                    
+                    bucket = buckets[idx]
+                    
+                    print("\nBatch processing options:")
+                    print("1. Process files from directory")
+                    print("2. Process specific files")
+                    print("3. Process queued files (from web uploads)")
+                    
+                    batch_choice = input("Choice: ").strip()
+                    
+                    if batch_choice == "1":
+                        # Directory processing
+                        dir_path = input("Enter directory path: ").strip()
+                        if dir_path and os.path.exists(dir_path):
+                            print("File extensions (comma-separated, e.g., .txt,.md,.pdf):")
+                            ext_input = input("Extensions (or Enter for default): ").strip()
+                            extensions = [e.strip() for e in ext_input.split(',')] if ext_input else None
+                            
+                            result = self.manager.batch_process_files(
+                                bucket, 
+                                directory_path=dir_path, 
+                                file_extensions=extensions
+                            )
+                            
+                        else:
+                            print("❌ Invalid directory path")
+                    
+                    elif batch_choice == "2":
+                        # Specific files
+                        print("Enter file paths (one per line, empty line to finish):")
+                        file_paths = []
+                        while True:
+                            path = input("File path: ").strip()
+                            if not path:
+                                break
+                            file_paths.append(path)
+                        
+                        if file_paths:
+                            result = self.manager.batch_process_files(bucket, file_paths=file_paths)
+                        else:
+                            print("❌ No files specified")
+                    
+                    elif batch_choice == "3":
+                        # Process queue
+                        print(f"🔄 Processing queued files for bucket '{bucket}'...")
+                        result = self.manager.batch_process_files(bucket)
+                        
+                    else:
+                        print("❌ Invalid choice")
+                        
+                except ValueError:
+                    print("❌ Invalid input")
+            
+            elif choice == "6":
                 buckets = list(self.manager.bucket_metadata.keys())
                 for i, b in enumerate(buckets, 1):
                     print(f"{i}. {b}")
@@ -528,7 +830,7 @@ class BucketInterface:
                     else:
                         print("❌ No graph data available")
             
-            elif choice == "6":
+            elif choice == "7":
                 # Multi-graph comparison
                 buckets = list(self.manager.bucket_metadata.keys())
                 print("\nSelect buckets for comparison:")
@@ -561,7 +863,7 @@ class BucketInterface:
                 except ValueError:
                     print("❌ Invalid input format. Use comma-separated numbers (e.g., 1,2,3)")
                     
-            elif choice == "7":
+            elif choice == "8":
                 buckets = list(self.manager.bucket_metadata.keys())
                 for i, b in enumerate(buckets, 1):
                     print(f"{i}. {b}")
@@ -574,7 +876,16 @@ class BucketInterface:
                         json.dump(data, f, indent=2)
                     print(f"✅ Exported to: {filename}")
             
-            elif choice == "8":
+            elif choice == "9":
+                # API Key Management
+                try:
+                    from util_apikey import APIKeyManager
+                    api_manager = APIKeyManager()
+                    api_manager.interactive_setup()
+                except ImportError:
+                    print("❌ API Key management not available")
+            
+            elif choice == "10":
                 self.launch_modern_bucket_manager()
             
             elif choice == "0":

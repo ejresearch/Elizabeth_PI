@@ -173,6 +173,70 @@
             </div>
         </header>
         
+        <!-- API Key Management Section -->
+        <div class="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">🔑</span>
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">OpenAI API Key</h2>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Required to build knowledge graphs from your files</p>
+                        </div>
+                    </div>
+                    <div id="api-status" class="flex items-center">
+                        <span class="w-3 h-3 rounded-full bg-gray-400 mr-2"></span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Checking...</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- API Key Input -->
+                    <div class="lg:col-span-2">
+                        <div class="relative">
+                            <input 
+                                type="password" 
+                                id="api-key-input"
+                                placeholder="Enter your OpenAI API key (sk-...)"
+                                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            >
+                            <button 
+                                type="button"
+                                onclick="toggleApiKeyVisibility()"
+                                class="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                            >
+                                <span id="eye-icon">👁️</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-2">
+                        <button 
+                            onclick="setApiKey()" 
+                            class="flex-1 px-4 py-3 bg-primary text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                            Set & Test
+                        </button>
+                        <button 
+                            onclick="testApiKey()" 
+                            class="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                            title="Test current key"
+                        >
+                            🧪
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Status Messages -->
+                <div id="api-key-message" class="mt-4 hidden">
+                    <div class="p-3 rounded-lg">
+                        <p class="text-sm"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <!-- Dashboard View -->
         <div id="dashboard-view" class="p-6 fade-in">
             <!-- Stats Cards -->
@@ -387,9 +451,23 @@
                     <!-- Files to upload will be shown here -->
                 </div>
                 
+                <!-- Progress indicator -->
+                <div id="upload-progress" class="hidden mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div class="flex items-center justify-between mb-2">
+                        <span id="progress-text" class="text-sm font-medium text-blue-700 dark:text-blue-300">Processing files...</span>
+                        <span id="progress-percentage" class="text-sm text-blue-600 dark:text-blue-400">0%</span>
+                    </div>
+                    <div class="w-full bg-blue-200 rounded-full h-2 dark:bg-blue-800">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <div id="progress-details" class="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                        Initializing...
+                    </div>
+                </div>
+                
                 <div class="mt-6 flex space-x-3">
                     <button onclick="uploadFiles()" class="flex-1 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-green-700 transition-colors">
-                        Upload Files
+                        🚀 Upload & Build Graph
                     </button>
                     <button onclick="hideUploadModal()" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                         Cancel
@@ -420,11 +498,172 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            checkApiKeyStatus();
             loadBuckets();
             updateStats();
             checkDarkMode();
             showView('buckets');
         });
+
+        // API Key Management Functions
+        async function checkApiKeyStatus() {
+            try {
+                const response = await fetch('/api/apikey/status');
+                if (response.ok) {
+                    const status = await response.json();
+                    updateApiKeyStatus(status);
+                } else {
+                    updateApiKeyStatus({ openai_key_present: false });
+                }
+            } catch (error) {
+                console.error('Error checking API key status:', error);
+                updateApiKeyStatus({ openai_key_present: false });
+            }
+        }
+
+        function updateApiKeyStatus(status) {
+            const statusElement = document.getElementById('api-status');
+            const statusDot = statusElement.querySelector('.w-3');
+            const statusText = statusElement.querySelector('span:last-child');
+            
+            if (status.openai_key_present && status.openai_key_format_valid) {
+                statusDot.className = 'w-3 h-3 rounded-full bg-yellow-400 mr-2';
+                statusText.textContent = status.last_validated ? 'Key Set ✓' : 'Key Set (not tested)';
+                statusText.className = 'text-sm text-yellow-600 dark:text-yellow-400';
+            } else {
+                statusDot.className = 'w-3 h-3 rounded-full bg-red-400 mr-2';
+                statusText.textContent = 'No API Key';
+                statusText.className = 'text-sm text-red-600 dark:text-red-400';
+            }
+        }
+
+        async function setApiKey() {
+            const apiKeyInput = document.getElementById('api-key-input');
+            const apiKey = apiKeyInput.value.trim();
+            
+            if (!apiKey) {
+                showApiKeyMessage('Please enter an API key', 'error');
+                return;
+            }
+            
+            if (!apiKey.startsWith('sk-')) {
+                showApiKeyMessage('API key must start with "sk-"', 'error');
+                return;
+            }
+            
+            try {
+                showApiKeyMessage('Setting and testing API key...', 'info');
+                
+                const response = await fetch('/api/apikey/set', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ apiKey: apiKey })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showApiKeyMessage('✅ API key set and tested successfully!', 'success');
+                    apiKeyInput.value = '';
+                    checkApiKeyStatus();
+                } else {
+                    const errorMsg = result.test_result ? result.test_result.details : result.error;
+                    showApiKeyMessage(`❌ API key test failed: ${errorMsg}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error setting API key:', error);
+                showApiKeyMessage('Failed to set API key. Check your connection.', 'error');
+            }
+        }
+
+        async function testApiKey() {
+            try {
+                showApiKeyMessage('Testing API key...', 'info');
+                
+                const response = await fetch('/api/apikey/test', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showApiKeyMessage('✅ API key is working perfectly!', 'success');
+                    checkApiKeyStatus();
+                } else {
+                    showApiKeyMessage(`❌ API key test failed: ${result.details || result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error testing API key:', error);
+                showApiKeyMessage('Failed to test API key. Check your connection.', 'error');
+            }
+        }
+
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('api-key-input');
+            const icon = document.getElementById('eye-icon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                icon.textContent = '👁️';
+            }
+        }
+
+        function showApiKeyMessage(message, type) {
+            const messageDiv = document.getElementById('api-key-message');
+            const messageP = messageDiv.querySelector('p');
+            const container = messageDiv.querySelector('div');
+            
+            messageP.textContent = message;
+            messageDiv.classList.remove('hidden');
+            
+            // Reset classes
+            container.className = 'p-3 rounded-lg';
+            
+            // Apply type-specific styling
+            if (type === 'success') {
+                container.classList.add('bg-green-100', 'dark:bg-green-900', 'text-green-800', 'dark:text-green-200');
+            } else if (type === 'error') {
+                container.classList.add('bg-red-100', 'dark:bg-red-900', 'text-red-800', 'dark:text-red-200');
+            } else if (type === 'info') {
+                container.classList.add('bg-blue-100', 'dark:bg-blue-900', 'text-blue-800', 'dark:text-blue-200');
+            }
+            
+            // Auto-hide after 5 seconds for non-error messages
+            if (type !== 'error') {
+                setTimeout(() => {
+                    messageDiv.classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        // Process files in a bucket to build knowledge graph
+        async function processBucketFiles(bucketName) {
+            try {
+                showToast(`Processing files in ${bucketName}...`, 'info');
+                
+                const response = await fetch(`/api/buckets/${bucketName}/process`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(`✅ Processed ${result.processed} files! Generated ${result.stats.entities || 0} entities and ${result.stats.relationships || 0} relationships.`, 'success');
+                    // Refresh buckets to show updated stats
+                    loadBuckets();
+                } else {
+                    showToast(`❌ Processing failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error processing files:', error);
+                showToast('Failed to process files. Check your API key and connection.', 'error');
+            }
+        }
 
         // Load buckets from API
         async function loadBuckets() {
@@ -526,8 +765,8 @@
                 </div>
                 
                 <div class="flex space-x-2">
-                    <button onclick="event.stopPropagation(); showUploadModal('${bucket.name}')" class="flex-1 px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-blue-700 transition-colors">
-                        Add Files
+                    <button onclick="event.stopPropagation(); showUploadModal('${bucket.name}')" class="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-blue-700 transition-colors" title="Upload files and automatically build knowledge graph">
+                        📚 Add & Process
                     </button>
                     <button onclick="event.stopPropagation(); manageBucket('${bucket.name}')" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         Manage
@@ -760,7 +999,7 @@
             });
         }
 
-        // Upload files
+        // Upload files and automatically process them
         async function uploadFiles() {
             const bucketName = document.getElementById('upload-bucket-name').textContent;
             
@@ -769,14 +1008,38 @@
                 return;
             }
             
-            showToast(`Uploading ${filesToUpload.length} files...`, 'info');
+            // Show progress indicator
+            const progressDiv = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const progressPercentage = document.getElementById('progress-percentage');
+            const progressDetails = document.getElementById('progress-details');
+            
+            progressDiv.classList.remove('hidden');
+            progressText.textContent = `Processing ${filesToUpload.length} files...`;
+            progressDetails.textContent = 'Starting upload process...';
             
             try {
-                for (const file of filesToUpload) {
+                let totalEntities = 0;
+                let totalRelationships = 0;
+                let processedCount = 0;
+                
+                for (let i = 0; i < filesToUpload.length; i++) {
+                    const file = filesToUpload[i];
+                    
+                    // Update progress
+                    const currentProgress = Math.round((i / filesToUpload.length) * 100);
+                    progressBar.style.width = `${currentProgress}%`;
+                    progressPercentage.textContent = `${currentProgress}%`;
+                    progressText.textContent = `Processing file ${i + 1}/${filesToUpload.length}`;
+                    progressDetails.textContent = `📄 ${file.name} - Reading file content...`;
+                    
                     // Read file content
                     const content = await readFileContent(file);
                     
-                    // Upload to server
+                    progressDetails.textContent = `📄 ${file.name} - Uploading and building knowledge graph...`;
+                    
+                    // Upload to server (now automatically processes)
                     const response = await fetch(`/api/buckets/${bucketName}/files`, {
                         method: 'POST',
                         headers: {
@@ -792,16 +1055,54 @@
                     if (!result.success) {
                         throw new Error(result.error || 'Upload failed');
                     }
+                    
+                    // Check processing results
+                    if (result.processing) {
+                        if (result.processing.success) {
+                            processedCount++;
+                            const stats = result.processing.stats;
+                            totalEntities = stats.entities || 0;
+                            totalRelationships = stats.relationships || 0;
+                            
+                            // Show detailed success feedback
+                            const details = result.processing.details || {};
+                            progressDetails.textContent = `✅ ${file.name} processed! Generated ${stats.entities || 0} entities, ${stats.relationships || 0} relationships`;
+                            showToast(`✅ ${file.name} processed successfully!`, 'success');
+                        } else {
+                            const errorStep = result.processing.message || 'Unknown error';
+                            showToast(`❌ ${file.name} failed: ${errorStep}`, 'error');
+                            console.warn(`Processing failed for ${file.name}:`, result.processing);
+                        }
+                    }
                 }
                 
-                // Reload buckets to show updated data
-                await loadBuckets();
-                hideUploadModal();
-                showToast(`Uploaded ${filesToUpload.length} files to ${bucketName}`, 'success');
-                logActivity(`Uploaded ${filesToUpload.length} files to ${bucketName}`);
+                // Complete progress
+                progressBar.style.width = '100%';
+                progressPercentage.textContent = '100%';
+                progressText.textContent = 'Upload complete!';
+                progressDetails.textContent = `🎉 Successfully processed ${processedCount}/${filesToUpload.length} files with ${totalEntities} entities and ${totalRelationships} relationships`;
+                
+                // Wait a moment to show completion, then hide progress and reload
+                setTimeout(async () => {
+                    progressDiv.classList.add('hidden');
+                    await loadBuckets();
+                    hideUploadModal();
+                    
+                    // Show final success message
+                    if (processedCount > 0) {
+                        showToast(`🎉 Successfully processed ${processedCount}/${filesToUpload.length} files! Generated ${totalEntities} entities and ${totalRelationships} relationships.`, 'success');
+                    } else {
+                        showToast('❌ No files processed successfully. Check your API key and file formats.', 'error');
+                    }
+                }, 1500);
+                
+                logActivity(`Uploaded and processed ${processedCount}/${filesToUpload.length} files to ${bucketName}`);
                 
             } catch (error) {
                 console.error('Upload error:', error);
+                
+                // Hide progress and show error
+                progressDiv.classList.add('hidden');
                 showToast('Upload failed: ' + error.message, 'error');
             }
         }
