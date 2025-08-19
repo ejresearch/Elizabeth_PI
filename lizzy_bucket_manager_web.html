@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizzy - Knowledge Bucket Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        lizzy: {
+                            50: '#f0fdff',
+                            100: '#ccf7fe',
+                            200: '#99eefd',
+                            300: '#4ecdc4',
+                            400: '#4cc9f0',
+                            500: '#0891b2',
+                            600: '#0e7490',
+                            700: '#155e75',
+                            800: '#164e63',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .glass { backdrop-filter: blur(10px); background: rgba(255, 255, 255, 0.1); }
+        .hover-lift { transition: transform 0.2s ease-in-out; }
+        .hover-lift:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden"></div>
+    
+    <!-- Sidebar -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+        <div class="flex items-center justify-between h-16 px-6 gradient-bg">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                    <span class="text-lizzy-600 font-bold text-lg">L</span>
+                </div>
+                <span class="text-white font-semibold text-lg">Lizzy AI</span>
+            </div>
+            <button id="close-sidebar" class="lg:hidden text-white hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <nav class="mt-6">
+            <div class="px-6 mb-4">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">KNOWLEDGE MANAGEMENT</span>
+            </div>
+            <a href="#" class="nav-link active flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="dashboard">
+                <span class="mr-3">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-link flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="buckets">
+                <span class="mr-3">🪣</span>
+                <span>Bucket Manager</span>
+            </a>
+            <a href="#" class="nav-link flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="analytics">
+                <span class="mr-3">📈</span>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="nav-link flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="visualizations">
+                <span class="mr-3">🔍</span>
+                <span>Graph Explorer</span>
+            </a>
+            
+            <div class="px-6 mb-4 mt-8">
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">SYSTEM</span>
+            </div>
+            <a href="#" class="nav-link flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="settings">
+                <span class="mr-3">⚙️</span>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="nav-link flex items-center px-6 py-3 text-gray-700 dark:text-gray-200 hover:bg-lizzy-50 dark:hover:bg-gray-700" data-section="profile">
+                <span class="mr-3">👤</span>
+                <span>Profile</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="lg:ml-64">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center">
+                    <button id="mobile-menu-button" class="lg:hidden text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    <h1 class="ml-4 lg:ml-0 text-xl font-semibold text-gray-900 dark:text-white" id="page-title">Dashboard</h1>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="hidden sm:block relative">
+                        <input type="text" id="global-search" placeholder="Search buckets..." class="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-400">🔍</span>
+                        </div>
+                    </div>
+                    
+                    <button id="theme-toggle" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <span class="dark:hidden">🌙</span>
+                        <span class="hidden dark:inline">☀️</span>
+                    </button>
+                    
+                    <div class="w-8 h-8 bg-gradient-to-br from-lizzy-400 to-lizzy-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:shadow-lg transition-shadow">
+                        E
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="p-4 sm:p-6 lg:p-8">
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="content-section">
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover-lift">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Buckets</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="total-buckets">10</p>
+                            </div>
+                            <div class="w-12 h-12 bg-lizzy-100 dark:bg-lizzy-900 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">🪣</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <span class="text-sm text-green-600 dark:text-green-400">↗ 12% from last month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover-lift">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Knowledge Nodes</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="total-nodes">65,432</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">🧠</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <span class="text-sm text-green-600 dark:text-green-400">↗ 8.2% from last month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover-lift">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Relationships</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="total-edges">52,108</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">🔗</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <span class="text-sm text-green-600 dark:text-green-400">↗ 15.3% from last month</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover-lift">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Active Buckets</p>
+                                <p class="text-2xl font-bold text-gray-900 dark:text-white" id="active-buckets">7</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                                <span class="text-2xl">⚡</span>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <span class="text-sm text-green-600 dark:text-green-400">↗ 2 new this week</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Activity</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Added 1,247 nodes to shakespeare_plays</span>
+                                    <span class="text-xs text-gray-400">2h ago</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Created new bucket: romcom_scripts</span>
+                                    <span class="text-xs text-gray-400">4h ago</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Generated graph visualization</span>
+                                    <span class="text-xs text-gray-400">6h ago</span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Exported screenwriting_books data</span>
+                                    <span class="text-xs text-gray-400">1d ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Quick Actions</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="grid grid-cols-2 gap-4">
+                                <button class="p-4 bg-lizzy-50 dark:bg-lizzy-900 rounded-lg text-center hover:bg-lizzy-100 dark:hover:bg-lizzy-800 transition-colors" onclick="showCreateBucketModal()">
+                                    <div class="text-2xl mb-2">➕</div>
+                                    <span class="text-sm font-medium text-lizzy-700 dark:text-lizzy-300">New Bucket</span>
+                                </button>
+                                <button class="p-4 bg-green-50 dark:bg-green-900 rounded-lg text-center hover:bg-green-100 dark:hover:bg-green-800 transition-colors" onclick="switchToSection('visualizations')">
+                                    <div class="text-2xl mb-2">📊</div>
+                                    <span class="text-sm font-medium text-green-700 dark:text-green-300">Visualize</span>
+                                </button>
+                                <button class="p-4 bg-purple-50 dark:bg-purple-900 rounded-lg text-center hover:bg-purple-100 dark:hover:bg-purple-800 transition-colors" onclick="switchToSection('analytics')">
+                                    <div class="text-2xl mb-2">📈</div>
+                                    <span class="text-sm font-medium text-purple-700 dark:text-purple-300">Analytics</span>
+                                </button>
+                                <button class="p-4 bg-orange-50 dark:bg-orange-900 rounded-lg text-center hover:bg-orange-100 dark:hover:bg-orange-800 transition-colors" onclick="exportAllData()">
+                                    <div class="text-2xl mb-2">📤</div>
+                                    <span class="text-sm font-medium text-orange-700 dark:text-orange-300">Export</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bucket Manager Section -->
+            <div id="buckets-section" class="content-section hidden">
+                <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Knowledge Buckets</h2>
+                        <p class="text-gray-600 dark:text-gray-400">Manage your knowledge repositories</p>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button onclick="showCreateBucketModal()" class="bg-lizzy-600 hover:bg-lizzy-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <span>➕</span>
+                            <span>New Bucket</span>
+                        </button>
+                        <button onclick="showMultiGraphModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+                            <span>🔍</span>
+                            <span>Compare Multiple</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Buckets Table -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                        <input type="checkbox" id="select-all" class="rounded border-gray-300 dark:border-gray-600">
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bucket</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Entities</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Relations</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Updated</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="buckets-table-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                <!-- Bucket rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div id="analytics-section" class="content-section hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Analytics Dashboard</h2>
+                    <p class="text-gray-600 dark:text-gray-400">Insights into your knowledge graphs</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Bucket Size Distribution</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">shakespeare_plays</span>
+                                <span class="text-sm font-medium">8,722 nodes</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div class="bg-lizzy-600 h-2 rounded-full" style="width: 85%"></div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">screenwriting_books</span>
+                                <span class="text-sm font-medium">10,021 nodes</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div class="bg-green-600 h-2 rounded-full" style="width: 97%"></div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">romcom_scripts</span>
+                                <span class="text-sm font-medium">12,850 nodes</span>
+                            </div>
+                            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div class="bg-purple-600 h-2 rounded-full" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Growth Trends</h3>
+                        <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+                            <span class="text-4xl mb-4 block">📊</span>
+                            <p>Chart visualization would be integrated here</p>
+                            <p class="text-sm mt-2">Using Chart.js or D3.js</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph Explorer Section -->
+            <div id="visualizations-section" class="content-section hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Graph Explorer</h2>
+                    <p class="text-gray-600 dark:text-gray-400">Interactive knowledge graph visualizations</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">shakespeare_plays</h3>
+                            <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">Active</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-2xl font-bold text-gray-900 dark:text-white">8,722</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">nodes • 7,257 edges</div>
+                        </div>
+                        <button onclick="openSingleGraph('shakespeare_plays')" class="w-full bg-lizzy-600 hover:bg-lizzy-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            Explore Graph
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">romcom_scripts</h3>
+                            <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">Active</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-2xl font-bold text-gray-900 dark:text-white">12,850</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">nodes • 10,118 edges</div>
+                        </div>
+                        <button onclick="openSingleGraph('romcom_scripts')" class="w-full bg-lizzy-600 hover:bg-lizzy-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            Explore Graph
+                        </button>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">screenwriting_books</h3>
+                            <span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">Active</span>
+                        </div>
+                        <div class="mb-4">
+                            <div class="text-2xl font-bold text-gray-900 dark:text-white">10,021</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400">nodes • 6,131 edges</div>
+                        </div>
+                        <button onclick="openSingleGraph('screenwriting_books')" class="w-full bg-lizzy-600 hover:bg-lizzy-700 text-white px-4 py-2 rounded-lg transition-colors">
+                            Explore Graph
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Multi-Graph Comparison</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">Compare multiple knowledge graphs side by side</p>
+                    <button onclick="showMultiGraphModal()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center space-x-2 transition-colors">
+                        <span>🔍</span>
+                        <span>Compare Multiple Graphs</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings-section" class="content-section hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Settings</h2>
+                    <p class="text-gray-600 dark:text-gray-400">Configure your Lizzy experience</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Appearance</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600 dark:text-gray-400">Dark Mode</span>
+                                <button id="settings-theme-toggle" class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 dark:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-lizzy-500 focus:ring-offset-2">
+                                    <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform dark:translate-x-6"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Data Management</h3>
+                        <div class="space-y-4">
+                            <button class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <div class="font-medium text-gray-900 dark:text-white">Backup Data</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Export all bucket data</div>
+                            </button>
+                            <button class="w-full text-left px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <div class="font-medium text-gray-900 dark:text-white">Import Data</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Restore from backup</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profile-section" class="content-section hidden">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Profile</h2>
+                    <p class="text-gray-600 dark:text-gray-400">Manage your account settings</p>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <div class="w-20 h-20 bg-gradient-to-br from-lizzy-400 to-lizzy-600 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                            E
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Elizabeth</h3>
+                            <p class="text-gray-600 dark:text-gray-400">AI Assistant User</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Name</label>
+                            <input type="text" value="Elizabeth" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                            <input type="email" value="elizabeth@lizzy.ai" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <button class="bg-lizzy-600 hover:bg-lizzy-700 text-white px-6 py-2 rounded-lg transition-colors">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Bucket Modal -->
+    <div id="create-bucket-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New Bucket</h3>
+                <button onclick="hideCreateBucketModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form onsubmit="createBucket(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bucket Name</label>
+                    <input type="text" id="new-bucket-name" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent" placeholder="e.g., mystery_novels">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                    <textarea id="new-bucket-description" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent" placeholder="Describe the purpose of this bucket..."></textarea>
+                </div>
+                
+                <div class="flex space-x-3">
+                    <button type="submit" class="flex-1 bg-lizzy-600 hover:bg-lizzy-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        Create Bucket
+                    </button>
+                    <button type="button" onclick="hideCreateBucketModal()" class="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Multi-Graph Selection Modal -->
+    <div id="multi-graph-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Select Buckets for Comparison</h3>
+                <button onclick="hideMultiGraphModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <p class="text-gray-600 dark:text-gray-400 mb-4">Select 2 or more buckets to compare their knowledge graphs side by side.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="bucket-selection-grid">
+                <!-- Bucket selection checkboxes will be populated by JavaScript -->
+            </div>
+            
+            <div class="flex space-x-3">
+                <button onclick="createMultiGraphComparison()" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    Create Comparison
+                </button>
+                <button onclick="hideMultiGraphModal()" class="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg transition-colors">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data - would be loaded from your backend
+        const sampleBuckets = [
+            { name: 'shakespeare_plays', status: 'active', entities: 8722, relations: 7257, lastUpdated: '2 hours ago', description: 'Complete works of Shakespeare' },
+            { name: 'romcom_scripts', status: 'active', entities: 12850, relations: 10118, lastUpdated: '4 hours ago', description: 'Romantic comedy screenplays' },
+            { name: 'screenwriting_books', status: 'active', entities: 10021, relations: 6131, lastUpdated: '1 day ago', description: 'Screenwriting guides and manuals' },
+            { name: 'academic_sources', status: 'active', entities: 5030, relations: 5039, lastUpdated: '2 days ago', description: 'Academic papers and research' },
+            { name: 'balio_sources', status: 'inactive', entities: 4990, relations: 6133, lastUpdated: '3 days ago', description: 'Balio film industry analysis' },
+            { name: 'cook_sources', status: 'active', entities: 6738, relations: 5873, lastUpdated: '1 week ago', description: 'David Cook film theory' },
+            { name: 'cousins_sources', status: 'active', entities: 3345, relations: 2838, lastUpdated: '2 weeks ago', description: 'Mark Cousins film history' },
+            { name: 'cultural_sources', status: 'inactive', entities: 598, relations: 464, lastUpdated: '1 month ago', description: 'Cultural studies materials' },
+            { name: 'reference_sources', status: 'active', entities: 21012, relations: 22000, lastUpdated: '3 hours ago', description: 'General reference materials' },
+            { name: 'bordwell_sources', status: 'active', entities: 5030, relations: 5039, lastUpdated: '5 days ago', description: 'David Bordwell film analysis' }
+        ];
+
+        // Navigation
+        function switchToSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.remove('hidden');
+            
+            // Update page title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'buckets': 'Bucket Manager',
+                'analytics': 'Analytics',
+                'visualizations': 'Graph Explorer',
+                'settings': 'Settings',
+                'profile': 'Profile'
+            };
+            document.getElementById('page-title').textContent = titles[sectionName] || 'Dashboard';
+            
+            // Update nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        // Mobile menu
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        // Populate buckets table
+        function populateBucketsTable() {
+            const tbody = document.getElementById('buckets-table-body');
+            tbody.innerHTML = '';
+            
+            sampleBuckets.forEach((bucket, index) => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700';
+                
+                const statusBadge = bucket.status === 'active' 
+                    ? '<span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded-full">Active</span>'
+                    : '<span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300 text-xs rounded-full">Inactive</span>';
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <input type="checkbox" class="bucket-checkbox rounded border-gray-300 dark:border-gray-600" value="${bucket.name}">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-lizzy-100 dark:bg-lizzy-900 rounded-lg flex items-center justify-center">
+                                <span class="text-lizzy-600 dark:text-lizzy-400">🪣</span>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">${bucket.name}</div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">${bucket.description}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${bucket.entities.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">${bucket.relations.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${bucket.lastUpdated}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <button onclick="openSingleGraph('${bucket.name}')" class="text-lizzy-600 dark:text-lizzy-400 hover:text-lizzy-900 dark:hover:text-lizzy-300" title="Visualize">
+                                🔍
+                            </button>
+                            <button onclick="toggleBucketStatus('${bucket.name}')" class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300" title="Toggle Status">
+                                ${bucket.status === 'active' ? '⏸️' : '▶️'}
+                            </button>
+                            <button onclick="deleteBucket('${bucket.name}')" class="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300" title="Delete">
+                                🗑️
+                            </button>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        // Populate bucket selection for multi-graph modal
+        function populateBucketSelection() {
+            const grid = document.getElementById('bucket-selection-grid');
+            grid.innerHTML = '';
+            
+            sampleBuckets.filter(bucket => bucket.status === 'active').forEach(bucket => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700';
+                
+                div.innerHTML = `
+                    <input type="checkbox" class="multi-bucket-checkbox rounded border-gray-300 dark:border-gray-600" value="${bucket.name}">
+                    <div class="flex-1">
+                        <div class="font-medium text-gray-900 dark:text-white">${bucket.name}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">${bucket.entities.toLocaleString()} nodes</div>
+                    </div>
+                `;
+                
+                grid.appendChild(div);
+            });
+        }
+
+        // Modal functions
+        function showCreateBucketModal() {
+            document.getElementById('create-bucket-modal').classList.remove('hidden');
+        }
+
+        function hideCreateBucketModal() {
+            document.getElementById('create-bucket-modal').classList.add('hidden');
+            document.getElementById('new-bucket-name').value = '';
+            document.getElementById('new-bucket-description').value = '';
+        }
+
+        function showMultiGraphModal() {
+            populateBucketSelection();
+            document.getElementById('multi-graph-modal').classList.remove('hidden');
+        }
+
+        function hideMultiGraphModal() {
+            document.getElementById('multi-graph-modal').classList.add('hidden');
+            document.querySelectorAll('.multi-bucket-checkbox').forEach(cb => cb.checked = false);
+        }
+
+        // Bucket operations
+        function createBucket(event) {
+            event.preventDefault();
+            const name = document.getElementById('new-bucket-name').value;
+            const description = document.getElementById('new-bucket-description').value;
+            
+            // In real implementation, this would call your backend API
+            console.log('Creating bucket:', name, description);
+            
+            // Simulate adding to the list
+            sampleBuckets.push({
+                name: name,
+                status: 'active',
+                entities: 0,
+                relations: 0,
+                lastUpdated: 'Just now',
+                description: description
+            });
+            
+            populateBucketsTable();
+            hideCreateBucketModal();
+            
+            // Show success message
+            alert('Bucket created successfully!');
+        }
+
+        function openSingleGraph(bucketName) {
+            // In real implementation, this would generate and open the interactive graph
+            console.log('Opening single graph for:', bucketName);
+            alert(`Opening interactive graph for ${bucketName}...`);
+        }
+
+        function createMultiGraphComparison() {
+            const selectedBuckets = Array.from(document.querySelectorAll('.multi-bucket-checkbox:checked'))
+                .map(cb => cb.value);
+            
+            if (selectedBuckets.length < 2) {
+                alert('Please select at least 2 buckets for comparison.');
+                return;
+            }
+            
+            // In real implementation, this would generate the multi-graph explorer
+            console.log('Creating multi-graph comparison for:', selectedBuckets);
+            alert(`Creating multi-graph comparison for: ${selectedBuckets.join(', ')}`);
+            
+            hideMultiGraphModal();
+        }
+
+        function toggleBucketStatus(bucketName) {
+            const bucket = sampleBuckets.find(b => b.name === bucketName);
+            if (bucket) {
+                bucket.status = bucket.status === 'active' ? 'inactive' : 'active';
+                populateBucketsTable();
+            }
+        }
+
+        function deleteBucket(bucketName) {
+            if (confirm(`Are you sure you want to delete the bucket "${bucketName}"?`)) {
+                const index = sampleBuckets.findIndex(b => b.name === bucketName);
+                if (index !== -1) {
+                    sampleBuckets.splice(index, 1);
+                    populateBucketsTable();
+                }
+            }
+        }
+
+        function exportAllData() {
+            // In real implementation, this would export all bucket data
+            console.log('Exporting all data...');
+            alert('Exporting all bucket data...');
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial theme
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+            
+            // Populate initial data
+            populateBucketsTable();
+            
+            // Event listeners
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    switchToSection(this.dataset.section);
+                });
+            });
+            
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('settings-theme-toggle').addEventListener('click', toggleTheme);
+            document.getElementById('mobile-menu-button').addEventListener('click', toggleMobileMenu);
+            document.getElementById('close-sidebar').addEventListener('click', toggleMobileMenu);
+            document.getElementById('mobile-overlay').addEventListener('click', toggleMobileMenu);
+            
+            // Select all checkbox
+            document.getElementById('select-all').addEventListener('change', function() {
+                const checkboxes = document.querySelectorAll('.bucket-checkbox');
+                checkboxes.forEach(cb => cb.checked = this.checked);
+            });
+            
+            // Global search
+            document.getElementById('global-search').addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                const rows = document.querySelectorAll('#buckets-table-body tr');
+                
+                rows.forEach(row => {
+                    const bucketName = row.querySelector('.text-sm.font-medium').textContent.toLowerCase();
+                    const description = row.querySelector('.text-sm.text-gray-500').textContent.toLowerCase();
+                    
+                    if (bucketName.includes(searchTerm) || description.includes(searchTerm)) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

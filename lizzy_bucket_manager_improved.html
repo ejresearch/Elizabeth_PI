@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lizzy - Knowledge Bucket Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        lizzy: {
+                            50: '#f0fdff',
+                            100: '#ccf7fe',
+                            200: '#99eefd',
+                            300: '#4ecdc4',
+                            400: '#4cc9f0',
+                            500: '#0891b2',
+                            600: '#0e7490',
+                            700: '#155e75',
+                            800: '#164e63',
+                            900: '#0c4a6e',
+                        }
+                    },
+                    animation: {
+                        'bounce-in': 'bounceIn 0.6s ease-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.2s ease-out'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            70% { transform: scale(0.9); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            0% { transform: translateY(20px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .bucket-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        
+        .bucket-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .bucket-card.selected {
+            transform: translateY(-2px);
+            box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.3);
+        }
+        
+        .graph-preview {
+            background: radial-gradient(circle at 30% 30%, rgba(78, 205, 196, 0.2), transparent 50%),
+                       radial-gradient(circle at 70% 70%, rgba(76, 201, 240, 0.2), transparent 50%),
+                       radial-gradient(circle at 50% 50%, rgba(118, 75, 162, 0.1), transparent 70%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .graph-preview::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(2px 2px at 20% 30%, rgba(78, 205, 196, 0.8), transparent),
+                radial-gradient(2px 2px at 40% 70%, rgba(76, 201, 240, 0.6), transparent),
+                radial-gradient(1px 1px at 90% 40%, rgba(118, 75, 162, 0.8), transparent),
+                radial-gradient(1px 1px at 60% 20%, rgba(78, 205, 196, 0.4), transparent),
+                radial-gradient(2px 2px at 80% 80%, rgba(76, 201, 240, 0.7), transparent);
+            background-size: 80px 80px, 60px 60px, 40px 40px, 30px 30px, 50px 50px;
+            animation: float 20s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateX(0px) translateY(0px); }
+            33% { transform: translateX(10px) translateY(-10px); }
+            66% { transform: translateX(-5px) translateY(5px); }
+        }
+        
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4);
+        }
+        
+        .quick-actions {
+            position: fixed;
+            bottom: 5rem;
+            right: 2rem;
+            z-index: 40;
+        }
+        
+        .editable {
+            transition: all 0.2s ease;
+        }
+        
+        .editable:hover {
+            background: rgba(78, 205, 196, 0.05);
+            border-radius: 4px;
+            padding: 2px 4px;
+            margin: -2px -4px;
+        }
+        
+        .editing {
+            background: rgba(78, 205, 196, 0.1) !important;
+            border: 1px dashed rgba(78, 205, 196, 0.5) !important;
+        }
+        
+        .view-toggle {
+            transition: all 0.2s ease;
+        }
+        
+        .view-toggle.active {
+            background: rgba(78, 205, 196, 0.2);
+            color: #0e7490;
+        }
+        
+        .comparison-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .drop-zone {
+            border: 2px dashed rgba(78, 205, 196, 0.3);
+            background: rgba(78, 205, 196, 0.05);
+            transition: all 0.2s ease;
+        }
+        
+        .drop-zone.drag-over {
+            border-color: rgba(78, 205, 196, 0.8);
+            background: rgba(78, 205, 196, 0.1);
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    
+    <!-- Top Navigation Bar -->
+    <nav class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo & Title -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-gradient-to-br from-lizzy-400 to-lizzy-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">L</span>
+                        </div>
+                        <span class="text-xl font-semibold text-gray-900 dark:text-white">Knowledge Buckets</span>
+                    </div>
+                </div>
+                
+                <!-- Search & Filters -->
+                <div class="flex-1 max-w-2xl mx-8">
+                    <div class="relative">
+                        <input type="text" id="search-buckets" placeholder="Search buckets, contents, or tags..." 
+                               class="w-full pl-12 pr-16 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-transparent focus:bg-white dark:focus:bg-gray-600 transition-all">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <span class="text-gray-400 text-lg">🔍</span>
+                        </div>
+                        <div class="absolute inset-y-0 right-0 pr-4 flex items-center">
+                            <kbd class="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-600 rounded">⌘K</kbd>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- View Controls & Settings -->
+                <div class="flex items-center space-x-4">
+                    <!-- View Toggle -->
+                    <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button id="grid-view" class="view-toggle active px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            📊 Cards
+                        </button>
+                        <button id="list-view" class="view-toggle px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            📋 List
+                        </button>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex items-center space-x-2">
+                        <button id="compare-btn" class="hidden px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium">
+                            🔍 Compare (<span id="selected-count">0</span>)
+                        </button>
+                        
+                        <button id="theme-toggle" class="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <span class="dark:hidden text-lg">🌙</span>
+                            <span class="hidden dark:inline text-lg">☀️</span>
+                        </button>
+                        
+                        <div class="w-8 h-8 bg-gradient-to-br from-lizzy-400 to-lizzy-600 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:shadow-lg transition-shadow">
+                            E
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Stats Bar -->
+    <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-8">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl font-bold text-gray-900 dark:text-white" id="total-buckets">10</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">buckets</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-semibold text-lizzy-600 dark:text-lizzy-400" id="total-nodes">65,432</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">knowledge nodes</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-lg font-semibold text-green-600 dark:text-green-400" id="active-buckets">7</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">active</span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <select id="sort-buckets" class="text-sm border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option>Sort by: Recent</option>
+                        <option>Sort by: Name</option>
+                        <option>Sort by: Size</option>
+                        <option>Sort by: Activity</option>
+                    </select>
+                    
+                    <button id="filter-active" class="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        🟢 Active Only
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Bucket Grid -->
+        <div id="buckets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Buckets will be populated here -->
+        </div>
+        
+        <!-- Bucket List View (Hidden by default) -->
+        <div id="buckets-list" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                <input type="checkbox" id="select-all-list" class="rounded border-gray-300 dark:border-gray-600">
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bucket</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Knowledge</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Activity</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buckets-list-body" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- List items will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden text-center py-16">
+            <div class="text-6xl mb-4">🪣</div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No buckets found</h3>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Create your first knowledge bucket to get started</p>
+            <button onclick="showQuickCreate()" class="bg-lizzy-600 hover:bg-lizzy-700 text-white px-6 py-3 rounded-lg transition-colors">
+                Create First Bucket
+            </button>
+        </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button id="fab" class="fab w-14 h-14 bg-lizzy-600 hover:bg-lizzy-700 text-white rounded-full shadow-lg flex items-center justify-center">
+        <span class="text-2xl">+</span>
+    </button>
+
+    <!-- Quick Actions Menu -->
+    <div id="quick-actions" class="quick-actions hidden">
+        <div class="flex flex-col space-y-3">
+            <button onclick="showQuickCreate()" class="w-12 h-12 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all">
+                <span class="text-lg">📝</span>
+            </button>
+            <button onclick="importData()" class="w-12 h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all">
+                <span class="text-lg">📁</span>
+            </button>
+            <button onclick="exportAll()" class="w-12 h-12 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all">
+                <span class="text-lg">📤</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Create Overlay -->
+    <div id="quick-create-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-bounce-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-lizzy-400 to-lizzy-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-white text-2xl">🪣</span>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Create Knowledge Bucket</h3>
+            </div>
+            
+            <form onsubmit="quickCreateBucket(event)">
+                <div class="space-y-4">
+                    <div>
+                        <input type="text" id="quick-bucket-name" required 
+                               class="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-lizzy-500 transition-colors text-lg"
+                               placeholder="Bucket name (e.g., mystery_novels)">
+                    </div>
+                    
+                    <div>
+                        <textarea id="quick-bucket-description" rows="3" 
+                                  class="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lizzy-500 focus:border-lizzy-500 transition-colors resize-none"
+                                  placeholder="What kind of knowledge will this bucket contain?"></textarea>
+                    </div>
+                    
+                    <div class="flex items-center space-x-3">
+                        <label class="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" id="quick-auto-activate" checked class="rounded border-gray-300 dark:border-gray-600 text-lizzy-600 focus:ring-lizzy-500">
+                            <span>Start active</span>
+                        </label>
+                        <label class="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                            <input type="checkbox" id="quick-add-sample" class="rounded border-gray-300 dark:border-gray-600 text-lizzy-600 focus:ring-lizzy-500">
+                            <span>Add sample content</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                    <button type="submit" class="flex-1 bg-lizzy-600 hover:bg-lizzy-700 text-white px-6 py-3 rounded-xl transition-colors font-medium">
+                        Create Bucket
+                    </button>
+                    <button type="button" onclick="hideQuickCreate()" class="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-300 px-6 py-3 rounded-xl transition-colors font-medium">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Graph Visualization Sidebar -->
+    <div id="graph-sidebar" class="fixed inset-y-0 right-0 w-1/2 bg-white dark:bg-gray-800 shadow-2xl transform translate-x-full transition-transform duration-300 z-40">
+        <div class="h-full flex flex-col">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="graph-title">Knowledge Graph</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400" id="graph-subtitle">Interactive exploration</p>
+                </div>
+                <button onclick="closeGraphSidebar()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="flex-1 p-6">
+                <div id="graph-content" class="w-full h-full bg-gray-50 dark:bg-gray-900 rounded-xl flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-4xl mb-4">🔍</div>
+                        <p class="text-gray-600 dark:text-gray-400">Graph visualization will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Help -->
+    <div id="shortcuts-help" class="fixed bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 text-xs text-gray-600 dark:text-gray-400 hidden">
+        <div class="font-semibold mb-2">Keyboard Shortcuts:</div>
+        <div>⌘K - Search buckets</div>
+        <div>N - New bucket</div>
+        <div>Esc - Close panels</div>
+    </div>
+
+    <script>
+        // Sample data with enhanced properties
+        let buckets = [
+            { 
+                id: 1, name: 'shakespeare_plays', status: 'active', entities: 8722, relations: 7257, 
+                lastUpdated: '2 hours ago', description: 'Complete works of Shakespeare',
+                tags: ['literature', 'drama', 'classic'], activity: 'high', favorite: true,
+                density: 0.83, communities: 23, avgDegree: 12.4
+            },
+            { 
+                id: 2, name: 'romcom_scripts', status: 'active', entities: 12850, relations: 10118, 
+                lastUpdated: '4 hours ago', description: 'Romantic comedy screenplays',
+                tags: ['screenplay', 'comedy', 'romance'], activity: 'high', favorite: false,
+                density: 0.79, communities: 31, avgDegree: 15.7
+            },
+            { 
+                id: 3, name: 'screenwriting_books', status: 'active', entities: 10021, relations: 6131, 
+                lastUpdated: '1 day ago', description: 'Screenwriting guides and manuals',
+                tags: ['education', 'reference', 'craft'], activity: 'medium', favorite: true,
+                density: 0.61, communities: 18, avgDegree: 9.2
+            },
+            { 
+                id: 4, name: 'academic_sources', status: 'active', entities: 5030, relations: 5039, 
+                lastUpdated: '2 days ago', description: 'Academic papers and research',
+                tags: ['research', 'academic', 'papers'], activity: 'low', favorite: false,
+                density: 0.95, communities: 12, avgDegree: 20.1
+            },
+            { 
+                id: 5, name: 'mystery_novels', status: 'inactive', entities: 7245, relations: 8932, 
+                lastUpdated: '1 week ago', description: 'Mystery and detective fiction',
+                tags: ['fiction', 'mystery', 'detective'], activity: 'low', favorite: false,
+                density: 0.68, communities: 25, avgDegree: 11.8
+            }
+        ];
+
+        let selectedBuckets = new Set();
+        let currentView = 'grid';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Set theme
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+            
+            // Render buckets
+            renderBuckets();
+            updateStats();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Initialize drag and drop
+            initializeDragAndDrop();
+            
+            // Set up keyboard shortcuts
+            setupKeyboardShortcuts();
+        }
+
+        function setupEventListeners() {
+            // Theme toggle
+            document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+            
+            // Search
+            document.getElementById('search-buckets').addEventListener('input', handleSearch);
+            
+            // View toggle
+            document.getElementById('grid-view').addEventListener('click', () => switchView('grid'));
+            document.getElementById('list-view').addEventListener('click', () => switchView('list'));
+            
+            // FAB
+            document.getElementById('fab').addEventListener('click', toggleQuickActions);
+            
+            // Compare button
+            document.getElementById('compare-btn').addEventListener('click', startComparison);
+            
+            // Sort and filter
+            document.getElementById('sort-buckets').addEventListener('change', handleSort);
+            document.getElementById('filter-active').addEventListener('click', toggleActiveFilter);
+        }
+
+        function renderBuckets() {
+            if (currentView === 'grid') {
+                renderGridView();
+            } else {
+                renderListView();
+            }
+        }
+
+        function renderGridView() {
+            const grid = document.getElementById('buckets-grid');
+            grid.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const card = createBucketCard(bucket);
+                grid.appendChild(card);
+            });
+            
+            // Animate cards in
+            setTimeout(() => {
+                document.querySelectorAll('.bucket-card').forEach((card, index) => {
+                    card.style.animationDelay = `${index * 0.1}s`;
+                    card.classList.add('animate-slide-up');
+                });
+            }, 50);
+        }
+
+        function createBucketCard(bucket) {
+            const card = document.createElement('div');
+            card.className = `bucket-card bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden ${selectedBuckets.has(bucket.id) ? 'selected' : ''}`;
+            card.dataset.bucketId = bucket.id;
+            
+            const statusColor = bucket.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            const activityIcon = bucket.activity === 'high' ? '🔥' : bucket.activity === 'medium' ? '⚡' : '💤';
+            
+            card.innerHTML = `
+                <div class="graph-preview h-24 relative">
+                    <div class="absolute top-2 left-2">
+                        <input type="checkbox" class="bucket-select rounded border-gray-300 dark:border-gray-600 text-lizzy-600" 
+                               ${selectedBuckets.has(bucket.id) ? 'checked' : ''} onchange="toggleBucketSelection(${bucket.id})">
+                    </div>
+                    <div class="absolute top-2 right-2 flex space-x-1">
+                        ${bucket.favorite ? '<span class="text-yellow-500">⭐</span>' : ''}
+                        <span>${activityIcon}</span>
+                    </div>
+                    <div class="absolute bottom-2 right-2 text-xs text-gray-500 dark:text-gray-400">
+                        ${bucket.entities.toLocaleString()} nodes
+                    </div>
+                </div>
+                
+                <div class="p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="editable text-lg font-semibold text-gray-900 dark:text-white truncate" 
+                            contenteditable="false" onblur="updateBucketName(${bucket.id}, this.textContent)">${bucket.name}</h3>
+                        <span class="px-2 py-1 ${statusColor} text-xs rounded-full">${bucket.status}</span>
+                    </div>
+                    
+                    <p class="editable text-sm text-gray-600 dark:text-gray-400 mb-3" 
+                       contenteditable="false" onblur="updateBucketDescription(${bucket.id}, this.textContent)">${bucket.description}</p>
+                    
+                    <div class="flex flex-wrap gap-1 mb-3">
+                        ${bucket.tags.map(tag => `<span class="px-2 py-1 bg-lizzy-100 dark:bg-lizzy-900 text-lizzy-700 dark:text-lizzy-300 text-xs rounded">${tag}</span>`).join('')}
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        <div>Relations: ${bucket.relations.toLocaleString()}</div>
+                        <div>Density: ${bucket.density.toFixed(2)}</div>
+                        <div>Communities: ${bucket.communities}</div>
+                        <div>Avg Degree: ${bucket.avgDegree.toFixed(1)}</div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-gray-500 dark:text-gray-400">${bucket.lastUpdated}</span>
+                        <div class="flex space-x-1">
+                            <button onclick="openGraph(${bucket.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Explore Graph">
+                                🔍
+                            </button>
+                            <button onclick="toggleBucketStatus(${bucket.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Toggle Status">
+                                ${bucket.status === 'active' ? '⏸️' : '▶️'}
+                            </button>
+                            <button onclick="duplicateBucket(${bucket.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Duplicate">
+                                📋
+                            </button>
+                            <button onclick="deleteBucket(${bucket.id})" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors" title="Delete">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Make editable on double-click
+            card.addEventListener('dblclick', (e) => {
+                if (e.target.classList.contains('editable')) {
+                    e.target.contentEditable = true;
+                    e.target.classList.add('editing');
+                    e.target.focus();
+                }
+            });
+            
+            // Single click to select
+            card.addEventListener('click', (e) => {
+                if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('.editable[contenteditable="true"]')) {
+                    toggleBucketSelection(bucket.id);
+                }
+            });
+            
+            return card;
+        }
+
+        function switchView(view) {
+            currentView = view;
+            
+            // Update UI
+            document.getElementById('buckets-grid').classList.toggle('hidden', view !== 'grid');
+            document.getElementById('buckets-list').classList.toggle('hidden', view !== 'list');
+            
+            // Update button states
+            document.getElementById('grid-view').classList.toggle('active', view === 'grid');
+            document.getElementById('list-view').classList.toggle('active', view === 'list');
+            
+            renderBuckets();
+        }
+
+        function toggleBucketSelection(bucketId) {
+            if (selectedBuckets.has(bucketId)) {
+                selectedBuckets.delete(bucketId);
+            } else {
+                selectedBuckets.add(bucketId);
+            }
+            
+            updateSelectionUI();
+            renderBuckets();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedBuckets.size;
+            const compareBtn = document.getElementById('compare-btn');
+            const selectedCountSpan = document.getElementById('selected-count');
+            
+            if (count > 0) {
+                compareBtn.classList.remove('hidden');
+                selectedCountSpan.textContent = count;
+            } else {
+                compareBtn.classList.add('hidden');
+            }
+        }
+
+        function startComparison() {
+            const selectedBucketData = Array.from(selectedBuckets).map(id => 
+                buckets.find(b => b.id === id)
+            );
+            
+            console.log('Starting comparison for:', selectedBucketData.map(b => b.name));
+            alert(`Starting multi-graph comparison for: ${selectedBucketData.map(b => b.name).join(', ')}`);
+            
+            // Clear selection
+            selectedBuckets.clear();
+            updateSelectionUI();
+            renderBuckets();
+        }
+
+        function openGraph(bucketId) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            document.getElementById('graph-title').textContent = `${bucket.name} Knowledge Graph`;
+            document.getElementById('graph-subtitle').textContent = `${bucket.entities.toLocaleString()} nodes • ${bucket.relations.toLocaleString()} relations`;
+            
+            document.getElementById('graph-sidebar').classList.remove('translate-x-full');
+            
+            console.log('Opening graph for:', bucket.name);
+        }
+
+        function closeGraphSidebar() {
+            document.getElementById('graph-sidebar').classList.add('translate-x-full');
+        }
+
+        function showQuickCreate() {
+            document.getElementById('quick-create-overlay').classList.remove('hidden');
+            document.getElementById('quick-bucket-name').focus();
+        }
+
+        function hideQuickCreate() {
+            document.getElementById('quick-create-overlay').classList.add('hidden');
+            document.getElementById('quick-bucket-name').value = '';
+            document.getElementById('quick-bucket-description').value = '';
+        }
+
+        function quickCreateBucket(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('quick-bucket-name').value;
+            const description = document.getElementById('quick-bucket-description').value;
+            const active = document.getElementById('quick-auto-activate').checked;
+            
+            const newBucket = {
+                id: Date.now(),
+                name: name,
+                status: active ? 'active' : 'inactive',
+                entities: 0,
+                relations: 0,
+                lastUpdated: 'Just now',
+                description: description,
+                tags: ['new'],
+                activity: 'low',
+                favorite: false,
+                density: 0,
+                communities: 0,
+                avgDegree: 0
+            };
+            
+            buckets.unshift(newBucket);
+            renderBuckets();
+            updateStats();
+            hideQuickCreate();
+            
+            // Animate the new bucket
+            setTimeout(() => {
+                const newCard = document.querySelector(`[data-bucket-id="${newBucket.id}"]`);
+                if (newCard) {
+                    newCard.classList.add('animate-bounce-in');
+                }
+            }, 100);
+        }
+
+        function toggleBucketStatus(bucketId) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket) {
+                bucket.status = bucket.status === 'active' ? 'inactive' : 'active';
+                renderBuckets();
+                updateStats();
+            }
+        }
+
+        function deleteBucket(bucketId) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket && confirm(`Are you sure you want to delete "${bucket.name}"?`)) {
+                buckets = buckets.filter(b => b.id !== bucketId);
+                selectedBuckets.delete(bucketId);
+                renderBuckets();
+                updateStats();
+                updateSelectionUI();
+            }
+        }
+
+        function duplicateBucket(bucketId) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket) {
+                const copy = {
+                    ...bucket,
+                    id: Date.now(),
+                    name: `${bucket.name}_copy`,
+                    lastUpdated: 'Just now'
+                };
+                buckets.unshift(copy);
+                renderBuckets();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('total-buckets').textContent = buckets.length;
+            document.getElementById('total-nodes').textContent = buckets.reduce((sum, b) => sum + b.entities, 0).toLocaleString();
+            document.getElementById('active-buckets').textContent = buckets.filter(b => b.status === 'active').length;
+        }
+
+        function toggleQuickActions() {
+            document.getElementById('quick-actions').classList.toggle('hidden');
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.contains('dark');
+            
+            if (isDark) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+
+        function handleSearch(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            // Implementation for search filtering
+            console.log('Searching for:', searchTerm);
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Cmd/Ctrl + K for search
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                    e.preventDefault();
+                    document.getElementById('search-buckets').focus();
+                }
+                
+                // N for new bucket
+                if (e.key === 'n' || e.key === 'N') {
+                    if (!e.target.matches('input, textarea, [contenteditable]')) {
+                        showQuickCreate();
+                    }
+                }
+                
+                // Escape to close panels
+                if (e.key === 'Escape') {
+                    hideQuickCreate();
+                    closeGraphSidebar();
+                    document.getElementById('quick-actions').classList.add('hidden');
+                }
+            });
+        }
+
+        function initializeDragAndDrop() {
+            // Enable sortable for bucket grid
+            if (typeof Sortable !== 'undefined') {
+                new Sortable(document.getElementById('buckets-grid'), {
+                    animation: 150,
+                    ghostClass: 'opacity-50',
+                    chosenClass: 'scale-105',
+                    dragClass: 'rotate-3',
+                    onEnd: function(evt) {
+                        // Handle reordering
+                        const movedBucket = buckets.splice(evt.oldIndex, 1)[0];
+                        buckets.splice(evt.newIndex, 0, movedBucket);
+                    }
+                });
+            }
+        }
+
+        // Additional utility functions
+        function updateBucketName(bucketId, newName) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket && newName.trim()) {
+                bucket.name = newName.trim();
+            }
+            renderBuckets();
+        }
+
+        function updateBucketDescription(bucketId, newDescription) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket) {
+                bucket.description = newDescription.trim();
+            }
+            renderBuckets();
+        }
+
+        function importData() {
+            alert('Import functionality would open file dialog');
+        }
+
+        function exportAll() {
+            alert('Export all buckets functionality');
+        }
+
+        function handleSort() {
+            // Implementation for sorting
+            console.log('Sorting buckets...');
+        }
+
+        function toggleActiveFilter() {
+            // Implementation for filtering
+            console.log('Toggling active filter...');
+        }
+
+        function renderListView() {
+            // Implementation for list view
+            console.log('Rendering list view...');
+        }
+    </script>
+</body>
+</html>

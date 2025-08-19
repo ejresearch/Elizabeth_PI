@@ -28,8 +28,8 @@ except ImportError:
 try:
     from lizzy_transparent_brainstorm import TransparentBrainstormer
     from lizzy_transparent_write import TransparentWriter
-    from lizzy_export_system import ExportSystem
-    from lizzy_lightrag_manager import LightRAGManager
+    from lizzy_export_system import LizzyExporter
+    from lizzy_lightrag_manager import LightRAGManager, BucketInterface
     HAS_TRANSPARENT_MODULES = True
 except ImportError:
     HAS_TRANSPARENT_MODULES = False
@@ -494,12 +494,13 @@ def project_menu():
         print(f"\n{Colors.BOLD}LIZZY WORKFLOW{Colors.END}")
         print_separator()
         
-        print(f"{Colors.CYAN}📝 Complete your romantic comedy in 4 simple steps:{Colors.END}")
+        print(f"{Colors.CYAN}📝 Complete your romantic comedy in 5 simple steps:{Colors.END}")
         print()
         print(f"   {Colors.BOLD}1.{Colors.END} 🎨 Edit Tables (Characters, Scenes, Notes)")
-        print(f"   {Colors.BOLD}2.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
-        print(f"   {Colors.BOLD}3.{Colors.END} ✍️  Write (Create screenplay scenes)")
-        print(f"   {Colors.BOLD}4.{Colors.END} 📤 Export (Final screenplay output)")
+        print(f"   {Colors.BOLD}2.{Colors.END} 🗂️  Bucket Manager (LightRAG Knowledge Base)")
+        print(f"   {Colors.BOLD}3.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
+        print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write (Create screenplay scenes)")
+        print(f"   {Colors.BOLD}5.{Colors.END} 📤 Export (Final screenplay output)")
         print()
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
@@ -510,13 +511,15 @@ def project_menu():
         elif choice == "1":
             edit_tables_menu()
         elif choice == "2":
-            brainstorm_module()
+            bucket_manager_menu()
         elif choice == "3":
-            write_module()
+            brainstorm_module()
         elif choice == "4":
+            write_module()
+        elif choice == "5":
             export_options()
         else:
-            print(f"{Colors.RED}Invalid choice. Please select 1-4 or 0.{Colors.END}")
+            print(f"{Colors.RED}Invalid choice. Please select 1-5 or 0.{Colors.END}")
             wait_for_key()
 
 def show_help():
@@ -537,8 +540,9 @@ def show_help():
 5. {Colors.BOLD}Write Scenes{Colors.END}{Colors.CYAN} - Turn ideas into screenplay content
 6. {Colors.BOLD}Export Your Work{Colors.END}{Colors.CYAN} - Save your progress in various formats
 
-{Colors.BOLD}THE 4-STEP WORKFLOW:{Colors.END}{Colors.CYAN}
+{Colors.BOLD}THE 5-STEP WORKFLOW:{Colors.END}{Colors.CYAN}
 • {Colors.YELLOW}Edit Tables{Colors.END}{Colors.CYAN} - Build your character roster and story structure
+• {Colors.YELLOW}Bucket Manager{Colors.END}{Colors.CYAN} - Manage LightRAG knowledge base for context
 • {Colors.YELLOW}Brainstorm{Colors.END}{Colors.CYAN} - Get AI-powered creative suggestions  
 • {Colors.YELLOW}Write{Colors.END}{Colors.CYAN} - Generate screenplay content
 • {Colors.YELLOW}Export{Colors.END}{Colors.CYAN} - Save your work in various formats
@@ -687,6 +691,75 @@ def basic_table_editor():
             print(f"\n{Colors.RED}⚠️ Advanced GUI not available{Colors.END}")
     except Exception as e:
         print(f"\n{Colors.RED}⚠️ Error launching advanced editor: {str(e)}{Colors.END}")
+    
+    wait_for_key()
+
+def bucket_manager_menu():
+    """LightRAG Bucket Manager - Knowledge Base Management"""
+    if not session.current_project:
+        print(f"{Colors.RED}⚠ Project required for bucket management{Colors.END}")
+        wait_for_key()
+        return
+    
+    print_header()
+    print(f"\n{Colors.BOLD}🗂️ BUCKET MANAGER - LightRAG Knowledge Base{Colors.END}")
+    print_separator()
+    
+    # Check if LightRAG manager is available
+    if not HAS_TRANSPARENT_MODULES:
+        print(f"{Colors.RED}⚠ LightRAG modules not available. Please install dependencies.{Colors.END}")
+        wait_for_key()
+        return
+    
+    try:
+        print(f"{Colors.CYAN}🚀 Launching Modern Bucket Manager Interface...{Colors.END}")
+        print(f"{Colors.YELLOW}✨ Features: Interactive graphs, smooth UX, multi-bucket comparison{Colors.END}")
+        print(f"{Colors.GREEN}📊 Opening in your default web browser...{Colors.END}\n")
+        
+        # Get absolute path to the smooth bucket manager
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        html_file = os.path.join(current_dir, "lizzy_smooth_bucket_manager.html")
+        
+        if os.path.exists(html_file):
+            # Launch the web interface
+            import webbrowser
+            webbrowser.open(f"file://{html_file}")
+            
+            print(f"{Colors.GREEN}✅ Bucket Manager launched successfully!{Colors.END}")
+            print(f"{Colors.CYAN}🌐 Web interface opened in your browser{Colors.END}")
+            print(f"\n{Colors.BOLD}Available Features:{Colors.END}")
+            print(f"   {Colors.YELLOW}📚 Library view{Colors.END} - Browse all your knowledge buckets")
+            print(f"   {Colors.YELLOW}🔍 Interactive search{Colors.END} - Find buckets by name, group, or content")
+            print(f"   {Colors.YELLOW}🎯 Focused workspace{Colors.END} - Deep dive into individual buckets")
+            print(f"   {Colors.YELLOW}🌐 Graph exploration{Colors.END} - Interactive knowledge graph visualization")
+            print(f"   {Colors.YELLOW}📊 Multi-bucket compare{Colors.END} - Side-by-side graph comparison")
+            print(f"   {Colors.YELLOW}💾 Smart export{Colors.END} - Multiple format options with plain language")
+            print(f"   {Colors.YELLOW}🌙 Dark/Light theme{Colors.END} - Comfortable viewing experience")
+            
+            print(f"\n{Colors.BOLD}Quick Tips:{Colors.END}")
+            print(f"   • Hover over bucket cards to see quick actions")
+            print(f"   • Check multiple buckets to enable comparison mode") 
+            print(f"   • Use ⌘K (Mac) or Ctrl+K (Windows) for quick search")
+            print(f"   • Drag files onto upload areas for easy document addition")
+            
+            print(f"\n{Colors.GREEN}🎉 Happy knowledge exploring!{Colors.END}")
+            
+        else:
+            print(f"{Colors.RED}⚠ Web interface not found at: {html_file}{Colors.END}")
+            print(f"{Colors.YELLOW}Falling back to command-line interface...{Colors.END}")
+            
+            # Fallback to old interface
+            manager = LightRAGManager(base_dir="lightrag_working_dir")
+            if os.path.exists("lightrag_working_dir/bucket_config.json"):
+                manager.load_bucket_config()
+            interface = BucketInterface(manager)
+            interface.manage_buckets_menu()
+            
+    except ImportError:
+        print(f"{Colors.RED}⚠ LightRAG manager not properly installed{Colors.END}")
+        print(f"{Colors.YELLOW}Please ensure lizzy_lightrag_manager.py is available{Colors.END}")
+    except Exception as e:
+        print(f"{Colors.RED}⚠ Error launching bucket manager: {str(e)}{Colors.END}")
     
     wait_for_key()
 

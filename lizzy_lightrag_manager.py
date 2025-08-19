@@ -6,6 +6,7 @@ Handles knowledge graph operations, bucket management, and data queries
 import os
 import json
 import sqlite3
+import webbrowser
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 from lightrag import LightRAG, QueryParam
@@ -13,6 +14,7 @@ from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
 import networkx as nx
 import matplotlib.pyplot as plt
 from io import StringIO
+from graph_visualizer import create_interactive_graph, create_multi_graph_explorer
 
 
 class LightRAGManager:
@@ -176,73 +178,127 @@ class LightRAGManager:
             "documents": 0
         }
         
-        # Check for graph database files
-        graph_file = os.path.join(bucket_dir, "graph_chunk_entity_relation.json")
-        if os.path.exists(graph_file):
-            with open(graph_file, 'r') as f:
-                graph_data = json.load(f)
-                stats["entities"] = len(graph_data.get("entities", {}))
-                stats["relationships"] = len(graph_data.get("relationships", {}))
+        # Count entities from vector database
+        entities_file = os.path.join(bucket_dir, "vdb_entities.json")
+        if os.path.exists(entities_file):
+            try:
+                with open(entities_file, 'r') as f:
+                    data = json.load(f)
+                    if 'data' in data:
+                        stats["entities"] = len(data['data'])
+            except:
+                pass
         
-        # Count documents
-        doc_file = os.path.join(bucket_dir, "documents.json")
-        if os.path.exists(doc_file):
-            with open(doc_file, 'r') as f:
-                docs = json.load(f)
-                stats["documents"] = len(docs)
+        # Count relationships from vector database
+        relations_file = os.path.join(bucket_dir, "vdb_relationships.json")
+        if os.path.exists(relations_file):
+            try:
+                with open(relations_file, 'r') as f:
+                    data = json.load(f)
+                    if 'data' in data:
+                        stats["relationships"] = len(data['data'])
+            except:
+                pass
+        
+        # Count chunks (documents) from vector database
+        chunks_file = os.path.join(bucket_dir, "vdb_chunks.json")
+        if os.path.exists(chunks_file):
+            try:
+                with open(chunks_file, 'r') as f:
+                    data = json.load(f)
+                    if 'data' in data:
+                        stats["documents"] = len(data['data'])
+            except:
+                pass
+        
+        # Fallback to old format if new files don't exist
+        if stats["entities"] == 0 and stats["relationships"] == 0:
+            graph_file = os.path.join(bucket_dir, "graph_chunk_entity_relation.json")
+            if os.path.exists(graph_file):
+                try:
+                    with open(graph_file, 'r') as f:
+                        graph_data = json.load(f)
+                        stats["entities"] = len(graph_data.get("entities", {}))
+                        stats["relationships"] = len(graph_data.get("relationships", {}))
+                except:
+                    pass
         
         return stats
     
-    def visualize_knowledge_graph(self, bucket_name: str, max_nodes: int = 50) -> Optional[str]:
-        """Generate a visualization of the knowledge graph"""
-        bucket_dir = os.path.join(self.base_dir, bucket_name)
-        graph_file = os.path.join(bucket_dir, "graph_chunk_entity_relation.json")
-        
-        if not os.path.exists(graph_file):
+    def visualize_knowledge_graph(self, bucket_name: str, max_nodes: int = 100, auto_open: bool = True) -> Optional[str]:
+        """Generate an interactive HTML visualization of the knowledge graph"""
+        try:
+            # Use our enhanced interactive graph visualizer
+            html_file = create_interactive_graph(bucket_name, self.base_dir, max_nodes)
+            
+            if html_file:
+                print(f"✅ Interactive graph saved to: {html_file}")
+                
+                if auto_open:
+                    try:
+                        # Auto-launch in default browser
+                        webbrowser.open(f"file://{os.path.abspath(html_file)}")
+                        print(f"🚀 Opening graph in your default browser...")
+                    except Exception as e:
+                        print(f"⚠️ Could not auto-open browser: {e}")
+                        print(f"🌐 Manually open: {html_file}")
+                else:
+                    print(f"🌐 Open in browser to explore interactively!")
+                
+                return html_file
+            else:
+                # Fallback to creating a basic static graph if no data
+                print(f"❌ No graph data found for bucket '{bucket_name}'")
+                print(f"   Make sure the bucket has documents and a knowledge graph has been built.")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error creating interactive graph: {e}")
+            print(f"   Bucket: {bucket_name}")
             return None
-        
-        with open(graph_file, 'r') as f:
-            graph_data = json.load(f)
-        
-        # Create NetworkX graph
-        G = nx.Graph()
-        
-        # Add entities as nodes
-        entities = graph_data.get("entities", {})
-        for entity_id, entity_data in list(entities.items())[:max_nodes]:
-            G.add_node(entity_id, **entity_data)
-        
-        # Add relationships as edges
-        relationships = graph_data.get("relationships", {})
-        for rel_id, rel_data in relationships.items():
-            source = rel_data.get("source")
-            target = rel_data.get("target")
-            if source in G.nodes and target in G.nodes:
-                G.add_edge(source, target, label=rel_data.get("type", ""))
-        
-        # Generate visualization
-        plt.figure(figsize=(12, 8))
-        pos = nx.spring_layout(G, k=2, iterations=50)
-        
-        # Draw nodes
-        nx.draw_networkx_nodes(G, pos, node_color='lightblue', 
-                             node_size=500, alpha=0.7)
-        
-        # Draw edges
-        nx.draw_networkx_edges(G, pos, alpha=0.5)
-        
-        # Draw labels
-        nx.draw_networkx_labels(G, pos, font_size=8)
-        
-        plt.title(f"Knowledge Graph: {bucket_name}")
-        plt.axis('off')
-        
-        # Save to file
-        viz_file = os.path.join(self.base_dir, f"{bucket_name}_graph.png")
-        plt.savefig(viz_file, dpi=100, bbox_inches='tight')
-        plt.close()
-        
-        return viz_file
+    
+    def compare_multiple_graphs(self, bucket_names: List[str], max_nodes_each: int = 30, auto_open: bool = True) -> Optional[str]:
+        """Create a multi-graph comparison explorer for multiple buckets"""
+        try:
+            # Filter out non-existent buckets
+            valid_buckets = []
+            for bucket_name in bucket_names:
+                if bucket_name in self.buckets or os.path.exists(os.path.join(self.base_dir, bucket_name)):
+                    valid_buckets.append(bucket_name)
+                else:
+                    print(f"⚠️ Bucket '{bucket_name}' not found, skipping...")
+            
+            if len(valid_buckets) < 2:
+                print("❌ Need at least 2 valid buckets for comparison")
+                return None
+            
+            print(f"🔍 Creating multi-graph explorer for: {', '.join(valid_buckets)}")
+            
+            # Use our multi-graph visualizer
+            html_file = create_multi_graph_explorer(valid_buckets, self.base_dir, max_nodes_each)
+            
+            if html_file:
+                print(f"✅ Multi-graph explorer saved to: {html_file}")
+                
+                if auto_open:
+                    try:
+                        # Auto-launch in default browser
+                        webbrowser.open(f"file://{os.path.abspath(html_file)}")
+                        print(f"🚀 Opening multi-graph explorer in your browser...")
+                    except Exception as e:
+                        print(f"⚠️ Could not auto-open browser: {e}")
+                        print(f"🌐 Manually open: {html_file}")
+                else:
+                    print(f"🌐 Open in browser to explore multiple graphs!")
+                
+                return html_file
+            else:
+                print("❌ Failed to create multi-graph explorer")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Error creating multi-graph explorer: {e}")
+            return None
     
     def extract_entities_from_text(self, text: str, bucket_name: str = None) -> List[Dict]:
         """Extract entities from text using LightRAG's entity extraction"""
@@ -420,7 +476,8 @@ class BucketInterface:
             print("3. Toggle bucket on/off")
             print("4. Add document to bucket")
             print("5. Visualize knowledge graph")
-            print("6. Export bucket data")
+            print("6. Compare multiple graphs")
+            print("7. Export bucket data")
             print("0. Back")
             
             choice = input("\nChoice: ").strip()
@@ -470,6 +527,39 @@ class BucketInterface:
                         print("❌ No graph data available")
             
             elif choice == "6":
+                # Multi-graph comparison
+                buckets = list(self.manager.bucket_metadata.keys())
+                print("\nSelect buckets for comparison:")
+                for i, b in enumerate(buckets, 1):
+                    print(f"{i}. {b}")
+                
+                print("\nEnter bucket numbers separated by commas (e.g., 1,2,3):")
+                selection = input("Buckets: ").strip()
+                
+                try:
+                    indices = [int(x.strip()) - 1 for x in selection.split(',')]
+                    selected_buckets = []
+                    
+                    for idx in indices:
+                        if 0 <= idx < len(buckets):
+                            selected_buckets.append(buckets[idx])
+                        else:
+                            print(f"⚠️ Invalid bucket number: {idx + 1}")
+                    
+                    if len(selected_buckets) >= 2:
+                        print(f"\n🔍 Creating multi-graph comparison for: {', '.join(selected_buckets)}")
+                        viz_file = self.manager.compare_multiple_graphs(selected_buckets)
+                        if viz_file:
+                            print(f"✅ Multi-graph explorer created and opened in browser!")
+                        else:
+                            print("❌ Failed to create multi-graph explorer")
+                    else:
+                        print("❌ Please select at least 2 buckets for comparison")
+                        
+                except ValueError:
+                    print("❌ Invalid input format. Use comma-separated numbers (e.g., 1,2,3)")
+                    
+            elif choice == "7":
                 buckets = list(self.manager.bucket_metadata.keys())
                 for i, b in enumerate(buckets, 1):
                     print(f"{i}. {b}")

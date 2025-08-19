@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Buckets - Lizzy Knowledge Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        explore: '#3b82f6',
+                        success: '#22c55e',
+                        danger: '#ef4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        .bucket-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .bucket-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .bucket-card:hover .quick-actions {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .quick-actions {
+            opacity: 0;
+            transform: translateY(4px);
+            transition: all 0.2s ease;
+        }
+        
+        .bucket-card.selected {
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+        
+        .compare-float {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            transition: transform 0.3s ease;
+            z-index: 50;
+        }
+        
+        .compare-float.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        .add-float {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+        }
+        
+        .sidebar {
+            transition: transform 0.3s ease;
+        }
+        
+        .graph-container {
+            position: relative;
+            height: 500px;
+        }
+        
+        .mini-map {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 150px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            z-index: 10;
+        }
+        
+        .progress-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.visible {
+            transform: translateX(0);
+        }
+        
+        .view-toggle button.active {
+            background: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen">
+
+    <!-- Persistent Sidebar -->
+    <div class="sidebar fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform -translate-x-full lg:translate-x-0 z-40" id="sidebar">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Knowledge Buckets</h2>
+        </div>
+        <div class="p-4">
+            <div class="space-y-2" id="sidebar-buckets">
+                <!-- Sidebar bucket list will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="lg:ml-64">
+        <!-- Top Navigation -->
+        <nav class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <!-- Breadcrumbs -->
+                <div class="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400" id="breadcrumbs">
+                    <span>Buckets</span>
+                </div>
+                
+                <!-- Search & View Toggle -->
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <input type="text" id="search-input" placeholder="Search buckets by name or group..." 
+                               class="w-80 px-4 py-2 pl-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-400">🔍</span>
+                        </div>
+                    </div>
+                    
+                    <div class="view-toggle flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button id="card-view-btn" class="active px-3 py-1 rounded text-sm font-medium transition-colors">Cards</button>
+                        <button id="list-view-btn" class="px-3 py-1 rounded text-sm font-medium transition-colors">List</button>
+                    </div>
+                </div>
+                
+                <!-- Export Button -->
+                <div>
+                    <button class="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white">Export</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="p-6">
+            
+            <!-- Landing Page: Your Buckets -->
+            <div id="buckets-page">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Your Buckets</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Manage your knowledge repositories</p>
+                </div>
+
+                <!-- Card View -->
+                <div id="card-view" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Bucket cards will be populated here -->
+                </div>
+
+                <!-- List View (Hidden by default) -->
+                <div id="list-view" class="hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="select-all" class="mr-4">
+                                <div class="grid grid-cols-6 gap-4 w-full text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <div>Bucket</div>
+                                    <div>Group</div>
+                                    <div>Last Edited</div>
+                                    <div>Documents</div>
+                                    <div>Nodes/Edges</div>
+                                    <div>Actions</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="list-content" class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <!-- List items will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inside a Bucket View -->
+            <div id="bucket-detail" class="hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 id="bucket-name" class="text-2xl font-bold text-gray-900 dark:text-white">Bucket Name</h1>
+                    </div>
+                    <div class="flex items-center space-x-6 text-sm">
+                        <div class="text-center">
+                            <div id="bucket-docs-count" class="text-lg font-semibold text-gray-900 dark:text-white">0</div>
+                            <div class="text-gray-600 dark:text-gray-400">docs</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="bucket-nodes-count" class="text-lg font-semibold text-explore">0</div>
+                            <div class="text-gray-600 dark:text-gray-400">nodes</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="bucket-edges-count" class="text-lg font-semibold text-success">0</div>
+                            <div class="text-gray-600 dark:text-gray-400">edges</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+                    <nav class="flex space-x-8">
+                        <button class="tab-btn active py-2 px-1 border-b-2 border-explore font-medium text-sm text-explore" data-tab="docs">
+                            📄 Docs
+                        </button>
+                        <button class="tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" data-tab="graph">
+                            🌐 Graph
+                        </button>
+                        <button class="tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" data-tab="stats">
+                            📊 Stats
+                        </button>
+                        <button class="tab-btn py-2 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700" data-tab="export">
+                            📤 Export
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Content -->
+                <div id="docs-tab" class="tab-content">
+                    <div class="mb-6">
+                        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center" 
+                             id="dropzone" 
+                             ondrop="handleDrop(event)" 
+                             ondragover="handleDragOver(event)" 
+                             ondragleave="handleDragLeave(event)">
+                            <div class="text-4xl mb-4">📁</div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Drop files here to upload</h3>
+                            <p class="text-gray-600 dark:text-gray-400 mb-4">Or click to browse</p>
+                            <button class="px-4 py-2 bg-explore text-white rounded-lg hover:bg-blue-600">Choose Files</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Documents</h3>
+                            <select class="text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-1 bg-white dark:bg-gray-700">
+                                <option>Sort by: Recently Added</option>
+                                <option>Sort by: Name</option>
+                                <option>Sort by: Size</option>
+                            </select>
+                        </div>
+                        <div id="docs-list" class="p-6">
+                            <div class="text-center py-12 text-gray-500 dark:text-gray-400">
+                                <div class="text-4xl mb-4">📄</div>
+                                <p>No documents yet. Upload some files to get started!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="graph-tab" class="tab-content hidden">
+                    <div class="graph-container bg-white dark:bg-gray-800 rounded-lg shadow">
+                        <div class="mini-map dark:bg-gray-700 dark:border-gray-600">
+                            <div class="p-2 text-xs text-gray-600 dark:text-gray-400">Mini Map</div>
+                        </div>
+                        
+                        <div id="graph-network" class="w-full h-full rounded-lg"></div>
+                        
+                        <div class="absolute bottom-4 left-4 flex space-x-2">
+                            <button class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Expand
+                            </button>
+                            <button class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Undo
+                            </button>
+                            <button class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm hover:bg-gray-50 dark:hover:bg-gray-600">
+                                Reset
+                            </button>
+                        </div>
+                        
+                        <div class="absolute top-4 left-4 flex space-x-2">
+                            <button class="px-3 py-1 bg-explore text-white rounded text-sm">By Entity Type</button>
+                            <button class="px-3 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-sm">By Bucket</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="stats-tab" class="tab-content hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Usage History</h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Documents processed today</span>
+                                    <span class="font-medium">5</span>
+                                </div>
+                                <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded">
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">Queries this week</span>
+                                    <span class="font-medium">23</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Ingestion History</h3>
+                            <div class="space-y-2">
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Last processed: 2 hours ago</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Total processing time: 45 minutes</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Success rate: 98.5%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="export-tab" class="tab-content hidden">
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Export Options</h3>
+                        
+                        <div class="space-y-3">
+                            <button class="w-full text-left p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow">
+                                <div class="font-medium text-gray-900 dark:text-white">Save as a database file (SQLite)</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Complete backup with full structure and relationships</div>
+                            </button>
+                            
+                            <button class="w-full text-left p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow">
+                                <div class="font-medium text-gray-900 dark:text-white">Download as JSON (for developers)</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Machine-readable format for integration with other tools</div>
+                            </button>
+                            
+                            <button class="w-full text-left p-4 bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-md transition-shadow">
+                                <div class="font-medium text-gray-900 dark:text-white">Export as CSV (spreadsheet-friendly)</div>
+                                <div class="text-sm text-gray-600 dark:text-gray-400">Open in Excel, Google Sheets, or any spreadsheet application</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compare & Merge View -->
+            <div id="compare-view" class="hidden">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Compare & Merge</h1>
+                    <p class="text-gray-600 dark:text-gray-400">Side-by-side bucket comparison</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Bucket A</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Documents:</span>
+                                <span class="font-medium">24</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Nodes:</span>
+                                <span class="font-medium">1,234</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Edges:</span>
+                                <span class="font-medium">2,456</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Bucket B</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span>Documents:</span>
+                                <span class="font-medium">18</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Nodes:</span>
+                                <span class="font-medium">890</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Edges:</span>
+                                <span class="font-medium">1,567</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+                    <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Save Options</h3>
+                    <div class="flex space-x-4">
+                        <button class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                            Just explore (temporary session)
+                        </button>
+                        <button class="px-4 py-2 bg-explore text-white rounded-lg hover:bg-blue-600">
+                            Save as new bucket (persistent)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Floating Compare Button -->
+    <div id="compare-float" class="compare-float">
+        <button class="bg-explore text-white px-6 py-3 rounded-full shadow-lg flex items-center space-x-2">
+            <span>Compare Buckets</span>
+            <span id="compare-count" class="bg-white text-explore px-2 py-1 rounded-full text-sm font-medium">0</span>
+        </button>
+    </div>
+
+    <!-- Floating Add Button -->
+    <div class="add-float">
+        <button id="add-bucket-btn" class="bg-success text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-xl hover:bg-green-600">
+            +
+        </button>
+    </div>
+
+    <!-- Add Bucket Modal -->
+    <div id="add-bucket-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Bucket</h3>
+            <form id="add-bucket-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bucket Name</label>
+                    <input type="text" id="bucket-name-input" required 
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Group</label>
+                    <input type="text" id="bucket-group-input" 
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                    <textarea id="bucket-description-input" rows="3" 
+                              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex space-x-3">
+                    <button type="submit" class="flex-1 bg-success text-white px-4 py-2 rounded-lg hover:bg-green-600">
+                        Create Bucket
+                    </button>
+                    <button type="button" onclick="closeAddModal()" class="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-400 dark:hover:bg-gray-500">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Progress Overlay -->
+    <div id="progress-overlay" class="progress-overlay hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <div class="text-center mb-4">
+                <div class="text-4xl mb-4">📄</div>
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">Processing Documents</h3>
+                <p class="text-gray-600 dark:text-gray-400">Building knowledge graph...</p>
+            </div>
+            <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-4">
+                <div id="progress-bar" class="bg-success h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <div class="text-center">
+                <span id="progress-text" class="text-sm text-gray-600 dark:text-gray-400">Starting...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="success-toast" class="toast bg-success text-white px-6 py-4 rounded-lg shadow-lg">
+        <div class="flex items-center space-x-2">
+            <span>✅</span>
+            <span>Processed ✅</span>
+        </div>
+    </div>
+
+    <script>
+        // Real bucket data generated from LightRAG directories
+        let buckets = [
+        {
+                "id": 1,
+                "name": "shakespeare_plays",
+                "group": "Working",
+                "lastEdited": "12 weeks ago",
+                "docCount": 1334,
+                "nodeCount": 8665,
+                "edgeCount": 7257,
+                "chunkCount": 1334,
+                "description": "Complete works and analysis of Shakespeare's plays",
+                "selected": false
+        },
+        {
+                "id": 2,
+                "name": "cultural_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 39,
+                "nodeCount": 598,
+                "edgeCount": 464,
+                "chunkCount": 39,
+                "description": "Cultural studies and contextual materials",
+                "selected": false
+        },
+        {
+                "id": 3,
+                "name": "dixon_foster_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 248,
+                "nodeCount": 5065,
+                "edgeCount": 3393,
+                "chunkCount": 248,
+                "description": "Wheeler Winston Dixon and Gwendolyn Audrey Foster's film scholarship",
+                "selected": false
+        },
+        {
+                "id": 4,
+                "name": "gomery_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 205,
+                "nodeCount": 2701,
+                "edgeCount": 2554,
+                "chunkCount": 205,
+                "description": "Douglas Gomery's film industry economics and history",
+                "selected": false
+        },
+        {
+                "id": 5,
+                "name": "bordwell_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 426,
+                "nodeCount": 5030,
+                "edgeCount": 5039,
+                "chunkCount": 426,
+                "description": "David Bordwell's film analysis and theory works",
+                "selected": false
+        },
+        {
+                "id": 6,
+                "name": "knight_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 184,
+                "nodeCount": 2661,
+                "edgeCount": 2146,
+                "chunkCount": 184,
+                "description": "Arthur Knight's film history and criticism",
+                "selected": false
+        },
+        {
+                "id": 7,
+                "name": "balio_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 564,
+                "nodeCount": 4990,
+                "edgeCount": 6133,
+                "chunkCount": 564,
+                "description": "Tino Balio's film industry and history research",
+                "selected": false
+        },
+        {
+                "id": 8,
+                "name": "cook_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 463,
+                "nodeCount": 6738,
+                "edgeCount": 5873,
+                "chunkCount": 463,
+                "description": "Pam Cook's film studies and criticism materials",
+                "selected": false
+        },
+        {
+                "id": 9,
+                "name": "reference_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 1867,
+                "nodeCount": 21012,
+                "edgeCount": 22000,
+                "chunkCount": 1867,
+                "description": "General reference materials and foundational texts",
+                "selected": false
+        },
+        {
+                "id": 10,
+                "name": "cousins_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 236,
+                "nodeCount": 3345,
+                "edgeCount": 2838,
+                "chunkCount": 236,
+                "description": "Mark Cousins' film history and documentary work",
+                "selected": false
+        },
+        {
+                "id": 11,
+                "name": "american_cinema_series",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 831,
+                "nodeCount": 9282,
+                "edgeCount": 10265,
+                "chunkCount": 831,
+                "description": "American cinema history and development analysis",
+                "selected": false
+        },
+        {
+                "id": 12,
+                "name": "academic_sources",
+                "group": "Working",
+                "lastEdited": "19 days ago",
+                "docCount": 426,
+                "nodeCount": 5030,
+                "edgeCount": 5039,
+                "chunkCount": 426,
+                "description": "Academic papers and scholarly articles on film theory",
+                "selected": false
+        },
+        {
+                "id": 13,
+                "name": "screenwriting_books",
+                "group": "Working",
+                "lastEdited": "12 weeks ago",
+                "docCount": 875,
+                "nodeCount": 9896,
+                "edgeCount": 6131,
+                "chunkCount": 875,
+                "description": "Books and guides on screenwriting craft and technique",
+                "selected": false
+        },
+        {
+                "id": 14,
+                "name": "miranda_plays",
+                "group": "Archive",
+                "lastEdited": "12 weeks ago",
+                "docCount": 1334,
+                "nodeCount": 8665,
+                "edgeCount": 7257,
+                "chunkCount": 1334,
+                "description": "Archive of Miranda's theatrical works",
+                "selected": false
+        },
+        {
+                "id": 15,
+                "name": "miranda_books",
+                "group": "Archive",
+                "lastEdited": "12 weeks ago",
+                "docCount": 875,
+                "nodeCount": 9896,
+                "edgeCount": 6131,
+                "chunkCount": 875,
+                "description": "Archive of Miranda's book collection",
+                "selected": false
+        }
+];
+
+        let currentView = 'buckets';
+        let currentBucket = null;
+        let selectedBuckets = [];
+        let viewMode = 'card';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            renderBuckets();
+            setupEventListeners();
+            updateSidebar();
+        });
+
+        function setupEventListeners() {
+            // View toggle
+            document.getElementById('card-view-btn').addEventListener('click', () => switchView('card'));
+            document.getElementById('list-view-btn').addEventListener('click', () => switchView('list'));
+            
+            // Search
+            document.getElementById('search-input').addEventListener('input', handleSearch);
+            
+            // Add bucket
+            document.getElementById('add-bucket-btn').addEventListener('click', openAddModal);
+            document.getElementById('add-bucket-form').addEventListener('submit', handleAddBucket);
+            
+            // Compare
+            document.getElementById('compare-float').addEventListener('click', showCompareView);
+            
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab));
+            });
+        }
+
+        function renderBuckets() {
+            if (viewMode === 'card') {
+                renderCardView();
+            } else {
+                renderListView();
+            }
+        }
+
+        function renderCardView() {
+            const container = document.getElementById('card-view');
+            container.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const card = document.createElement('div');
+                card.className = `bucket-card bg-white dark:bg-gray-800 rounded-lg shadow p-6 ${bucket.selected ? 'selected' : ''}`;
+                
+                card.innerHTML = `
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-3 mb-2">
+                                <input type="checkbox" ${bucket.selected ? 'checked' : ''} 
+                                       onchange="toggleSelection(${bucket.id})"
+                                       class="rounded border-gray-300 dark:border-gray-600 text-blue-600">
+                                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.name}</h3>
+                            </div>
+                            <div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                <div><strong>Group:</strong> ${bucket.group}</div>
+                                <div><strong>Last edited:</strong> ${bucket.lastEdited}</div>
+                                <div><strong>Doc count:</strong> ${bucket.docCount} docs</div>
+                                <div><strong>Nodes/Edges:</strong> ${bucket.nodeCount.toLocaleString()}/${bucket.edgeCount.toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="quick-actions flex space-x-2 mt-4">
+                        <button onclick="viewBucket(${bucket.id})" class="flex-1 px-3 py-2 bg-explore text-white text-sm rounded hover:bg-blue-600">
+                            View
+                        </button>
+                        <button onclick="openGraph(${bucket.id})" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            Graph
+                        </button>
+                        <button onclick="exportBucket(${bucket.id})" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm rounded hover:bg-gray-200 dark:hover:bg-gray-600">
+                            Export
+                        </button>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function renderListView() {
+            const container = document.getElementById('list-content');
+            container.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const row = document.createElement('div');
+                row.className = `px-6 py-4 ${bucket.selected ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700'}`;
+                
+                row.innerHTML = `
+                    <div class="flex items-center">
+                        <input type="checkbox" ${bucket.selected ? 'checked' : ''} 
+                               onchange="toggleSelection(${bucket.id})" 
+                               class="mr-4 rounded border-gray-300 dark:border-gray-600 text-blue-600">
+                        <div class="grid grid-cols-6 gap-4 w-full text-sm">
+                            <div class="font-medium text-gray-900 dark:text-white">${bucket.name}</div>
+                            <div class="text-gray-600 dark:text-gray-400">${bucket.group}</div>
+                            <div class="text-gray-600 dark:text-gray-400">${bucket.lastEdited}</div>
+                            <div class="text-gray-600 dark:text-gray-400">${bucket.docCount}</div>
+                            <div class="text-gray-600 dark:text-gray-400">${bucket.nodeCount.toLocaleString()}/${bucket.edgeCount.toLocaleString()}</div>
+                            <div class="flex space-x-2">
+                                <button onclick="viewBucket(${bucket.id})" class="text-explore hover:text-blue-600">View</button>
+                                <button onclick="openGraph(${bucket.id})" class="text-gray-600 hover:text-gray-900">Graph</button>
+                                <button onclick="exportBucket(${bucket.id})" class="text-gray-600 hover:text-gray-900">Export</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(row);
+            });
+        }
+
+        function switchView(mode) {
+            viewMode = mode;
+            
+            // Update buttons
+            document.getElementById('card-view-btn').classList.toggle('active', mode === 'card');
+            document.getElementById('list-view-btn').classList.toggle('active', mode === 'list');
+            
+            // Show/hide views
+            document.getElementById('card-view').classList.toggle('hidden', mode !== 'card');
+            document.getElementById('list-view').classList.toggle('hidden', mode !== 'list');
+            
+            renderBuckets();
+        }
+
+        function toggleSelection(bucketId) {
+            const bucket = buckets.find(b => b.id === bucketId);
+            if (bucket) {
+                bucket.selected = !bucket.selected;
+                selectedBuckets = buckets.filter(b => b.selected);
+                updateCompareButton();
+                renderBuckets();
+            }
+        }
+
+        function updateCompareButton() {
+            const compareFloat = document.getElementById('compare-float');
+            const compareCount = document.getElementById('compare-count');
+            
+            compareCount.textContent = selectedBuckets.length;
+            
+            if (selectedBuckets.length >= 2) {
+                compareFloat.classList.add('visible');
+            } else {
+                compareFloat.classList.remove('visible');
+            }
+        }
+
+        function viewBucket(bucketId) {
+            currentBucket = buckets.find(b => b.id === bucketId);
+            currentView = 'bucket-detail';
+            
+            // Update breadcrumbs
+            document.getElementById('breadcrumbs').innerHTML = `
+                <a href="#" onclick="showBucketsPage()" class="text-explore hover:text-blue-600">Buckets</a>
+                <span>&gt;</span>
+                <span>${currentBucket.name}</span>
+            `;
+            
+            // Populate bucket details
+            document.getElementById('bucket-name').textContent = currentBucket.name;
+            document.getElementById('bucket-docs-count').textContent = currentBucket.docCount;
+            document.getElementById('bucket-nodes-count').textContent = currentBucket.nodeCount.toLocaleString();
+            document.getElementById('bucket-edges-count').textContent = currentBucket.edgeCount.toLocaleString();
+            
+            // Show bucket detail view
+            document.getElementById('buckets-page').classList.add('hidden');
+            document.getElementById('bucket-detail').classList.remove('hidden');
+            document.getElementById('compare-view').classList.add('hidden');
+            
+            // Show docs tab by default
+            switchTab('docs');
+        }
+
+        function showBucketsPage() {
+            currentView = 'buckets';
+            
+            // Update breadcrumbs
+            document.getElementById('breadcrumbs').innerHTML = '<span>Buckets</span>';
+            
+            // Show buckets page
+            document.getElementById('buckets-page').classList.remove('hidden');
+            document.getElementById('bucket-detail').classList.add('hidden');
+            document.getElementById('compare-view').classList.add('hidden');
+        }
+
+        function showCompareView() {
+            currentView = 'compare';
+            
+            // Update breadcrumbs
+            document.getElementById('breadcrumbs').innerHTML = `
+                <a href="#" onclick="showBucketsPage()" class="text-explore hover:text-blue-600">Buckets</a>
+                <span>&gt;</span>
+                <span>Compare & Merge</span>
+            `;
+            
+            // Show compare view
+            document.getElementById('buckets-page').classList.add('hidden');
+            document.getElementById('bucket-detail').classList.add('hidden');
+            document.getElementById('compare-view').classList.remove('hidden');
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-explore', 'text-explore');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active', 'border-explore', 'text-explore');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-gray-500');
+            
+            // Show/hide content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            // Initialize graph if needed
+            if (tabName === 'graph') {
+                initializeGraph();
+            }
+        }
+
+        function initializeGraph() {
+            const container = document.getElementById('graph-network');
+            
+            // Sample graph data
+            const nodes = new vis.DataSet([
+                {id: 1, label: 'Character A', color: '#3b82f6', size: 20},
+                {id: 2, label: 'Character B', color: '#10b981', size: 15},
+                {id: 3, label: 'Location X', color: '#f59e0b', size: 25},
+                {id: 4, label: 'Theme Y', color: '#ef4444', size: 12},
+                {id: 5, label: 'Plot Point', color: '#8b5cf6', size: 18}
+            ]);
+            
+            const edges = new vis.DataSet([
+                {from: 1, to: 2, label: 'interacts with'},
+                {from: 1, to: 3, label: 'visits'},
+                {from: 2, to: 4, label: 'represents'},
+                {from: 3, to: 5, label: 'contains'},
+                {from: 4, to: 5, label: 'influences'}
+            ]);
+            
+            const data = {nodes, edges};
+            const options = {
+                nodes: {
+                    font: {color: '#ffffff'},
+                    borderWidth: 2
+                },
+                edges: {
+                    font: {color: '#666666', size: 12},
+                    arrows: {to: {enabled: true, scaleFactor: 0.5}}
+                },
+                physics: {
+                    enabled: true,
+                    barnesHut: {
+                        gravitationalConstant: -20000,
+                        springLength: 150,
+                        springConstant: 0.04
+                    }
+                }
+            };
+            
+            const network = new vis.Network(container, data, options);
+        }
+
+        function openAddModal() {
+            document.getElementById('add-bucket-modal').classList.remove('hidden');
+        }
+
+        function closeAddModal() {
+            document.getElementById('add-bucket-modal').classList.add('hidden');
+            document.getElementById('add-bucket-form').reset();
+        }
+
+        function handleAddBucket(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('bucket-name-input').value;
+            const group = document.getElementById('bucket-group-input').value || 'General';
+            const description = document.getElementById('bucket-description-input').value;
+            
+            const newBucket = {
+                id: Date.now(),
+                name: name,
+                group: group,
+                lastEdited: 'Just now',
+                docCount: 0,
+                nodeCount: 0,
+                edgeCount: 0,
+                description: description,
+                selected: false
+            };
+            
+            buckets.unshift(newBucket);
+            renderBuckets();
+            updateSidebar();
+            closeAddModal();
+            
+            showToast('Bucket created successfully!');
+        }
+
+        function updateSidebar() {
+            const container = document.getElementById('sidebar-buckets');
+            container.innerHTML = '';
+            
+            buckets.forEach(bucket => {
+                const item = document.createElement('button');
+                item.className = 'w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded';
+                item.textContent = bucket.name;
+                item.onclick = () => viewBucket(bucket.id);
+                container.appendChild(item);
+            });
+        }
+
+        function handleSearch(event) {
+            const searchTerm = event.target.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                renderBuckets();
+                return;
+            }
+            
+            const filteredBuckets = buckets.filter(bucket => 
+                bucket.name.toLowerCase().includes(searchTerm) || 
+                bucket.group.toLowerCase().includes(searchTerm)
+            );
+            
+            // Temporarily update buckets for rendering
+            const originalBuckets = [...buckets];
+            buckets.splice(0, buckets.length, ...filteredBuckets);
+            renderBuckets();
+            buckets.splice(0, buckets.length, ...originalBuckets);
+        }
+
+        function openGraph(bucketId) {
+            viewBucket(bucketId);
+            setTimeout(() => switchTab('graph'), 100);
+        }
+
+        function exportBucket(bucketId) {
+            viewBucket(bucketId);
+            setTimeout(() => switchTab('export'), 100);
+        }
+
+        // Drag and drop handling
+        function handleDragOver(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+        }
+
+        function handleDragLeave(event) {
+            event.currentTarget.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-blue-900/20');
+            
+            // Show progress overlay
+            showProgressOverlay();
+        }
+
+        function showProgressOverlay() {
+            const overlay = document.getElementById('progress-overlay');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            
+            overlay.classList.remove('hidden');
+            
+            let progress = 0;
+            const steps = ['Reading files...', 'Extracting text...', 'Building graph...', 'Finalizing...'];
+            let stepIndex = 0;
+            
+            const interval = setInterval(() => {
+                progress += 25;
+                progressBar.style.width = progress + '%';
+                
+                if (stepIndex < steps.length) {
+                    progressText.textContent = steps[stepIndex];
+                    stepIndex++;
+                }
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        showToast('Processed ✅');
+                        
+                        // Update bucket stats
+                        if (currentBucket) {
+                            currentBucket.docCount += 1;
+                            currentBucket.nodeCount += Math.floor(Math.random() * 100) + 50;
+                            currentBucket.edgeCount += Math.floor(Math.random() * 150) + 75;
+                            currentBucket.lastEdited = 'Just now';
+                            
+                            // Update display
+                            document.getElementById('bucket-docs-count').textContent = currentBucket.docCount;
+                            document.getElementById('bucket-nodes-count').textContent = currentBucket.nodeCount.toLocaleString();
+                            document.getElementById('bucket-edges-count').textContent = currentBucket.edgeCount.toLocaleString();
+                        }
+                    }, 500);
+                }
+            }, 800);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('success-toast');
+            toast.querySelector('span:last-child').textContent = message;
+            toast.classList.add('visible');
+            
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

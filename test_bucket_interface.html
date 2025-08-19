@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Bucket Manager Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; border: 1px solid #ddd; }
+        .test-button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .test-button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 4px solid #28a745; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        iframe { width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 8px; }
+        .test-log { height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Bucket Manager Interface Test Suite</h1>
+    
+    <div class="test-section">
+        <h2>📋 Automated Interface Tests</h2>
+        <button class="test-button" onclick="runAllTests()">Run All Tests</button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        <div id="test-log" class="test-log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Manual Testing Interface</h2>
+        <p>Test the actual interface below. Try these workflows:</p>
+        <ul>
+            <li><strong>Basic Navigation:</strong> Click bucket cards, use tabs, navigate back</li>
+            <li><strong>Multi-Select:</strong> Check 2+ buckets, see compare button appear</li>
+            <li><strong>Search:</strong> Type in search bar, see filtering work</li>
+            <li><strong>Theme Toggle:</strong> Click moon/sun icon, see theme change</li>
+            <li><strong>Drag & Drop:</strong> Drag files onto upload area in bucket workspace</li>
+            <li><strong>Quick Actions:</strong> Hover over bucket cards, try View/Graph/Export buttons</li>
+        </ul>
+        
+        <iframe src="lizzy_smooth_bucket_manager.html" id="interface-frame"></iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Manual Test Checklist</h2>
+        <div id="manual-checklist">
+            <label><input type="checkbox"> Theme toggle works and persists</label><br>
+            <label><input type="checkbox"> Search filters buckets correctly</label><br>
+            <label><input type="checkbox"> Bucket cards show hover effects</label><br>
+            <label><input type="checkbox"> Multi-select updates compare button</label><br>
+            <label><input type="checkbox"> "View" opens bucket workspace</label><br>
+            <label><input type="checkbox"> Tab switching works in workspace</label><br>
+            <label><input type="checkbox"> Breadcrumb navigation works</label><br>
+            <label><input type="checkbox"> Floating buttons are accessible</label><br>
+            <label><input type="checkbox"> Progress overlay shows on drag/drop</label><br>
+            <label><input type="checkbox"> Success toast appears and fades</label><br>
+            <label><input type="checkbox"> Compare view loads correctly</label><br>
+            <label><input type="checkbox"> Export options are clear</label><br>
+        </div>
+    </div>
+
+    <script>
+        function log(message, isError = false) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : '';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        function runAllTests() {
+            log('🚀 Starting automated test suite...');
+            
+            // Test 1: Interface loads
+            setTimeout(() => {
+                const iframe = document.getElementById('interface-frame');
+                if (iframe.contentWindow) {
+                    log('✅ Interface iframe loaded successfully');
+                    
+                    // Test 2: Check if main elements exist
+                    testMainElements();
+                } else {
+                    log('❌ Interface iframe failed to load', true);
+                }
+            }, 1000);
+        }
+
+        function testMainElements() {
+            try {
+                const iframe = document.getElementById('interface-frame');
+                const doc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                const tests = [
+                    { selector: '#buckets-grid', name: 'Buckets grid' },
+                    { selector: '#search-filter', name: 'Search filter' },
+                    { selector: '#theme-toggle', name: 'Theme toggle' },
+                    { selector: '#floating-add', name: 'Floating add button' },
+                    { selector: '#floating-compare', name: 'Floating compare button' },
+                    { selector: '#bucket-workspace', name: 'Bucket workspace' },
+                    { selector: '#compare-view', name: 'Compare view' }
+                ];
+                
+                tests.forEach(test => {
+                    const element = doc.querySelector(test.selector);
+                    if (element) {
+                        log(`✅ ${test.name} element found`);
+                    } else {
+                        log(`❌ ${test.name} element missing`, true);
+                    }
+                });
+                
+                // Test bucket cards
+                const bucketCards = doc.querySelectorAll('.bucket-card');
+                log(`✅ Found ${bucketCards.length} bucket cards`);
+                
+                // Test JavaScript functionality
+                testJavaScriptFunctions();
+                
+            } catch (error) {
+                log(`❌ Error testing main elements: ${error.message}`, true);
+            }
+        }
+
+        function testJavaScriptFunctions() {
+            try {
+                const iframe = document.getElementById('interface-frame');
+                const win = iframe.contentWindow;
+                
+                // Test if main functions exist
+                const functions = [
+                    'renderLibraryView',
+                    'openBucket',
+                    'toggleBucketSelection',
+                    'showCompareView',
+                    'toggleTheme',
+                    'handleSearch'
+                ];
+                
+                functions.forEach(funcName => {
+                    if (typeof win[funcName] === 'function') {
+                        log(`✅ Function ${funcName} exists`);
+                    } else {
+                        log(`❌ Function ${funcName} missing`, true);
+                    }
+                });
+                
+                // Test bucket data
+                if (win.buckets && Array.isArray(win.buckets)) {
+                    log(`✅ Bucket data loaded (${win.buckets.length} buckets)`);
+                } else {
+                    log('❌ Bucket data not loaded', true);
+                }
+                
+                log('🏁 Automated tests complete!');
+                log('👉 Now try the manual tests above');
+                
+            } catch (error) {
+                log(`❌ Error testing JavaScript: ${error.message}`, true);
+            }
+        }
+
+        // Run tests when page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🔧 Test suite ready. Click "Run All Tests" to start.');
+            }, 500);
+        });
+    </script>
+</body>
+</html>
