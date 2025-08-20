@@ -920,6 +920,95 @@ def chat_with_ai():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/templates/global')
+def get_global_templates():
+    """Get templates available from all projects (for sharing)"""
+    try:
+        all_templates = []
+        projects = discovery.discover_projects()
+        
+        for project_name in projects:
+            db_path = os.path.join(discovery.projects_dir, project_name, f"{project_name}.sqlite")
+            if os.path.exists(db_path):
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                discovery._setup_prompts_table(cursor)
+                project_templates = discovery._load_custom_prompts(cursor)
+                
+                # Add project source info to each template
+                for template in project_templates:
+                    template['source_project'] = project_name
+                    template['is_global'] = template['name'] == 'System Brainstorm'
+                
+                all_templates.extend(project_templates)
+                conn.close()
+        
+        return jsonify({"global_templates": all_templates})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/project/<project_name>/templates/import', methods=['POST'])
+def import_template_to_project(project_name):
+    """Import a template from another project"""
+    data = request.json
+    source_project = data.get('source_project')
+    template_id = data.get('template_id')
+    new_name = data.get('new_name')  # Optional: rename when importing
+    
+    if not source_project or not template_id:
+        return jsonify({"error": "Source project and template ID required"}), 400
+    
+    try:
+        # Load template from source project
+        source_db_path = os.path.join(discovery.projects_dir, source_project, f"{source_project}.sqlite")
+        if not os.path.exists(source_db_path):
+            return jsonify({"error": "Source project not found"}), 404
+        
+        source_conn = sqlite3.connect(source_db_path)
+        source_cursor = source_conn.cursor()
+        source_cursor.execute('''
+            SELECT name, template, description, bucket_configurations, orchestration
+            FROM custom_prompts WHERE id = ?
+        ''', (template_id,))
+        template_data = source_cursor.fetchone()
+        source_conn.close()
+        
+        if not template_data:
+            return jsonify({"error": "Template not found in source project"}), 404
+        
+        # Import to target project
+        target_db_path = os.path.join(discovery.projects_dir, project_name, f"{project_name}.sqlite")
+        if not os.path.exists(target_db_path):
+            return jsonify({"error": "Target project not found"}), 404
+        
+        target_conn = sqlite3.connect(target_db_path)
+        target_cursor = target_conn.cursor()
+        discovery._setup_prompts_table(target_cursor)
+        
+        name, template, description, bucket_configurations, orchestration = template_data
+        final_name = new_name if new_name else f"{name} (from {source_project})"
+        
+        # Check for name conflicts
+        target_cursor.execute('SELECT COUNT(*) FROM custom_prompts WHERE name = ?', (final_name,))
+        if target_cursor.fetchone()[0] > 0:
+            return jsonify({"error": f"Template name '{final_name}' already exists in target project"}), 400
+        
+        # Insert imported template
+        target_cursor.execute('''
+            INSERT INTO custom_prompts (name, template, description, bucket_configurations, orchestration, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (final_name, template, description, bucket_configurations, orchestration, datetime.now(), datetime.now()))
+        
+        new_id = target_cursor.lastrowid
+        target_conn.commit()
+        target_conn.close()
+        
+        return jsonify({"id": new_id, "message": f"Template imported successfully as '{final_name}'"})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/')
 def serve_interface():
     """Serve the clean interface by default"""

@@ -412,7 +412,9 @@
                         <div class="template-list" id="template-list">
                             <div class="loading">Loading templates...</div>
                         </div>
-                        <button class="btn btn-secondary" onclick="newTemplate()" style="width: 100%; font-size: 12px;">+ New Template</button>
+                        <button class="btn btn-secondary" onclick="newTemplate()" style="width: 100%; font-size: 12px; margin-bottom: 4px;">+ New Template</button>
+                        <button class="btn btn-secondary" onclick="showTemplateLibrary()" style="width: 100%; font-size: 12px; margin-bottom: 4px;">📚 Browse Library</button>
+                        <button class="btn btn-secondary" onclick="refreshTemplates()" style="width: 100%; font-size: 12px;">🔄 Refresh</button>
                     </div>
 
                     <div id="sql-blocks" class="block-category" style="display: none;">
@@ -524,6 +526,22 @@ Variables will be replaced with actual content when you preview."></textarea>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Library Modal -->
+    <div id="template-library-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border-radius: 12px; padding: 24px; max-width: 800px; width: 90%; max-height: 80%; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="font-size: 24px; font-weight: 700;">📚 Template Library</h2>
+                <button onclick="closeTemplateLibrary()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+            </div>
+            
+            <p style="color: var(--muted); margin-bottom: 20px;">Browse and import templates from all your projects. System Brainstorm is available globally.</p>
+            
+            <div id="library-templates" style="max-height: 400px; overflow-y: auto;">
+                <div class="loading">Loading global templates...</div>
             </div>
         </div>
     </div>
@@ -712,6 +730,8 @@ Variables will be replaced with actual content when you preview."></textarea>
         async function loadTemplates() {
             if (!currentProject) return;
             
+            console.log('Loading templates for project:', currentProject);
+            
             try {
                 const response = await fetch(`/api/project/${currentProject}/prompts`);
                 const data = await response.json();
@@ -721,6 +741,8 @@ Variables will be replaced with actual content when you preview."></textarea>
                 }
                 
                 currentTemplates = data.prompts || [];
+                console.log('Loaded templates count:', currentTemplates.length);
+                console.log('Template names:', currentTemplates.map(t => t.name));
                 displayTemplates(currentTemplates);
                 
             } catch (error) {
@@ -730,8 +752,14 @@ Variables will be replaced with actual content when you preview."></textarea>
         }
 
         function displayTemplates(templates) {
+            console.log('Displaying templates:', templates); // Debug log
             const container = document.getElementById('template-list');
             container.innerHTML = '';
+            
+            if (!templates || templates.length === 0) {
+                container.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No templates found.</div>';
+                return;
+            }
             
             templates.forEach(template => {
                 const element = createTemplateElement(template);
@@ -742,25 +770,64 @@ Variables will be replaced with actual content when you preview."></textarea>
         function createTemplateElement(template) {
             const div = document.createElement('div');
             div.className = 'template-item';
-            div.onclick = () => selectTemplate(template.id);
+            div.setAttribute('data-template-id', template.id);
             
-            div.innerHTML = `
-                <div class="template-name">${template.name}</div>
-                <div class="template-desc">${template.description || 'No description'}</div>
+            const isSystemBrainstorm = template.name === 'System Brainstorm';
+            const sourceProject = template.source_project || currentProject;
+            const isFromOtherProject = template.source_project && template.source_project !== currentProject;
+            
+            const mainContent = document.createElement('div');
+            mainContent.style.cssText = 'flex: 1; cursor: pointer;';
+            mainContent.onclick = (event) => selectTemplate(template.id, event);
+            
+            const templateName = document.createElement('div');
+            templateName.className = 'template-name';
+            templateName.innerHTML = `
+                ${template.name}
+                ${isFromOtherProject ? `<span style="font-size: 11px; color: var(--muted); font-weight: normal;"> (from ${sourceProject})</span>` : ''}
+                ${isSystemBrainstorm ? '<span style="font-size: 11px; color: var(--success); font-weight: normal;"> 🌍 Global</span>' : ''}
             `;
+            
+            const templateDesc = document.createElement('div');
+            templateDesc.className = 'template-desc';
+            templateDesc.textContent = template.description || 'No description';
+            
+            mainContent.appendChild(templateName);
+            mainContent.appendChild(templateDesc);
+            
+            const container = document.createElement('div');
+            container.style.cssText = 'display: flex; justify-content: space-between; align-items: flex-start;';
+            container.appendChild(mainContent);
+            
+            if (!isSystemBrainstorm) {
+                const deleteBtn = document.createElement('button');
+                deleteBtn.onclick = (event) => deleteTemplate(template.id, template.name, event);
+                deleteBtn.style.cssText = 'background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px; font-size: 14px; margin-left: 8px;';
+                deleteBtn.title = 'Delete template';
+                deleteBtn.textContent = '×';
+                container.appendChild(deleteBtn);
+            }
+            
+            div.appendChild(container);
             
             return div;
         }
 
-        function selectTemplate(templateId) {
+        function selectTemplate(templateId, event) {
             const template = currentTemplates.find(t => t.id === templateId);
             if (!template) return;
             
             currentTemplateId = templateId;
             
-            // Update active state
-            document.querySelectorAll('.template-item').forEach(item => item.classList.remove('active'));
-            event.target.closest('.template-item').classList.add('active');
+            // Update active state - Remove active from all templates in the builder
+            document.querySelectorAll('#template-list .template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Add active to clicked template
+            if (event && event.target) {
+                event.target.closest('.template-item').classList.add('active');
+            }
             
             // Load template
             document.getElementById('prompt-editor').value = template.template || '';
@@ -768,30 +835,105 @@ Variables will be replaced with actual content when you preview."></textarea>
             showStatus(`Loaded template: ${template.name}`, 'success');
         }
 
-        function newTemplate() {
+        async function newTemplate() {
             const name = prompt('Template name:');
             if (!name) return;
             
             const description = prompt('Template description (optional):') || '';
+            const template = prompt('Template content:');
+            if (!template) return;
             
-            // Clear editor and reset state
-            document.getElementById('prompt-editor').value = '';
-            currentTemplateId = null;
-            document.querySelectorAll('.template-item').forEach(item => item.classList.remove('active'));
+            if (!currentProject) {
+                showStatus('Please select a project first', 'error');
+                return;
+            }
             
-            showStatus('New template ready. Write your prompt and save.', 'info');
+            try {
+                showStatus('Creating template...', 'info');
+                
+                const response = await fetch(`/api/project/${currentProject}/prompts`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        template: template,
+                        description: description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Set the new template as current
+                currentTemplateId = data.id;
+                
+                // Load the template content into editor
+                document.getElementById('prompt-editor').value = template;
+                
+                // Refresh templates and auto-select the new one
+                await loadTemplates();
+                
+                setTimeout(() => {
+                    const templateElement = document.querySelector(`[data-template-id="${currentTemplateId}"]`);
+                    if (templateElement) {
+                        templateElement.classList.add('active');
+                    }
+                }, 100);
+                
+                showStatus(`Template "${name}" created successfully!`, 'success');
+                
+            } catch (error) {
+                showStatus(`Error creating template: ${error.message}`, 'error');
+            }
+        }
+
+        async function deleteTemplate(templateId, templateName, event) {
+            if (event) {
+                event.stopPropagation(); // Prevent selecting the template
+            }
+            
+            if (!confirm(`Are you sure you want to delete "${templateName}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts/${templateId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // If the deleted template was currently selected, clear the editor
+                if (currentTemplateId === templateId) {
+                    currentTemplateId = null;
+                    document.getElementById('prompt-editor').value = '';
+                }
+                
+                await loadTemplates();
+                showStatus(`Template "${templateName}" deleted successfully`, 'success');
+                
+            } catch (error) {
+                showStatus(`Error deleting template: ${error.message}`, 'error');
+            }
         }
 
         async function saveTemplate() {
             const template = document.getElementById('prompt-editor').value.trim();
             
             if (!template) {
-                alert('Please enter a template to save');
+                showStatus('Please enter a template to save', 'error');
                 return;
             }
             
             if (!currentProject) {
-                alert('Please select a project first');
+                showStatus('Please select a project first', 'error');
                 return;
             }
             
@@ -832,11 +974,31 @@ Variables will be replaced with actual content when you preview."></textarea>
                     throw new Error(data.error);
                 }
                 
+                // If creating a new template, store the new ID
+                if (!currentTemplateId && data.id) {
+                    currentTemplateId = data.id;
+                }
+                
+                // Force reload templates and wait for completion
+                console.log('Reloading templates after save...');
                 await loadTemplates();
-                alert(`Template "${name}" saved successfully!`);
+                
+                // Give a bit more time for DOM update and then auto-select
+                setTimeout(() => {
+                    if (currentTemplateId) {
+                        const templateElement = document.querySelector(`[data-template-id="${currentTemplateId}"]`);
+                        if (templateElement) {
+                            templateElement.classList.add('active');
+                            console.log('Auto-selected saved template:', currentTemplateId);
+                        } else {
+                            console.warn('Could not find template element with ID:', currentTemplateId);
+                        }
+                    }
+                    showStatus(`Template "${name}" saved successfully!`, 'success');
+                }, 200);
                 
             } catch (error) {
-                alert(`Error saving template: ${error.message}`);
+                showStatus(`Error saving template: ${error.message}`, 'error');
             }
         }
 
@@ -879,6 +1041,12 @@ Variables will be replaced with actual content when you preview."></textarea>
         function refreshProjects() {
             loadProjects();
             showStatus('Projects refreshed', 'info');
+        }
+        
+        function refreshTemplates() {
+            console.log('Manual template refresh triggered');
+            loadTemplates();
+            showStatus('Templates refreshed', 'info');
         }
 
         // Brainstorming functions
@@ -1018,7 +1186,7 @@ Variables will be replaced with actual content when you preview."></textarea>
                 data.prompts.forEach(template => {
                     const div = document.createElement('div');
                     div.className = 'template-item';
-                    div.onclick = () => selectChatTemplate(template);
+                    div.onclick = (event) => selectChatTemplate(template, event);
                     
                     div.innerHTML = `
                         <div class="template-name">${template.name}</div>
@@ -1033,14 +1201,18 @@ Variables will be replaced with actual content when you preview."></textarea>
             }
         }
         
-        function selectChatTemplate(template) {
+        function selectChatTemplate(template, event) {
             selectedChatTemplate = template;
             
-            // Update UI
+            // Update UI - Remove active from all templates
             document.querySelectorAll('#chat-template-list .template-item').forEach(item => {
                 item.classList.remove('active');
             });
-            event.target.closest('.template-item').classList.add('active');
+            
+            // Add active to clicked template
+            if (event && event.target) {
+                event.target.closest('.template-item').classList.add('active');
+            }
             
             document.getElementById('current-template-name').textContent = template.name;
             document.getElementById('chat-input').disabled = false;
@@ -1185,6 +1357,167 @@ Variables will be replaced with actual content when you preview."></textarea>
                         sendMessage();
                     }
                 });
+            }
+        });
+
+        // Template Library Functions
+        async function showTemplateLibrary() {
+            const modal = document.getElementById('template-library-modal');
+            const container = document.getElementById('library-templates');
+            
+            modal.style.display = 'block';
+            container.innerHTML = '<div class="loading">Loading global templates...</div>';
+            
+            try {
+                const response = await fetch('/api/templates/global');
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayLibraryTemplates(data.global_templates);
+                
+            } catch (error) {
+                container.innerHTML = `<div class="error">Error loading templates: ${error.message}</div>`;
+            }
+        }
+        
+        function displayLibraryTemplates(templates) {
+            const container = document.getElementById('library-templates');
+            container.innerHTML = '';
+            
+            if (!templates || templates.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: var(--muted); padding: 40px;">No templates found in any project.</div>';
+                return;
+            }
+            
+            // Group templates by project
+            const byProject = {};
+            templates.forEach(template => {
+                const project = template.source_project;
+                if (!byProject[project]) byProject[project] = [];
+                byProject[project].push(template);
+            });
+            
+            Object.keys(byProject).forEach(project => {
+                const projectSection = document.createElement('div');
+                projectSection.style.marginBottom = '24px';
+                
+                const projectHeader = document.createElement('h3');
+                projectHeader.style.marginBottom = '12px';
+                projectHeader.style.fontSize = '16px';
+                projectHeader.style.color = 'var(--text)';
+                projectHeader.textContent = `${project} (${byProject[project].length} templates)`;
+                projectSection.appendChild(projectHeader);
+                
+                byProject[project].forEach(template => {
+                    const templateElement = createLibraryTemplateElement(template);
+                    projectSection.appendChild(templateElement);
+                });
+                
+                container.appendChild(projectSection);
+            });
+        }
+        
+        function createLibraryTemplateElement(template) {
+            const div = document.createElement('div');
+            div.style.cssText = `
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 12px;
+                background: var(--panel);
+                cursor: pointer;
+                transition: all 0.2s;
+            `;
+            
+            const isSystemBrainstorm = template.name === 'System Brainstorm';
+            const isCurrentProject = template.source_project === currentProject;
+            const alreadyExists = currentTemplates.some(t => t.name === template.name);
+            
+            div.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">
+                            ${template.name}
+                            ${isSystemBrainstorm ? '<span style="font-size: 11px; color: var(--success);"> 🌍 Global</span>' : ''}
+                        </div>
+                        <div style="font-size: 14px; color: var(--muted); margin-bottom: 8px;">
+                            ${template.description || 'No description'}
+                        </div>
+                        <div style="font-size: 12px; color: var(--muted);">
+                            From: ${template.source_project} | Created: ${new Date(template.created_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <div style="margin-left: 16px;">
+                        ${isCurrentProject ? 
+                            '<span style="color: var(--muted); font-size: 12px;">Current Project</span>' :
+                            alreadyExists ?
+                                '<span style="color: var(--warning); font-size: 12px;">Already Exists</span>' :
+                                `<button onclick="importTemplate('${template.source_project}', ${template.id}, '${template.name.replace(/'/g, "\\'")}', event)" 
+                                        class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">Import</button>`
+                        }
+                    </div>
+                </div>
+            `;
+            
+            div.addEventListener('mouseenter', () => {
+                div.style.borderColor = 'var(--accent)';
+                div.style.background = '#f8fafc';
+            });
+            
+            div.addEventListener('mouseleave', () => {
+                div.style.borderColor = 'var(--border)';
+                div.style.background = 'var(--panel)';
+            });
+            
+            return div;
+        }
+        
+        async function importTemplate(sourceProject, templateId, templateName, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            
+            const newName = prompt(`Import "${templateName}" as:`, templateName);
+            if (!newName) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/templates/import`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        source_project: sourceProject,
+                        template_id: templateId,
+                        new_name: newName !== templateName ? newName : null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                showStatus(data.message, 'success');
+                await loadTemplates();
+                closeTemplateLibrary();
+                
+            } catch (error) {
+                showStatus(`Error importing template: ${error.message}`, 'error');
+            }
+        }
+        
+        function closeTemplateLibrary() {
+            document.getElementById('template-library-modal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        document.addEventListener('click', (event) => {
+            const modal = document.getElementById('template-library-modal');
+            if (event.target === modal) {
+                closeTemplateLibrary();
             }
         });
 
