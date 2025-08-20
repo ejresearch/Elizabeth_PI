@@ -48,6 +48,7 @@ from pathlib import Path
 import shutil
 import zipfile
 from io import BytesIO
+from core_bucket_library import BucketLibrary, ProjectLightRAGManager
 
 # Import LightRAG components
 try:
@@ -146,12 +147,21 @@ CORS(app)
 BASE_DIR = "lightrag_working_dir"
 BUCKET_CONFIG_FILE = os.path.join(BASE_DIR, "bucket_config.json")
 
+# Initialize bucket manager
+bucket_manager = None
+
 class BucketManager:
-    """Manages LightRAG buckets and provides API operations"""
+    """Manages LightRAG buckets and provides API operations with library support"""
     
     def __init__(self):
         self.base_dir = BASE_DIR
         os.makedirs(self.base_dir, exist_ok=True)
+        
+        # Initialize bucket library
+        self.library = BucketLibrary()
+        self.project_name = Path(os.getcwd()).name
+        self.project_manager = ProjectLightRAGManager(os.getcwd(), self.project_name, self.library)
+        
         self.load_config()
     
     def load_config(self):
@@ -211,95 +221,176 @@ class BucketManager:
         return stats
     
     def get_all_buckets(self):
-        """Get all buckets with their stats"""
+        """Get all buckets with their stats including library buckets"""
         buckets = []
         
-        # Scan directory for buckets
+        # Get project buckets (imported and local)
+        project_buckets = self.project_manager.list_all_buckets()
+        
+        # Process imported library buckets
+        for bucket in project_buckets.get("imported", []):
+            stats = self.get_bucket_stats(bucket["id"])
+            bucket_info = {
+                "id": bucket["id"],
+                "name": bucket["name"],
+                "description": bucket.get("description", "No description"),
+                "type": "library",
+                "scope": "imported",
+                "nodes": stats["nodes"],
+                "edges": stats["edges"],
+                "files": [f["name"] for f in stats["files"]],
+                "file_details": stats["files"],
+                "size": stats["size"],
+                "updated": bucket.get("created_at", datetime.now().isoformat()).split('T')[0],
+                "projects": bucket.get("projects", [])
+            }
+            buckets.append(bucket_info)
+        
+        # Process local project buckets
+        for bucket in project_buckets.get("local", []):
+            stats = self.get_bucket_stats(bucket["name"])
+            bucket_info = {
+                "id": bucket["name"],
+                "name": bucket["name"],
+                "description": bucket.get("description", "No description"),
+                "type": "local",
+                "scope": "project",
+                "nodes": stats["nodes"],
+                "edges": stats["edges"],
+                "files": [f["name"] for f in stats["files"]],
+                "file_details": stats["files"],
+                "size": stats["size"],
+                "updated": bucket.get("created_at", datetime.now().isoformat()).split('T')[0]
+            }
+            buckets.append(bucket_info)
+        
+        # Also get traditional buckets for backward compatibility
         if os.path.exists(self.base_dir):
             for item in os.listdir(self.base_dir):
+                if item in ["imported", "local"]:
+                    continue
                 item_path = os.path.join(self.base_dir, item)
                 if os.path.isdir(item_path) and not item.startswith('.'):
                     # Check if it's a valid bucket (has graphml file or is in config)
                     graphml_file = os.path.join(item_path, "graph_chunk_entity_relation.graphml")
                     if os.path.exists(graphml_file) or item in self.config.get("buckets", []):
-                        stats = self.get_bucket_stats(item)
-                        
-                        # Get metadata from config
-                        metadata = self.config.get("metadata", {}).get(item, {})
-                        
-                        bucket_info = {
-                            "id": item,
-                            "name": item,
-                            "description": metadata.get("description", "No description"),
-                            "nodes": stats["nodes"],
-                            "edges": stats["edges"],
-                            "files": [f["name"] for f in stats["files"]],
-                            "file_details": stats["files"],
-                            "size": stats["size"],
-                            "updated": metadata.get("last_updated", datetime.now().isoformat().split('T')[0])
-                        }
-                        buckets.append(bucket_info)
+                        # Check if we haven't already added this bucket
+                        if not any(b["id"] == item for b in buckets):
+                            stats = self.get_bucket_stats(item)
+                            metadata = self.config.get("metadata", {}).get(item, {})
+                            
+                            bucket_info = {
+                                "id": item,
+                                "name": item,
+                                "description": metadata.get("description", "No description"),
+                                "type": "legacy",
+                                "scope": "local",
+                                "nodes": stats["nodes"],
+                                "edges": stats["edges"],
+                                "files": [f["name"] for f in stats["files"]],
+                                "file_details": stats["files"],
+                                "size": stats["size"],
+                                "updated": metadata.get("last_updated", datetime.now().isoformat().split('T')[0])
+                            }
+                            buckets.append(bucket_info)
         
         return buckets
     
-    def create_bucket(self, name, description=""):
-        """Create a new bucket"""
+    def create_bucket(self, name, description="", scope="library"):
+        """Create a new bucket in library or locally"""
         if not name or not name.replace('_', '').isalnum():
             return {"success": False, "error": "Invalid bucket name"}
         
-        bucket_dir = os.path.join(self.base_dir, name)
-        if os.path.exists(bucket_dir):
-            return {"success": False, "error": "Bucket already exists"}
-        
-        # Create directory
-        os.makedirs(bucket_dir, exist_ok=True)
-        
-        # Update config
-        if name not in self.config["buckets"]:
-            self.config["buckets"].append(name)
-        
-        self.config["metadata"][name] = {
-            "name": name,
-            "description": description,
-            "created_at": datetime.now().isoformat(),
-            "last_updated": datetime.now().isoformat()
-        }
-        
-        self.save_config()
-        
-        # Initialize LightRAG if available
-        if HAS_LIGHTRAG:
-            try:
-                rag = LightRAG(
-                    working_dir=bucket_dir,
-                    embedding_func=sync_openai_embed,
-                    llm_model_func=sync_gpt_4o_mini_complete
-                )
-                print(f"✅ Initialized LightRAG for bucket: {name}")
-            except Exception as e:
-                print(f"⚠️ Error initializing LightRAG: {e}")
-        
-        return {"success": True, "bucket": name}
+        if scope == "library":
+            # Create in library and import to project
+            result = self.library.create_bucket(name, self.project_name, description)
+            if result["success"]:
+                bucket_id = result["bucket_id"]
+                import_result = self.project_manager.import_from_library(bucket_id)
+                if import_result["success"]:
+                    return {"success": True, "bucket": bucket_id, "scope": "library", "message": f"Created library bucket: {bucket_id}"}
+            return result
+        else:
+            # Create local project bucket
+            result = self.project_manager.create_local_bucket(name, description)
+            if result["success"]:
+                # Initialize LightRAG if available
+                if HAS_LIGHTRAG:
+                    try:
+                        bucket_dir = result["path"]
+                        rag = LightRAG(
+                            working_dir=bucket_dir,
+                            embedding_func=sync_openai_embed,
+                            llm_model_func=sync_gpt_4o_mini_complete
+                        )
+                        print(f"✅ Initialized LightRAG for local bucket: {name}")
+                    except Exception as e:
+                        print(f"⚠️ Error initializing LightRAG: {e}")
+                
+                return {"success": True, "bucket": name, "scope": "local", "message": f"Created local bucket: {name}"}
+            return result
     
-    def delete_bucket(self, name):
-        """Delete a bucket"""
-        bucket_dir = os.path.join(self.base_dir, name)
+    def delete_bucket(self, bucket_identifier):
+        """Delete a bucket (supports both local and library buckets)"""
+        # Check if it's a library bucket first
+        bucket_info = self.library.get_bucket_info(bucket_identifier)
+        if bucket_info:
+            # It's a library bucket - remove the import/symlink
+            imported_path = os.path.join(self.base_dir, "imported", bucket_identifier)
+            if os.path.exists(imported_path):
+                if os.path.islink(imported_path):
+                    os.unlink(imported_path)  # Remove symlink
+                else:
+                    shutil.rmtree(imported_path)  # Remove copied directory
+                
+                # Update project configuration to remove the imported bucket
+                project_config_file = os.path.join(self.base_dir, "project_lightrag.json")
+                if os.path.exists(project_config_file):
+                    with open(project_config_file, 'r') as f:
+                        project_config = json.load(f)
+                    
+                    if bucket_identifier in project_config.get("imported_buckets", []):
+                        project_config["imported_buckets"].remove(bucket_identifier)
+                        with open(project_config_file, 'w') as f:
+                            json.dump(project_config, f, indent=2)
+                
+                return {"success": True, "message": f"Removed imported bucket: {bucket_identifier}"}
+            else:
+                return {"success": False, "error": "Library bucket not imported in this project"}
         
-        if not os.path.exists(bucket_dir):
-            return {"success": False, "error": "Bucket not found"}
+        # Check if it's a local bucket
+        local_bucket_path = os.path.join(self.base_dir, "local", bucket_identifier)
+        if os.path.exists(local_bucket_path):
+            shutil.rmtree(local_bucket_path)
+            
+            # Update project configuration
+            project_config_file = os.path.join(self.base_dir, "project_lightrag.json")
+            if os.path.exists(project_config_file):
+                with open(project_config_file, 'r') as f:
+                    project_config = json.load(f)
+                
+                if bucket_identifier in project_config.get("local_buckets", []):
+                    project_config["local_buckets"].remove(bucket_identifier)
+                    with open(project_config_file, 'w') as f:
+                        json.dump(project_config, f, indent=2)
+            
+            return {"success": True, "message": f"Deleted local bucket: {bucket_identifier}"}
         
-        # Remove directory
-        shutil.rmtree(bucket_dir)
+        # Fallback to legacy bucket handling
+        bucket_dir = os.path.join(self.base_dir, bucket_identifier)
+        if os.path.exists(bucket_dir):
+            shutil.rmtree(bucket_dir)
+            
+            # Update legacy config
+            if bucket_identifier in self.config["buckets"]:
+                self.config["buckets"].remove(bucket_identifier)
+            if bucket_identifier in self.config["metadata"]:
+                del self.config["metadata"][bucket_identifier]
+            
+            self.save_config()
+            return {"success": True, "message": f"Deleted legacy bucket: {bucket_identifier}"}
         
-        # Update config
-        if name in self.config["buckets"]:
-            self.config["buckets"].remove(name)
-        if name in self.config["metadata"]:
-            del self.config["metadata"][name]
-        
-        self.save_config()
-        
-        return {"success": True}
+        return {"success": False, "error": "Bucket not found"}
     
     def add_file_to_bucket(self, bucket_name, file_content, filename):
         """Add a file to a bucket"""
@@ -392,8 +483,8 @@ manager = BucketManager()
 
 @app.route('/')
 def index():
-    """Serve the bucket manager HTML"""
-    return send_file('bucket_manager.html')
+    """Serve the modern bucket manager HTML"""
+    return send_file('modern_bucket_manager.html')
 
 @app.route('/api/buckets', methods=['GET'])
 def get_buckets():
@@ -420,7 +511,8 @@ def create_bucket():
     data = request.json
     result = manager.create_bucket(
         data.get('name'),
-        data.get('description', '')
+        data.get('description', ''),
+        data.get('scope', 'local')
     )
     return jsonify(result)
 
@@ -601,8 +693,78 @@ def process_bucket_files(bucket_name):
         
     except ImportError:
         return jsonify({"success": False, "error": "LightRAG not available"}), 500
+
+# Library Management Endpoints
+@app.route('/api/library/buckets', methods=['GET'])
+def get_library_buckets():
+    """Get all buckets from the library"""
+    buckets = bucket_manager.library.list_library_buckets()
+    return jsonify(buckets)
+
+@app.route('/api/library/import/<bucket_id>', methods=['POST'])
+def import_from_library(bucket_id):
+    """Import a bucket from the library to current project"""
+    result = bucket_manager.project_manager.import_from_library(bucket_id)
+    if result["success"]:
+        return jsonify(result)
+    return jsonify(result), 400
+
+@app.route('/api/library/promote/<bucket_name>', methods=['POST'])
+def promote_to_library(bucket_name):
+    """Promote a local bucket to the library"""
+    data = request.json or {}
+    description = data.get('description', '')
+    result = bucket_manager.project_manager.promote_to_library(bucket_name, description)
+    if result["success"]:
+        return jsonify(result)
+    return jsonify(result), 400
+
+@app.route('/api/library/share/<bucket_id>/<target_project>', methods=['POST'])
+def share_bucket(bucket_id, target_project):
+    """Share a bucket with another project"""
+    result = bucket_manager.library.share_bucket_between_projects(
+        bucket_id, 
+        bucket_manager.project_name, 
+        target_project
+    )
+    if result["success"]:
+        return jsonify(result)
+    return jsonify(result), 400
+
+@app.route('/api/library/search', methods=['GET'])
+def search_library():
+    """Search for buckets in the library"""
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({"error": "Query parameter 'q' is required"}), 400
+    results = bucket_manager.library.search_buckets(query)
+    return jsonify(results)
+
+@app.route('/api/library/stats', methods=['GET'])
+def get_library_stats():
+    """Get library statistics"""
+    stats = bucket_manager.library.get_library_stats()
+    return jsonify(stats)
+
+@app.route('/api/project/buckets', methods=['GET'])
+def get_project_buckets():
+    """Get all buckets for current project"""
+    buckets = bucket_manager.project_manager.list_all_buckets()
+    return jsonify(buckets)
+
+@app.route('/api/migrate', methods=['POST'])
+def migrate_buckets():
+    """Migrate existing buckets to library system"""
+    try:
+        from bucket_library_integration import BucketLibraryIntegration
+        integration = BucketLibraryIntegration()
+        result = integration.migrate_existing_buckets()
+        return jsonify(result)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
+
+# Initialize bucket manager when module loads
+bucket_manager = BucketManager()
 
 if __name__ == '__main__':
     print("🚀 Starting Bucket Manager Server...")

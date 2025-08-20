@@ -58,6 +58,42 @@
         .dark ::-webkit-scrollbar-thumb {
             background: #6b7280;
         }
+        
+        /* Line clamp utility */
+        .line-clamp-2 {
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+        
+        /* Better responsive bucket grid */
+        .bucket-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        @media (max-width: 640px) {
+            .bucket-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+        
+        /* Enhanced bucket card hover effects */
+        .bucket-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Better button styles */
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
@@ -332,7 +368,7 @@
                 </div>
             </div>
             
-            <div id="buckets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="buckets-grid" class="bucket-grid">
                 <!-- Bucket cards will be populated here -->
             </div>
         </div>
@@ -725,54 +761,84 @@
         // Create bucket card element
         function createBucketCard(bucket) {
             const card = document.createElement('div');
-            card.className = 'bucket-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg cursor-pointer';
+            card.className = 'bucket-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg cursor-pointer transition-all duration-200';
             card.onclick = () => selectBucket(bucket);
             
             const isEmpty = bucket.files.length === 0;
-            const statusColor = isEmpty ? 'text-gray-400' : 'text-green-500';
-            const statusIcon = isEmpty ? '⭕' : '✅';
+            const statusColor = isEmpty ? 'text-yellow-500' : 'text-green-500';
+            const statusIcon = isEmpty ? '📝' : '✅';
+            const statusText = isEmpty ? 'Empty' : 'Active';
+            
+            // Handle both name and id for bucket identification
+            const bucketIdentifier = bucket.id || bucket.name;
+            const bucketDisplayName = bucket.name || bucket.id;
+            
+            // Determine bucket type and show badge
+            const bucketType = bucket.type || 'local';
+            const typeBadge = bucketType === 'library' ? '🌐 Library' : 
+                            bucketType === 'imported' ? '📥 Imported' : '📁 Local';
+            const typeBadgeColor = bucketType === 'library' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                                 bucketType === 'imported' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+                                 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
             
             card.innerHTML = `
                 <div class="flex items-start justify-between mb-4">
-                    <div class="flex-1">
-                        <h3 class="font-semibold text-gray-900 dark:text-white text-lg">${bucket.name}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">${bucket.description}</p>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h3 class="font-semibold text-gray-900 dark:text-white text-lg truncate">${bucketDisplayName}</h3>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeBadgeColor}">
+                                ${typeBadge}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${bucket.description || 'No description'}</p>
                     </div>
-                    <span class="${statusColor} text-lg">${statusIcon}</span>
+                    <div class="flex flex-col items-end ml-4">
+                        <span class="${statusColor} text-lg">${statusIcon}</span>
+                        <span class="text-xs ${statusColor} font-medium">${statusText}</span>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Nodes</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.nodes.toLocaleString()}</p>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Nodes</p>
+                        <p class="text-lg font-bold text-blue-600 dark:text-blue-400">${bucket.nodes ? bucket.nodes.toLocaleString() : '0'}</p>
                     </div>
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Edges</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.edges.toLocaleString()}</p>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Edges</p>
+                        <p class="text-lg font-bold text-green-600 dark:text-green-400">${bucket.edges ? bucket.edges.toLocaleString() : '0'}</p>
                     </div>
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Files</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.files.length}</p>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Files</p>
+                        <p class="text-lg font-bold text-purple-600 dark:text-purple-400">${(bucket.files && bucket.files.length) || 0}</p>
                     </div>
-                    <div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Size</p>
-                        <p class="text-lg font-semibold text-gray-900 dark:text-white">${bucket.size}</p>
+                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 text-center">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Size</p>
+                        <p class="text-lg font-bold text-orange-600 dark:text-orange-400">${bucket.size || '0 MB'}</p>
                     </div>
                 </div>
                 
-                <div class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    Updated: ${bucket.updated}
+                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    <span>Updated: ${bucket.updated || 'Unknown'}</span>
+                    ${bucket.projects ? `<span title="Used in projects">${bucket.projects.length} projects</span>` : ''}
                 </div>
                 
-                <div class="flex space-x-2">
-                    <button onclick="event.stopPropagation(); showUploadModal('${bucket.name}')" class="px-3 py-1.5 bg-primary text-white text-sm rounded-lg hover:bg-blue-700 transition-colors" title="Upload files and automatically build knowledge graph">
-                        📚 Add & Process
+                <div class="flex gap-2">
+                    <button onclick="event.stopPropagation(); showUploadModal('${bucketIdentifier}')" 
+                            class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors font-medium flex items-center justify-center gap-1" 
+                            title="Upload files and automatically build knowledge graph">
+                        <span>📚</span>
+                        <span class="hidden sm:inline">Add & Process</span>
+                        <span class="sm:hidden">Add</span>
                     </button>
-                    <button onclick="event.stopPropagation(); manageBucket('${bucket.name}')" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        Manage
+                    <button onclick="event.stopPropagation(); manageBucket('${bucketIdentifier}')" 
+                            class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" 
+                            title="Manage bucket">
+                        <span>⚙️</span>
                     </button>
-                    <button onclick="event.stopPropagation(); deleteBucket('${bucket.name}')" class="px-3 py-1.5 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        🗑️
+                    <button onclick="event.stopPropagation(); deleteBucket('${bucketIdentifier}')" 
+                            class="px-3 py-2 text-red-600 dark:text-red-400 text-sm rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" 
+                            title="Delete bucket">
+                        <span>🗑️</span>
                     </button>
                 </div>
             `;
@@ -869,28 +935,66 @@
         }
 
         // Delete bucket
-        function deleteBucket(bucketName) {
+        async function deleteBucket(bucketName) {
             if (confirm(`Are you sure you want to delete "${bucketName}"? This action cannot be undone.`)) {
-                buckets = buckets.filter(b => b.name !== bucketName);
-                renderBuckets();
-                updateStats();
-                showToast(`Deleted bucket: ${bucketName}`, 'success');
-                logActivity(`Deleted bucket: ${bucketName}`);
+                try {
+                    showToast(`Deleting ${bucketName}...`, 'info');
+                    
+                    const response = await fetch(`/api/buckets/${bucketName}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Remove from local array and update UI
+                        buckets = buckets.filter(b => b.name !== bucketName && b.id !== bucketName);
+                        renderBuckets();
+                        updateStats();
+                        showToast(`✅ Successfully deleted: ${bucketName}`, 'success');
+                        logActivity(`Deleted bucket: ${bucketName}`);
+                    } else {
+                        showToast(`❌ Failed to delete: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting bucket:', error);
+                    showToast(`❌ Error deleting bucket: ${error.message}`, 'error');
+                }
             }
         }
 
         // Delete file from bucket
-        function deleteFile(bucketName, fileName) {
+        async function deleteFile(bucketName, fileName) {
             if (confirm(`Delete "${fileName}" from ${bucketName}?`)) {
-                const bucket = buckets.find(b => b.name === bucketName);
-                if (bucket) {
-                    bucket.files = bucket.files.filter(f => f !== fileName);
-                    showToast(`Deleted file: ${fileName}`, 'success');
-                    logActivity(`Deleted ${fileName} from ${bucketName}`);
+                try {
+                    showToast(`Deleting ${fileName}...`, 'info');
                     
-                    // Refresh the modal
-                    document.querySelector('.fixed').remove();
-                    manageBucket(bucketName);
+                    const response = await fetch(`/api/buckets/${bucketName}/files/${fileName}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Update local bucket data
+                        const bucket = buckets.find(b => b.name === bucketName || b.id === bucketName);
+                        if (bucket) {
+                            bucket.files = bucket.files.filter(f => f !== fileName);
+                        }
+                        
+                        showToast(`✅ Deleted file: ${fileName}`, 'success');
+                        logActivity(`Deleted ${fileName} from ${bucketName}`);
+                        
+                        // Refresh the modal and buckets
+                        document.querySelector('.fixed').remove();
+                        manageBucket(bucketName);
+                        loadBuckets(); // Refresh to get updated stats
+                    } else {
+                        showToast(`❌ Failed to delete: ${result.error}`, 'error');
+                    }
+                } catch (error) {
+                    console.error('Error deleting file:', error);
+                    showToast(`❌ Error deleting file: ${error.message}`, 'error');
                 }
             }
         }

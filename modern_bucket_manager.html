@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Project Bucket Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                        'scale-in': 'scaleIn 0.2s ease-out'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .bucket-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .bucket-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .dark .bucket-card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+        }
+        .glass-effect {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .dark .glass-effect {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    
+    <!-- Mobile Menu Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden lg:hidden" onclick="toggleMobileMenu()"></div>
+    
+    <!-- Sidebar -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-xl border-r border-gray-200 dark:border-gray-700 transform -translate-x-full lg:translate-x-0 transition-transform duration-300">
+        <div class="flex items-center justify-center h-16 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center">
+                    <span class="text-white text-xl font-bold">🗂️</span>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white">Bucket Manager</h1>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Multi-Project</p>
+                </div>
+            </div>
+        </div>
+        
+        <nav class="mt-8 px-4">
+            <div class="space-y-2">
+                <button onclick="showTab('project')" id="nav-project" class="nav-item w-full flex items-center px-4 py-3 text-left rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 font-medium">
+                    <span class="text-xl mr-3">📁</span>
+                    <span>Project Buckets</span>
+                </button>
+                <button onclick="showTab('library')" id="nav-library" class="nav-item w-full flex items-center px-4 py-3 text-left rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                    <span class="text-xl mr-3">🌐</span>
+                    <span>Browse Library</span>
+                </button>
+            </div>
+        </nav>
+        
+        <div class="absolute bottom-4 left-4 right-4">
+            <div class="bg-gray-100 dark:bg-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Actions</span>
+                </div>
+                <button onclick="showCreateModal()" class="w-full bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                    <span class="mr-2">➕</span>New Bucket
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="lg:ml-64 min-h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-30">
+            <div class="px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <!-- Mobile menu button -->
+                    <button onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+                    
+                    <!-- Search Bar -->
+                    <div class="flex-1 max-w-2xl mx-4">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center">
+                                <span class="text-gray-400 text-lg">🔍</span>
+                            </div>
+                            <input type="text" id="search-input" placeholder="Search buckets, projects, or knowledge bases..." 
+                                   class="block w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <!-- Header Actions -->
+                    <div class="flex items-center space-x-4">
+                        <button onclick="refreshData()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Refresh">
+                            <span class="text-xl">🔄</span>
+                        </button>
+                        <button onclick="toggleDarkMode()" class="p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors" title="Toggle theme">
+                            <span id="theme-icon" class="text-xl">🌙</span>
+                        </button>
+                        <div class="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-700 rounded-full flex items-center justify-center">
+                            <span class="text-white font-semibold">U</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Content Area -->
+        <main class="p-4 sm:p-6 lg:p-8">
+            
+            <!-- Project Buckets Tab -->
+            <div id="content-project" class="tab-content">
+                <!-- Header Section -->
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Project Buckets</h1>
+                            <p class="text-gray-600 dark:text-gray-400 mt-1" id="project-subtitle">Knowledge bases in your current project</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                                <span class="text-sm text-blue-600 dark:text-blue-400 font-medium" id="current-project-display">Loading...</span>
+                            </div>
+                            <button onclick="showCreateModal()" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                                <span class="mr-2">➕</span>New Bucket
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Buckets</p>
+                                    <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="stat-buckets">0</p>
+                                </div>
+                                <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                    <span class="text-2xl text-blue-600 dark:text-blue-400">🗂️</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Knowledge Nodes</p>
+                                    <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="stat-nodes">0</p>
+                                </div>
+                                <div class="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                    <span class="text-2xl text-green-600 dark:text-green-400">🔗</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Files</p>
+                                    <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="stat-files">0</p>
+                                </div>
+                                <div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                    <span class="text-2xl text-purple-600 dark:text-purple-400">📄</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Relationships</p>
+                                    <p class="text-3xl font-bold text-gray-900 dark:text-white mt-2" id="stat-edges">0</p>
+                                </div>
+                                <div class="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                                    <span class="text-2xl text-orange-600 dark:text-orange-400">↔️</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Buckets Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="project-buckets-grid">
+                    <!-- Project buckets will be populated here -->
+                </div>
+            </div>
+            
+            <!-- Browse Library Tab -->
+            <div id="content-library" class="tab-content hidden">
+                <div class="mb-8">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Browse Library</h1>
+                            <p class="text-gray-600 dark:text-gray-400 mt-1">Discover and import knowledge bases from other projects</p>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <div class="relative">
+                                <input type="text" id="library-search" placeholder="Search library..." 
+                                       class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                <span class="absolute left-3 top-2.5 text-gray-400">🔍</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Project Navigation -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-8">
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Available Projects</h2>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Click on a project to browse its knowledge bases</p>
+                        </div>
+                        <div class="p-6">
+                            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <!-- Projects will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Selected Project Buckets -->
+                    <div id="selected-project-section" class="hidden">
+                        <div class="flex items-center justify-between mb-6">
+                            <div class="flex items-center space-x-3">
+                                <button onclick="showAllProjects()" class="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300">
+                                    <span class="text-lg">←</span>
+                                </button>
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-900 dark:text-white" id="selected-project-name">Project Name</h2>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400">Knowledge bases available for import</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="library-buckets-grid">
+                            <!-- Library buckets will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Create Bucket Modal -->
+    <div id="create-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md animate-scale-in">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Create New Bucket</h3>
+            </div>
+            <form onsubmit="createBucket(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Bucket Name</label>
+                    <input type="text" id="bucket-name" required 
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                           placeholder="my_knowledge_base">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Use lowercase letters, numbers, and underscores</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                    <textarea id="bucket-description" rows="3" 
+                              class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                              placeholder="Describe this knowledge base..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type</label>
+                    <select id="bucket-scope" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
+                        <option value="local">📁 Project Only (Local)</option>
+                        <option value="library">🌐 Shareable (Library)</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3 pt-4">
+                    <button type="submit" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-2 px-4 rounded-lg font-medium transition-colors">
+                        Create Bucket
+                    </button>
+                    <button type="button" onclick="closeCreateModal()" class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Bucket Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in">
+            <div id="detail-content">
+                <!-- Content will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl animate-scale-in">
+            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Add Files to <span id="upload-bucket-name"></span></h3>
+            </div>
+            <div class="p-6">
+                <div id="drop-zone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-colors hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10">
+                    <span class="text-4xl">📁</span>
+                    <p class="mt-4 text-gray-600 dark:text-gray-400">Drag and drop files here or click to browse</p>
+                    <input type="file" id="file-input" multiple class="hidden">
+                    <button onclick="document.getElementById('file-input').click()" class="mt-4 bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                        Browse Files
+                    </button>
+                </div>
+                <div id="file-list" class="mt-4 space-y-2 hidden"></div>
+                <div class="flex space-x-3 mt-6">
+                    <button onclick="uploadFiles()" class="flex-1 bg-primary-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-primary-700 transition-colors">
+                        Upload & Process
+                    </button>
+                    <button onclick="closeUploadModal()" class="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Enhanced Toast Notification System -->
+    <div id="toast" class="fixed bottom-4 right-4 z-50 max-w-sm">
+        <div id="toast-content" class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-200 dark:border-gray-700 transform translate-y-full opacity-0 transition-all duration-300">
+            <div class="flex items-center space-x-3">
+                <span id="toast-icon" class="text-2xl"></span>
+                <div class="flex-1">
+                    <p id="toast-message" class="text-sm font-medium text-gray-900 dark:text-white"></p>
+                    <div id="toast-progress" class="hidden mt-2">
+                        <div class="bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
+                            <div id="toast-progress-bar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <span id="toast-progress-text">Processing...</span>
+                            <span id="toast-progress-percent">0%</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="toast-close" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hidden" onclick="hideToast()">×</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Status Bar -->
+    <div id="status-bar" class="fixed top-0 left-0 right-0 bg-blue-500 text-white px-4 py-2 text-sm z-40 transform -translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between max-w-7xl mx-auto">
+            <div class="flex items-center space-x-3">
+                <span id="status-icon" class="animate-spin">⚡</span>
+                <span id="status-message">System ready</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="status-progress" class="hidden">
+                    <div class="bg-blue-400 rounded-full h-1 w-32 overflow-hidden">
+                        <div id="status-progress-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+                <button onclick="hideStatusBar()" class="text-blue-200 hover:text-white">×</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-xl max-w-md w-full mx-4 text-center">
+            <div class="mb-4">
+                <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+            </div>
+            <h3 id="loading-title" class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Processing...</h3>
+            <p id="loading-message" class="text-gray-600 dark:text-gray-400 mb-4">Please wait while we process your request</p>
+            <div id="loading-progress" class="hidden">
+                <div class="bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden mb-2">
+                    <div id="loading-progress-bar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="flex justify-between text-sm text-gray-500 dark:text-gray-400">
+                    <span id="loading-progress-text">Initializing...</span>
+                    <span id="loading-progress-percent">0%</span>
+                </div>
+            </div>
+            <button id="loading-cancel" class="hidden mt-4 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors" onclick="cancelCurrentOperation()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let currentTab = 'project';
+        let projectBuckets = [];
+        let libraryBuckets = [];
+        let allProjects = [];
+        let selectedProject = null;
+        let filesToUpload = [];
+        let currentProject = null;
+        
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentProject();
+            loadProjectBuckets();
+            loadAllProjects();
+            checkDarkMode();
+            setupFileUpload();
+        });
+        
+        // Tab Management
+        function showTab(tab) {
+            currentTab = tab;
+            
+            // Hide all content
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Show selected content
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                btn.classList.remove('bg-primary-50', 'dark:bg-primary-900/20', 'text-primary-700', 'dark:text-primary-300');
+                btn.classList.add('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            });
+            
+            const activeBtn = document.getElementById(`nav-${tab}`);
+            activeBtn.classList.remove('text-gray-700', 'dark:text-gray-300', 'hover:bg-gray-100', 'dark:hover:bg-gray-700');
+            activeBtn.classList.add('bg-primary-50', 'dark:bg-primary-900/20', 'text-primary-700', 'dark:text-primary-300');
+            
+            // Load data for specific tabs
+            if (tab === 'library' && libraryBuckets.length === 0) {
+                loadAllProjects();
+            }
+        }
+        
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobile-overlay');
+            
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+        
+        // Data Loading Functions
+        async function loadCurrentProject() {
+            try {
+                const response = await fetch('/api/current-project');
+                if (response.ok) {
+                    const project = await response.json();
+                    currentProject = project.name;
+                    document.getElementById('project-subtitle').textContent = `Knowledge bases in ${project.name}`;
+                    document.getElementById('current-project-display').textContent = `Current: ${project.name}`;
+                }
+            } catch (error) {
+                console.error('Error loading current project:', error);
+                currentProject = "Current Project";
+                document.getElementById('current-project-display').textContent = "Project Unknown";
+            }
+        }
+
+
+        async function loadProjectBuckets() {
+            try {
+                showToast('Loading project buckets...', 'info');
+                // Add cache-busting to ensure fresh data
+                const response = await fetch('/api/buckets?' + new URLSearchParams({
+                    _t: Date.now(),
+                    _r: Math.random()
+                }), {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                });
+                if (response.ok) {
+                    projectBuckets = await response.json();
+                    renderProjectBuckets();
+                    updateStats();
+                    console.log('✅ Loaded project buckets (fresh data):', projectBuckets);
+                } else {
+                    throw new Error('Failed to load buckets');
+                }
+            } catch (error) {
+                console.error('Error loading project buckets:', error);
+                showToast('Failed to load project buckets', 'error');
+                // Show empty state instead of demo data
+                projectBuckets = [];
+                renderProjectBuckets();
+                updateStats();
+            }
+        }
+        
+        async function loadAllProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                if (response.ok) {
+                    allProjects = await response.json();
+                    renderProjects();
+                    console.log('Loaded projects:', allProjects);
+                } else {
+                    throw new Error('Failed to load projects');
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                showToast('Failed to load projects', 'error');
+                allProjects = [];
+                renderProjects();
+            }
+        }
+        
+        // Rendering Functions
+        function renderProjectBuckets() {
+            const grid = document.getElementById('project-buckets-grid');
+            grid.innerHTML = '';
+            
+            if (projectBuckets.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center py-16">
+                        <div class="text-6xl mb-4">🗂️</div>
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No buckets yet</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mb-6 text-center">Create your first knowledge base to get started</p>
+                        <button onclick="showCreateModal()" class="bg-primary-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-700 transition-colors">
+                            <span class="mr-2">➕</span>Create First Bucket
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            projectBuckets.forEach(bucket => {
+                const card = createBucketCard(bucket, 'project');
+                grid.appendChild(card);
+            });
+        }
+        
+        function renderProjects() {
+            const grid = document.getElementById('projects-grid');
+            grid.innerHTML = '';
+            
+            allProjects.forEach(project => {
+                const card = createProjectCard(project);
+                grid.appendChild(card);
+            });
+        }
+        
+        function createProjectCard(project) {
+            const card = document.createElement('div');
+            card.className = 'bucket-card bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 cursor-pointer border border-gray-200 dark:border-gray-600 hover:border-primary-300 dark:hover:border-primary-600';
+            card.onclick = () => selectProject(project);
+            
+            const statusColor = project.is_current ? 'text-green-600' : 'text-blue-600';
+            const statusIcon = project.is_current ? '🟢' : '🌐';
+            
+            card.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-semibold text-gray-900 dark:text-white">${project.name}</h3>
+                    <span class="${statusColor}">${statusIcon}</span>
+                </div>
+                <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+                    <span>${project.bucket_count} buckets</span>
+                    <span>${project.last_active}</span>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function createBucketCard(bucket, context) {
+            const card = document.createElement('div');
+            card.className = 'bucket-card bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in';
+            
+            const bucketId = bucket.id || bucket.name;
+            const fileCount = getFileCount(bucket);
+            const hasFiles = fileCount > 0;
+            
+            // Type badge
+            const type = bucket.type || 'local';
+            const typeBadge = type === 'library' ? '🌐 Library' : type === 'imported' ? '📥 Imported' : '📁 Local';
+            const typeBadgeClass = type === 'library' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
+                                  type === 'imported' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                                  'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h3 class="font-bold text-gray-900 dark:text-white text-lg truncate">${bucket.name || bucketId}</h3>
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${typeBadgeClass}">
+                                ${typeBadge}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">${bucket.description || 'No description'}</p>
+                    </div>
+                    <div class="flex flex-col items-end ml-4">
+                        <span class="${hasFiles ? 'text-green-500' : 'text-yellow-500'} text-2xl">${hasFiles ? '✅' : '📝'}</span>
+                        <span class="text-xs ${hasFiles ? 'text-green-500' : 'text-yellow-500'} font-medium">${hasFiles ? 'Active' : 'Empty'}</span>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 text-center">
+                        <p class="text-xs text-blue-600 dark:text-blue-400 font-semibold">NODES</p>
+                        <p class="text-xl font-bold text-blue-700 dark:text-blue-300">${(bucket.nodes || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg p-3 text-center">
+                        <p class="text-xs text-green-600 dark:text-green-400 font-semibold">EDGES</p>
+                        <p class="text-xl font-bold text-green-700 dark:text-green-300">${(bucket.edges || 0).toLocaleString()}</p>
+                    </div>
+                    <div class="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg p-3 text-center">
+                        <p class="text-xs text-purple-600 dark:text-purple-400 font-semibold">FILES</p>
+                        <p class="text-xl font-bold text-purple-700 dark:text-purple-300">${fileCount}</p>
+                    </div>
+                    <div class="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg p-3 text-center">
+                        <p class="text-xs text-orange-600 dark:text-orange-400 font-semibold">SIZE</p>
+                        <p class="text-xl font-bold text-orange-700 dark:text-orange-300">${bucket.size || '0 MB'}</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <span>Updated: ${bucket.updated || 'Unknown'}</span>
+                    ${bucket.projects && bucket.projects.length ? `<span>📤 ${bucket.projects.length} projects</span>` : ''}
+                </div>
+                
+                <div class="flex gap-2">
+                    ${context === 'library' ? `
+                        <button onclick="importBucket('${bucketId}')" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            <span class="mr-2">📥</span>Import
+                        </button>
+                    ` : `
+                        <button onclick="showUploadModal('${bucketId}')" class="flex-1 bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                            <span class="mr-2">📚</span>Add Files
+                        </button>
+                    `}
+                    ${context === 'project' && fileCount > 0 ? `
+                        <button onclick="processBucketFiles('${bucketId}')" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors" title="Process files with LightRAG">
+                            <span>🧠</span>
+                        </button>
+                    ` : ''}
+                    <button onclick="showBucketDetail('${bucketId}', '${context}')" class="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        <span>⚙️</span>
+                    </button>
+                    ${context === 'project' ? `
+                        <button onclick="deleteBucket('${bucketId}')" class="px-4 py-2 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="${type === 'imported' ? 'Remove imported bucket from project' : 'Delete bucket permanently'}">
+                            <span>🗑️</span>
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        // Project Selection
+        function selectProject(project) {
+            selectedProject = project;
+            document.getElementById('selected-project-name').textContent = project.name;
+            document.getElementById('projects-grid').parentElement.parentElement.classList.add('hidden');
+            document.getElementById('selected-project-section').classList.remove('hidden');
+            
+            // Load project's buckets
+            loadProjectLibraryBuckets(project.name);
+        }
+        
+        function showAllProjects() {
+            document.getElementById('projects-grid').parentElement.parentElement.classList.remove('hidden');
+            document.getElementById('selected-project-section').classList.add('hidden');
+        }
+        
+        async function loadProjectLibraryBuckets(projectName) {
+            try {
+                const response = await fetch(`/api/projects/${projectName}/buckets`);
+                if (response.ok) {
+                    const buckets = await response.json();
+                    libraryBuckets = buckets;
+                    
+                    const grid = document.getElementById('library-buckets-grid');
+                    grid.innerHTML = '';
+                    
+                    if (buckets.length === 0) {
+                        grid.innerHTML = `
+                            <div class="col-span-full text-center py-12">
+                                <div class="text-6xl mb-4">📚</div>
+                                <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">No buckets available</h3>
+                                <p class="text-gray-600 dark:text-gray-400">This project has no knowledge bases to import</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    buckets.forEach(bucket => {
+                        bucket.type = 'library'; // Mark as library bucket for UI
+                        const card = createBucketCard(bucket, 'library');
+                        grid.appendChild(card);
+                    });
+                } else {
+                    throw new Error('Failed to load project buckets');
+                }
+            } catch (error) {
+                console.error('Error loading project library buckets:', error);
+                showToast(`Failed to load ${projectName} buckets`, 'error');
+            }
+        }
+        
+        // Bucket Management
+        async function createBucket(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('bucket-name').value;
+            const description = document.getElementById('bucket-description').value;
+            const scope = document.getElementById('bucket-scope').value;
+            
+            if (!name || !name.trim()) {
+                showToast('❌ Bucket name is required', 'error');
+                return;
+            }
+            
+            try {
+                showStatusBar(`Creating new bucket: ${name}`, 'processing');
+                showToast(`🏗️ Creating ${scope} bucket: ${name}...`, 'info');
+                
+                const response = await fetch('/api/buckets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, scope })
+                });
+                
+                const result = await response.json();
+                
+                hideStatusBar();
+                
+                if (result.success) {
+                    closeCreateModal();
+                    await loadProjectBuckets();
+                    showToast(`✅ Successfully created ${scope} bucket: ${name}`, 'success');
+                } else {
+                    showToast(`❌ Failed to create bucket: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                hideStatusBar();
+                console.error('Error creating bucket:', error);
+                showToast('❌ Error creating bucket', 'error');
+            }
+        }
+        
+        async function deleteBucket(bucketId) {
+            // Check if this is an imported bucket
+            const bucket = projectBuckets.find(b => (b.id || b.name) === bucketId);
+            const isImported = bucket && bucket.type === 'imported';
+            
+            const confirmMessage = isImported 
+                ? `Are you sure you want to remove the imported bucket "${bucketId}" from this project?\n\nThis will only remove the link - the original bucket will remain in its source project.`
+                : `Are you sure you want to delete "${bucketId}"?\n\nThis will permanently delete the bucket and all its files. This action cannot be undone.`;
+            
+            if (!confirm(confirmMessage)) return;
+            
+            try {
+                const actionText = isImported ? 'Removing imported bucket' : 'Deleting bucket';
+                showStatusBar(`${actionText}: ${bucketId}`, 'error');
+                showToast(`🗑️ ${actionText}: ${bucketId}...`, 'info');
+                
+                const response = await fetch(`/api/buckets/${bucketId}`, { 
+                    method: 'DELETE',
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
+                });
+                const result = await response.json();
+                
+                hideStatusBar();
+                
+                if (result.success) {
+                    console.log(`🗑️ Deleted bucket: ${bucketId}`);
+                    
+                    // Force a complete refresh of bucket data
+                    await loadProjectBuckets();
+                    
+                    // Also refresh library view if it's active
+                    if (currentTab === 'library') {
+                        await loadAllProjects();
+                    }
+                    
+                    // Double-check the bucket is gone
+                    const remainingBuckets = projectBuckets.map(b => b.name || b.id);
+                    if (remainingBuckets.includes(bucketId)) {
+                        console.warn(`⚠️ Bucket ${bucketId} still appears in list after deletion`);
+                        // Force another refresh
+                        setTimeout(() => loadProjectBuckets(), 1000);
+                    } else {
+                        console.log(`✅ Confirmed ${bucketId} is no longer in bucket list`);
+                    }
+                    
+                    const successText = isImported ? 'Successfully removed imported bucket' : 'Successfully deleted bucket';
+                    showToast(`✅ ${successText}: ${bucketId}`, 'success');
+                } else {
+                    showToast(`❌ Failed to delete: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                hideStatusBar();
+                console.error('Error deleting bucket:', error);
+                showToast(`❌ Error deleting bucket`, 'error');
+            }
+        }
+        
+        async function importBucket(bucketId) {
+            if (!selectedProject) {
+                showToast('❌ No project selected', 'error');
+                return;
+            }
+            
+            try {
+                showStatusBar(`Importing ${bucketId} from ${selectedProject.name}`, 'uploading');
+                showToast(`📥 Importing ${bucketId} from ${selectedProject.name}...`, 'info');
+                
+                const response = await fetch(`/api/import/${selectedProject.name}/${bucketId}`, { method: 'POST' });
+                const result = await response.json();
+                
+                hideStatusBar();
+                
+                if (result.success) {
+                    await loadProjectBuckets();
+                    showToast(`✅ Successfully imported: ${bucketId} from ${selectedProject.name}`, 'success');
+                } else {
+                    showToast(`❌ Import failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                hideStatusBar();
+                console.error('Error importing bucket:', error);
+                showToast(`❌ Error importing bucket`, 'error');
+            }
+        }
+        
+        // Modal Management
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.remove('hidden');
+        }
+        
+        function closeCreateModal() {
+            document.getElementById('create-modal').classList.add('hidden');
+            document.getElementById('bucket-name').value = '';
+            document.getElementById('bucket-description').value = '';
+        }
+        
+        function showBucketDetail(bucketId, context) {
+            const buckets = context === 'library' ? libraryBuckets : projectBuckets;
+            const bucket = buckets.find(b => (b.id || b.name) === bucketId) || 
+                          projectBuckets.find(b => (b.id || b.name) === bucketId);
+            
+            if (!bucket) {
+                showToast('Bucket not found', 'error');
+                return;
+            }
+            
+            const modal = document.getElementById('detail-modal');
+            const content = document.getElementById('detail-content');
+            
+            const files = bucket.files || bucket.file_details || [];
+            
+            content.innerHTML = `
+                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">${bucket.name || bucketId}</h3>
+                        <p class="text-gray-600 dark:text-gray-400 mt-1">${bucket.description || 'No description'}</p>
+                    </div>
+                    <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl">×</button>
+                </div>
+                
+                <div class="p-6 max-h-96 overflow-y-auto">
+                    <div class="grid grid-cols-4 gap-4 mb-6">
+                        <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">${(bucket.nodes || 0).toLocaleString()}</p>
+                            <p class="text-sm text-blue-600 dark:text-blue-400">Nodes</p>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-green-600 dark:text-green-400">${(bucket.edges || 0).toLocaleString()}</p>
+                            <p class="text-sm text-green-600 dark:text-green-400">Edges</p>
+                        </div>
+                        <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">${files.length}</p>
+                            <p class="text-sm text-purple-600 dark:text-purple-400">Files</p>
+                        </div>
+                        <div class="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${bucket.size || '0 MB'}</p>
+                            <p class="text-sm text-orange-600 dark:text-orange-400">Size</p>
+                        </div>
+                    </div>
+                    
+                    <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-3">Files</h4>
+                    <div class="space-y-2">
+                        ${files.length > 0 ? files.map(file => `
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-xl">📄</span>
+                                    <span class="text-sm font-medium text-gray-900 dark:text-white">${typeof file === 'string' ? file : file.name}</span>
+                                </div>
+                                ${context === 'project' ? `
+                                    <button onclick="deleteFile('${bucketId}', '${typeof file === 'string' ? file : file.name}')" 
+                                            class="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-1 rounded transition-colors">
+                                        🗑️
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `).join('') : '<p class="text-center text-gray-500 dark:text-gray-400 py-8">No files in this bucket</p>'}
+                    </div>
+                </div>
+                
+                <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex space-x-3">
+                    ${context === 'project' ? `
+                        <button onclick="showUploadModal('${bucketId}')" class="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">
+                            📚 Add Files
+                        </button>
+                    ` : `
+                        <button onclick="importBucket('${bucketId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            📥 Import to Project
+                        </button>
+                    `}
+                    <button onclick="exportBucket('${bucketId}')" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
+                        📤 Export
+                    </button>
+                    <button onclick="closeDetailModal()" class="ml-auto bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                        Close
+                    </button>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+        
+        function closeDetailModal() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        }
+        
+        // File Upload
+        function setupFileUpload() {
+            const fileInput = document.getElementById('file-input');
+            const dropZone = document.getElementById('drop-zone');
+            
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-primary-400', 'bg-primary-50', 'dark:bg-primary-900/10');
+            });
+            
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-primary-400', 'bg-primary-50', 'dark:bg-primary-900/10');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-primary-400', 'bg-primary-50', 'dark:bg-primary-900/10');
+                filesToUpload = Array.from(e.dataTransfer.files);
+                displayFileList();
+            });
+        }
+        
+        function handleFileSelect(event) {
+            filesToUpload = Array.from(event.target.files);
+            displayFileList();
+        }
+        
+        function displayFileList() {
+            const fileList = document.getElementById('file-list');
+            if (filesToUpload.length === 0) {
+                fileList.classList.add('hidden');
+                return;
+            }
+            
+            fileList.classList.remove('hidden');
+            fileList.innerHTML = filesToUpload.map(file => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xl">📄</span>
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">${file.name}</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${(file.size / 1024).toFixed(1)} KB</span>
+                </div>
+            `).join('');
+        }
+        
+        function showUploadModal(bucketId) {
+            document.getElementById('upload-bucket-name').textContent = bucketId;
+            document.getElementById('upload-modal').classList.remove('hidden');
+        }
+        
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.add('hidden');
+            filesToUpload = [];
+            document.getElementById('file-list').classList.add('hidden');
+            document.getElementById('file-input').value = '';
+        }
+        
+        async function uploadFiles() {
+            const bucketName = document.getElementById('upload-bucket-name').textContent;
+            
+            if (filesToUpload.length === 0) {
+                showToast('No files selected', 'warning');
+                return;
+            }
+            
+            try {
+                showLoadingOverlay('📚 Uploading Files', `Uploading ${filesToUpload.length} files to ${bucketName}...`, true);
+                showStatusBar(`Uploading files to ${bucketName}`, 'uploading');
+                
+                let completed = 0;
+                const total = filesToUpload.length;
+                
+                for (const file of filesToUpload) {
+                    updateLoadingProgress((completed / total) * 80, `Uploading ${file.name}...`);
+                    updateStatusProgress((completed / total) * 80);
+                    
+                    const content = await readFileContent(file);
+                    const response = await fetch(`/api/buckets/${bucketName}/files`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content, filename: file.name })
+                    });
+                    
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error(result.error);
+                    }
+                    
+                    completed++;
+                    updateLoadingProgress((completed / total) * 80, `Uploaded ${completed}/${total} files`);
+                    updateStatusProgress((completed / total) * 80);
+                }
+                
+                // Processing phase
+                updateLoadingProgress(90, 'Processing with LightRAG...');
+                updateStatusProgress(90);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                updateLoadingProgress(100, 'Complete!');
+                updateStatusProgress(100);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                hideLoadingOverlay();
+                hideStatusBar();
+                closeUploadModal();
+                await loadProjectBuckets();
+                showToast(`✅ Uploaded and processed ${filesToUpload.length} files`, 'success');
+            } catch (error) {
+                hideLoadingOverlay();
+                hideStatusBar();
+                console.error('Upload error:', error);
+                showToast('❌ Upload failed', 'error');
+            }
+        }
+        
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+        
+        // Utility Functions
+        function updateStats() {
+            const totalNodes = projectBuckets.reduce((sum, b) => sum + (b.nodes || 0), 0);
+            const totalEdges = projectBuckets.reduce((sum, b) => sum + (b.edges || 0), 0);
+            const totalFiles = projectBuckets.reduce((sum, b) => sum + getFileCount(b), 0);
+            
+            document.getElementById('stat-buckets').textContent = projectBuckets.length;
+            document.getElementById('stat-nodes').textContent = totalNodes.toLocaleString();
+            document.getElementById('stat-edges').textContent = totalEdges.toLocaleString();
+            document.getElementById('stat-files').textContent = totalFiles;
+        }
+        
+        async function refreshData() {
+            showToast('🔄 Force refreshing all data...', 'info');
+            showStatusBar('Refreshing data from server', 'processing');
+            
+            try {
+                // Clear any cached data
+                projectBuckets = [];
+                libraryBuckets = [];
+                allProjects = [];
+                
+                // Force reload everything
+                await loadProjectBuckets();
+                await loadAllProjects();
+                
+                hideStatusBar();
+                showToast('✅ All data refreshed from server', 'success');
+                console.log('🔄 Force refresh completed');
+            } catch (error) {
+                hideStatusBar();
+                console.error('Error during refresh:', error);
+                showToast('❌ Error refreshing data', 'error');
+            }
+        }
+        
+        function exportBucket(bucketId) {
+            showToast(`Exporting ${bucketId}...`, 'info');
+            // Implementation would go here
+        }
+        
+        async function deleteFile(bucketId, fileName) {
+            if (!confirm(`Delete "${fileName}"?`)) return;
+            
+            try {
+                const response = await fetch(`/api/buckets/${bucketId}/files/${fileName}`, { method: 'DELETE' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    await loadProjectBuckets();
+                    closeDetailModal();
+                    showToast(`✅ Deleted: ${fileName}`, 'success');
+                } else {
+                    showToast(`❌ Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showToast(`❌ Error deleting file`, 'error');
+            }
+        }
+        
+        // Utility function to safely get file count
+        function getFileCount(bucket) {
+            if (bucket.files && Array.isArray(bucket.files)) {
+                return bucket.files.length;
+            }
+            if (bucket.file_details && Array.isArray(bucket.file_details)) {
+                return bucket.file_details.length;
+            }
+            return 0;
+        }
+        
+        // Dark Mode
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark);
+        }
+        
+        function checkDarkMode() {
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        }
+        
+        // Enhanced LightRAG Processing with Progress Feedback
+        async function processBucketFiles(bucketId) {
+            if (!confirm(`Process all files in "${bucketId}" with LightRAG?\n\nThis will create a knowledge graph from your documents.`)) {
+                return;
+            }
+            
+            let progressInterval;
+            
+            try {
+                // Show loading overlay with progress
+                showLoadingOverlay('🧠 LightRAG Processing', `Analyzing files in ${bucketId}...`, true);
+                showStatusBar(`Processing bucket: ${bucketId}`, 'processing');
+                
+                // Simulate progress updates (since we don't have real-time progress from the API)
+                let progress = 0;
+                progressInterval = setInterval(() => {
+                    progress += Math.random() * 15;
+                    if (progress > 85) progress = 85; // Cap at 85% until completion
+                    updateLoadingProgress(progress, 'Extracting entities and relationships...');
+                    updateStatusProgress(progress);
+                }, 500);
+                
+                const response = await fetch(`/api/buckets/${bucketId}/process`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                // Complete the progress
+                clearInterval(progressInterval);
+                updateLoadingProgress(100, 'Finalizing...');
+                updateStatusProgress(100);
+                
+                // Brief pause to show completion
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                hideLoadingOverlay();
+                hideStatusBar();
+                
+                if (result.success) {
+                    const successMsg = `✅ LightRAG Processing Complete!\nProcessed: ${result.total_processed} files\nFailed: ${result.total_failed} files`;
+                    showToastWithDetails(successMsg, 'success', {
+                        processed: result.processed_files,
+                        failed: result.failed_files
+                    });
+                    
+                    // Refresh bucket data to show updated stats
+                    await loadProjectBuckets();
+                } else {
+                    showToast(`❌ Processing failed: ${result.error}`, 'error');
+                }
+                
+            } catch (error) {
+                clearInterval(progressInterval);
+                hideLoadingOverlay();
+                hideStatusBar();
+                console.error('Error processing bucket files:', error);
+                showToast('❌ Error processing files with LightRAG', 'error');
+            }
+        }
+
+        // Enhanced Toast Notifications with Progress Support
+        function showToast(message, type = 'info', duration = 3000) {
+            const toast = document.getElementById('toast');
+            const content = document.getElementById('toast-content');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            const progress = document.getElementById('toast-progress');
+            const closeBtn = document.getElementById('toast-close');
+            
+            const icons = { 'success': '✅', 'error': '❌', 'info': 'ℹ️', 'warning': '⚠️' };
+            
+            icon.textContent = icons[type] || icons.info;
+            msg.textContent = message;
+            progress.classList.add('hidden');
+            closeBtn.classList.add('hidden');
+            
+            // Reset and show
+            content.classList.remove('translate-y-full', 'opacity-0');
+            content.classList.add('translate-y-0', 'opacity-100');
+            
+            if (duration > 0) {
+                setTimeout(() => {
+                    hideToast();
+                }, duration);
+            } else {
+                closeBtn.classList.remove('hidden');
+            }
+        }
+        
+        function showToastWithDetails(message, type = 'info', details = null) {
+            showToast(message, type, 5000);
+            if (details && (details.processed || details.failed)) {
+                console.group('📊 Processing Details');
+                if (details.processed) {
+                    console.log('✅ Processed files:', details.processed);
+                }
+                if (details.failed && details.failed.length > 0) {
+                    console.log('❌ Failed files:', details.failed);
+                }
+                console.groupEnd();
+            }
+        }
+        
+        function showToastWithProgress(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const content = document.getElementById('toast-content');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            const progress = document.getElementById('toast-progress');
+            const closeBtn = document.getElementById('toast-close');
+            
+            const icons = { 'success': '✅', 'error': '❌', 'info': 'ℹ️', 'warning': '⚠️' };
+            
+            icon.textContent = icons[type] || icons.info;
+            msg.textContent = message;
+            progress.classList.remove('hidden');
+            closeBtn.classList.remove('hidden');
+            
+            content.classList.remove('translate-y-full', 'opacity-0');
+            content.classList.add('translate-y-0', 'opacity-100');
+        }
+        
+        function updateToastProgress(percent, text) {
+            const progressBar = document.getElementById('toast-progress-bar');
+            const progressText = document.getElementById('toast-progress-text');
+            const progressPercent = document.getElementById('toast-progress-percent');
+            
+            progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            if (text) progressText.textContent = text;
+            progressPercent.textContent = `${Math.round(percent)}%`;
+        }
+        
+        function hideToast() {
+            const content = document.getElementById('toast-content');
+            content.classList.add('translate-y-full', 'opacity-0');
+            content.classList.remove('translate-y-0', 'opacity-100');
+        }
+        
+        // Status Bar Functions
+        function showStatusBar(message, type = 'info') {
+            const statusBar = document.getElementById('status-bar');
+            const statusIcon = document.getElementById('status-icon');
+            const statusMessage = document.getElementById('status-message');
+            const statusProgress = document.getElementById('status-progress');
+            
+            const config = {
+                'info': { bg: 'bg-blue-500', icon: 'ℹ️', spin: false },
+                'processing': { bg: 'bg-yellow-500', icon: '⚡', spin: true },
+                'uploading': { bg: 'bg-green-500', icon: '📚', spin: true },
+                'success': { bg: 'bg-green-600', icon: '✅', spin: false },
+                'error': { bg: 'bg-red-500', icon: '❌', spin: false }
+            };
+            
+            const cfg = config[type] || config.info;
+            statusBar.className = `fixed top-0 left-0 right-0 ${cfg.bg} text-white px-4 py-2 text-sm z-40 transform transition-transform duration-300`;
+            statusIcon.textContent = cfg.icon;
+            statusIcon.className = cfg.spin ? 'animate-spin' : '';
+            statusMessage.textContent = message;
+            
+            if (type === 'processing' || type === 'uploading') {
+                statusProgress.classList.remove('hidden');
+            } else {
+                statusProgress.classList.add('hidden');
+            }
+            
+            statusBar.classList.remove('-translate-y-full');
+        }
+        
+        function updateStatusProgress(percent) {
+            const progressBar = document.getElementById('status-progress-bar');
+            progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+        }
+        
+        function hideStatusBar() {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.classList.add('-translate-y-full');
+        }
+        
+        // Loading Overlay Functions
+        function showLoadingOverlay(title, message, showProgress = false, showCancel = false) {
+            const overlay = document.getElementById('loading-overlay');
+            const titleEl = document.getElementById('loading-title');
+            const messageEl = document.getElementById('loading-message');
+            const progressEl = document.getElementById('loading-progress');
+            const cancelBtn = document.getElementById('loading-cancel');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            if (showProgress) {
+                progressEl.classList.remove('hidden');
+                updateLoadingProgress(0, 'Initializing...');
+            } else {
+                progressEl.classList.add('hidden');
+            }
+            
+            if (showCancel) {
+                cancelBtn.classList.remove('hidden');
+            } else {
+                cancelBtn.classList.add('hidden');
+            }
+            
+            overlay.classList.remove('hidden');
+        }
+        
+        function updateLoadingProgress(percent, text) {
+            const progressBar = document.getElementById('loading-progress-bar');
+            const progressText = document.getElementById('loading-progress-text');
+            const progressPercent = document.getElementById('loading-progress-percent');
+            
+            progressBar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+            if (text) progressText.textContent = text;
+            progressPercent.textContent = `${Math.round(percent)}%`;
+        }
+        
+        function hideLoadingOverlay() {
+            const overlay = document.getElementById('loading-overlay');
+            overlay.classList.add('hidden');
+        }
+        
+        function cancelCurrentOperation() {
+            hideLoadingOverlay();
+            hideStatusBar();
+            showToast('Operation cancelled', 'warning');
+            // Additional cancellation logic would go here
+        }
+    </script>
+
+</body>
+</html>

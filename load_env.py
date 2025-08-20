@@ -8,8 +8,12 @@ import os
 from pathlib import Path
 
 
-def load_env_file(env_path=None):
+def load_env_file(env_path=None, silent=False):
     """Load environment variables from .env file"""
+    # Check if we've already loaded the env file
+    if os.environ.get('_ENV_FILE_LOADED'):
+        return True
+    
     if env_path is None:
         # Look for .env file in the current directory and parent directories
         current_dir = Path(__file__).parent
@@ -24,7 +28,8 @@ def load_env_file(env_path=None):
                     break
     
     if not env_path or not Path(env_path).exists():
-        print(f"⚠️ No .env file found. API keys may not be available.")
+        if not silent:
+            print(f"⚠️ No .env file found. API keys may not be available.")
         return False
     
     try:
@@ -47,7 +52,10 @@ def load_env_file(env_path=None):
             os.environ[key] = value
             loaded_vars.append(key)
         
-        if loaded_vars:
+        # Mark that we've loaded the env file
+        os.environ['_ENV_FILE_LOADED'] = '1'
+        
+        if loaded_vars and not silent:
             print(f"✅ Loaded environment variables: {', '.join(loaded_vars)}")
         return True
         

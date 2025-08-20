@@ -23,8 +23,8 @@ def index():
         <p>Main interface file not found. Please ensure web_editor.html exists.</p>
         """
 
-# Get current project from session or use default
-current_project = 'gamma'  # Default project - should be managed via session in production
+# Get current project from environment variable (passed by lizzy.py)
+current_project = os.environ.get('CURRENT_PROJECT', 'gamma')  # Fallback to gamma if not set
 
 @app.route('/api/projects')
 def get_projects():
@@ -88,12 +88,14 @@ def get_characters():
         for row in rows:
             data.append({
                 'id': row['id'],
-                'name': row['name'],
-                'archetype': row['archetype'],
-                'gender': row['gender'], 
-                'age': row['age'],
-                'challenge': row['romantic_challenge'],
-                'trait': row['lovable_trait']
+                'name': row['name'] if 'name' in row.keys() else '',
+                'archetype': row['archetype'] if 'archetype' in row.keys() else '',
+                'gender': row['gender'] if 'gender' in row.keys() else '', 
+                'age': row['age'] if 'age' in row.keys() else '',
+                'challenge': row['romantic_challenge'] if 'romantic_challenge' in row.keys() else '',
+                'trait': row['lovable_trait'] if 'lovable_trait' in row.keys() else '',
+                'flaw': row['comedic_flaw'] if 'comedic_flaw' in row.keys() else '',
+                'notes': row['notes'] if 'notes' in row.keys() else ''
             })
         
         conn.close()
@@ -108,6 +110,7 @@ def get_outline():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Use story_outline_extended table
         cursor.execute("SELECT * FROM story_outline_extended ORDER BY act_number, scene_number")
         rows = cursor.fetchall()
         
@@ -116,11 +119,13 @@ def get_outline():
         for row in rows:
             data.append({
                 'id': row['id'],
-                'act': row['act'],
-                'beat': row['beat'],
-                'scene': row['scene_number'],
-                'description': row['description'],
-                'status': row['status']
+                'act': row['act'] if 'act' in row.keys() else row.get('act_number', 1),
+                'scene': row['scene_number'] if 'scene_number' in row.keys() else 1,
+                'beat': row['beat'] if 'beat' in row.keys() else '',
+                'description': row['description'] if 'description' in row.keys() else '',
+                'status': row['status'] if 'status' in row.keys() else 'pending',
+                'key_characters': row['key_characters'] if 'key_characters' in row.keys() else '',
+                'key_events': row['key_events'] if 'key_events' in row.keys() else ''
             })
         
         conn.close()
@@ -135,6 +140,18 @@ def get_notes():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Check if notes table exists, create if not
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='notes'")
+        if not cursor.fetchone():
+            cursor.execute("""CREATE TABLE notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                category TEXT,
+                content TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )""")
+            conn.commit()
+        
         cursor.execute("SELECT * FROM notes ORDER BY created_at DESC")
         rows = cursor.fetchall()
         
@@ -143,9 +160,9 @@ def get_notes():
         for row in rows:
             data.append({
                 'id': row['id'],
-                'title': row['title'],
-                'category': row['category'],
-                'content': row['content']
+                'title': row['title'] if 'title' in row.keys() else '',
+                'category': row['category'] if 'category' in row.keys() else '',
+                'content': row['content'] if 'content' in row.keys() else ''
             })
         
         conn.close()
@@ -282,10 +299,12 @@ def update_item(table_type, item_id):
                 'table': 'story_outline_extended',
                 'fields': {
                     'act': 'act',
-                    'beat': 'beat',
                     'scene': 'scene_number',
+                    'beat': 'beat',
                     'description': 'description',
-                    'status': 'status'
+                    'status': 'status',
+                    'key_characters': 'key_characters',
+                    'key_events': 'key_events'
                 }
             },
             'notes': {

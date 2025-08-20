@@ -167,9 +167,39 @@
         .data-block.lightrag {
             border-left: 4px solid var(--warning);
         }
+        
+        .data-block.lightrag.importable {
+            border-left: 4px solid #f59e0b;
+            background: linear-gradient(135deg, #f59e0b10, #fbbf2420);
+            border-style: dashed;
+            border-width: 2px;
+            border-right: 2px dashed #f59e0b;
+            border-top: 2px dashed #f59e0b;
+            border-bottom: 2px dashed #f59e0b;
+        }
 
         .data-block.context {
             border-left: 4px solid var(--accent);
+        }
+        
+        .block-type {
+            font-size: 0.7em;
+            color: var(--warning);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        
+        .block-projects {
+            font-size: 0.7em;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+        
+        .block-action {
+            font-size: 0.7em;
+            color: #f59e0b;
+            margin-top: 4px;
+            font-weight: 600;
         }
 
         .block-label {
@@ -1224,19 +1254,43 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         function createDataBlock(block, type) {
             const button = document.createElement('button');
             button.className = `data-block ${type}`;
-            button.onclick = () => insertBlock(block.key);
+            
+            // Handle different bucket types
+            if (block.importable) {
+                button.onclick = () => importAndUseBlock(block);
+                button.classList.add('importable');
+            } else {
+                button.onclick = () => insertBlock(block.key);
+            }
             
             let content = `
                 <div class="block-label">${block.label}</div>
                 <div class="block-desc">${block.description}</div>
             `;
             
+            // Add type indicator for buckets
+            if (type === 'lightrag' && block.type) {
+                const typeIndicator = block.type === 'library' ? '🌐' : 
+                                    block.type === 'local' ? '📁' : 
+                                    block.type === 'available' ? '📥' : '📂';
+                content += `<div class="block-type">${typeIndicator} ${block.type}</div>`;
+            }
+            
             if (block.sample) {
                 content += `<div class="block-sample">${block.sample}</div>`;
             }
             
             if (block.doc_count && block.doc_count > 0) {
-                content += `<div class="block-count">${block.doc_count}</div>`;
+                content += `<div class="block-count">${block.doc_count} docs</div>`;
+            }
+            
+            if (block.projects && block.projects.length > 0) {
+                const projectList = block.projects.join(', ');
+                content += `<div class="block-projects">Shared with: ${projectList}</div>`;
+            }
+            
+            if (block.importable) {
+                content += `<div class="block-action">Click to import & use</div>`;
             }
             
             button.innerHTML = content;
@@ -1253,6 +1307,69 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             editor.value = textBefore + variable + textAfter;
             editor.focus();
             editor.setSelectionRange(cursorPos + variable.length, cursorPos + variable.length);
+        }
+        
+        function showStatus(message, type = 'info') {
+            // Simple status display - could be enhanced with a proper notification system
+            const statusClass = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Show temporary message near the data blocks
+            const lightragContainer = document.getElementById('lightrag-blocks');
+            if (lightragContainer) {
+                const statusDiv = document.createElement('div');
+                statusDiv.style.cssText = `
+                    padding: 8px 12px; 
+                    margin: 4px 0; 
+                    border-radius: 4px; 
+                    font-size: 0.9em;
+                    background: ${type === 'error' ? '#fee' : type === 'success' ? '#efe' : '#eef'};
+                    color: ${type === 'error' ? '#c53030' : type === 'success' ? '#38a169' : '#3182ce'};
+                    border: 1px solid ${type === 'error' ? '#fc8181' : type === 'success' ? '#68d391' : '#90cdf4'};
+                `;
+                statusDiv.textContent = message;
+                lightragContainer.insertBefore(statusDiv, lightragContainer.firstChild);
+                
+                // Remove after 3 seconds
+                setTimeout(() => statusDiv.remove(), 3000);
+            }
+        }
+        
+        async function importAndUseBlock(block) {
+            try {
+                showStatus('Importing bucket...', 'info');
+                
+                // Import the bucket
+                const importResponse = await fetch(`/api/library/import/${block.bucket}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                if (!importResponse.ok) {
+                    throw new Error(`Import failed: ${importResponse.statusText}`);
+                }
+                
+                const importResult = await importResponse.json();
+                
+                if (importResult.success) {
+                    showStatus('Bucket imported successfully! Refreshing data blocks...', 'success');
+                    
+                    // Refresh the data blocks to show the newly imported bucket
+                    await loadProjectSchema();
+                    
+                    // Insert the block key (remove .available suffix)
+                    const cleanKey = block.key.replace('.available', '');
+                    insertBlock(cleanKey);
+                    
+                    showStatus('Bucket imported and added to prompt!', 'success');
+                } else {
+                    throw new Error(importResult.error || 'Import failed');
+                }
+                
+            } catch (error) {
+                console.error('Import error:', error);
+                showStatus(`Failed to import bucket: ${error.message}`, 'error');
+            }
         }
 
         async function loadProjectTemplates() {

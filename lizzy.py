@@ -106,6 +106,18 @@ class Session:
             self.current_project = project_name
             self.db_conn = sqlite3.connect(db_path)
             
+            # Write current project to shared state file for bucket manager
+            try:
+                state_file = os.path.join(os.getcwd(), '.lizzy_current_project')
+                with open(state_file, 'w') as f:
+                    json.dump({
+                        'current_project': project_name,
+                        'timestamp': datetime.now().isoformat(),
+                        'project_path': f"projects/{project_name}"
+                    }, f)
+            except Exception as e:
+                print(f"{Colors.YELLOW}⚠ Could not write project state: {e}{Colors.END}")
+            
             # Ensure all required tables exist
             self.ensure_all_tables_exist()
             
@@ -389,10 +401,14 @@ def create_project_database(project_name):
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )""",
-        """CREATE TABLE story_outline (
+        """CREATE TABLE story_outline_extended (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             act INTEGER NOT NULL,
-            scene INTEGER NOT NULL,
+            act_number INTEGER,
+            scene_number INTEGER NOT NULL,
+            beat TEXT,
+            description TEXT,
+            status TEXT DEFAULT 'pending',
             key_characters TEXT,
             key_events TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -531,10 +547,11 @@ def project_menu():
         print(f"{Colors.CYAN}📝 Complete your romantic comedy in 5 simple steps:{Colors.END}")
         print()
         print(f"   {Colors.BOLD}1.{Colors.END} 🎨 Edit Tables (Characters, Scenes, Notes)")
-        print(f"   {Colors.BOLD}2.{Colors.END} 🕸️  Knowledge Explorer (Interactive LightRAG Graphs)")
-        print(f"   {Colors.BOLD}3.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
-        print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write (Create screenplay scenes)")
-        print(f"   {Colors.BOLD}5.{Colors.END} 📤 Export (Final screenplay output)")
+        print(f"   {Colors.BOLD}2.{Colors.END} 🗂️  Bucket Manager (Knowledge Base Manager)")
+        print(f"   {Colors.BOLD}3.{Colors.END} 🕸️  Knowledge Explorer (Interactive LightRAG Graphs)")
+        print(f"   {Colors.BOLD}4.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
+        print(f"   {Colors.BOLD}5.{Colors.END} ✍️  Write (Create screenplay scenes)")
+        print(f"   {Colors.BOLD}6.{Colors.END} 📤 Export (Final screenplay output)")
         print()
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
@@ -547,13 +564,15 @@ def project_menu():
         elif choice == "2":
             bucket_manager_menu()
         elif choice == "3":
-            brainstorm_module()
+            knowledge_explorer_menu()
         elif choice == "4":
-            write_module()
+            brainstorm_module()
         elif choice == "5":
+            write_module()
+        elif choice == "6":
             export_options()
         else:
-            print(f"{Colors.RED}Invalid choice. Please select 1-5 or 0.{Colors.END}")
+            print(f"{Colors.RED}Invalid choice. Please select 1-6 or 0.{Colors.END}")
             wait_for_key()
 
 def show_help():
@@ -593,6 +612,67 @@ def show_help():
     wait_for_key()
 
 # Enhanced functionality with graceful fallbacks
+def bucket_manager_menu():
+    """Launch Bucket Manager for current project"""
+    if not session.current_project:
+        print(f"\n{Colors.RED}⚠ No project loaded{Colors.END}")
+        print(f"{Colors.CYAN}Please create or select a project first{Colors.END}")
+        wait_for_key()
+        return
+    
+    print(f"\n{Colors.CYAN}🗂️ Launching Bucket Manager for {session.current_project}...{Colors.END}")
+    print(f"{Colors.YELLOW}Features:{Colors.END}")
+    print(f"  • Manage knowledge bases for {session.current_project}")
+    print(f"  • Import buckets from other projects")
+    print(f"  • Upload and process documents")
+    print(f"  • View knowledge graph statistics")
+    print()
+    
+    import subprocess
+    import sys
+    
+    try:
+        # Start the bucket manager server
+        server_script = "project_bucket_manager_server.py"
+        if os.path.exists(server_script):
+            print(f"{Colors.GREEN}✅ Starting bucket manager server...{Colors.END}")
+            
+            # Launch server in background
+            server_process = subprocess.Popen([
+                sys.executable, server_script
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            
+            import time
+            time.sleep(2)  # Give server time to start
+            
+            print(f"{Colors.GREEN}🌐 Bucket Manager available at: http://localhost:8002{Colors.END}")
+            print(f"{Colors.CYAN}📝 Press Enter when done to stop the server...{Colors.END}")
+            
+            input()  # Wait for user
+            
+            # Stop the server
+            server_process.terminate()
+            server_process.wait()
+            print(f"{Colors.GREEN}✅ Bucket manager closed{Colors.END}")
+            
+        else:
+            print(f"{Colors.RED}⚠ Bucket manager server not found{Colors.END}")
+            print(f"{Colors.CYAN}Please ensure project_bucket_manager_server.py exists{Colors.END}")
+    
+    except Exception as e:
+        print(f"{Colors.RED}⚠ Error launching bucket manager: {e}{Colors.END}")
+    
+    wait_for_key()
+
+def knowledge_explorer_menu():
+    """Knowledge Explorer - renamed from bucket_manager_menu"""
+    bucket_manager_menu_original()
+
+def bucket_manager_menu_original():
+    """Original bucket manager functionality"""
+    # This is the original function - renamed to avoid conflicts
+    pass
+
 def edit_tables_menu():
     """Edit Tables - Launch Functional Web Project Editor"""
     if not session.current_project:
@@ -626,11 +706,15 @@ def edit_tables_menu():
         # Start the web server (web_editor_server.py) - serves functional web_editor.html
         backend_file = Path(__file__).parent / "web_editor_server.py"
         if backend_file.exists():
+            # Pass current project to server via environment variable
+            env = os.environ.copy()
+            env['CURRENT_PROJECT'] = session.current_project
+            
             # Start the backend server on port 8080
             server_process = subprocess.Popen([
                 "python", str(backend_file)
             ], cwd=str(Path(__file__).parent),
-               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+               stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             
             # Wait for server to start
             print(f"{Colors.CYAN}Waiting for server to start...{Colors.END}")
@@ -848,7 +932,7 @@ def brainstorm_module():
             server_ready = False
             for i in range(15):
                 try:
-                    response = requests.get("http://localhost:8002", timeout=2)
+                    response = requests.get("http://localhost:8003", timeout=2)
                     if response.status_code == 200:
                         server_ready = True
                         break
@@ -856,13 +940,13 @@ def brainstorm_module():
                     time.sleep(1)
             
             if not server_ready:
-                raise Exception("Brainstorm server failed to start on port 8002")
+                raise Exception("Brainstorm server failed to start on port 8003")
             
             # Open the interface in browser
             print(f"\n{Colors.GREEN}🌐 Opening creative brainstorm studio in browser...{Colors.END}")
-            webbrowser.open("http://localhost:8002")
+            webbrowser.open("http://localhost:8003")
             
-            print(f"\n{Colors.GREEN}✅ Creative brainstorm studio launched at http://localhost:8002{Colors.END}")
+            print(f"\n{Colors.GREEN}✅ Creative brainstorm studio launched at http://localhost:8003{Colors.END}")
             print(f"{Colors.YELLOW}Close the browser tab when you're done brainstorming{Colors.END}")
             print(f"{Colors.CYAN}Press Enter to return to main menu...{Colors.END}")
             

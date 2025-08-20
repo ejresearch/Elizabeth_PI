@@ -156,15 +156,78 @@ class ProjectDiscovery:
         return blocks
     
     def _discover_core_lightrag_blocks(self) -> List[Dict]:
-        """Discover only the core LightRAG buckets (scripts, plays, books)"""
+        """Discover all available LightRAG buckets from the library system"""
         blocks = []
         
-        # Only these three buckets
-        core_buckets = {
-            "romcom_scripts": "Scripts",
-            "shakespeare_plays": "Plays", 
-            "screenwriting_books": "Books"
-        }
+        try:
+            # Try to use the new bucket library integration
+            from bucket_library_integration import BucketLibraryIntegration
+            
+            # Get current project name from projects directory
+            current_project = None
+            for project_dir in os.listdir("projects"):
+                project_path = os.path.join("projects", project_dir)
+                if os.path.isdir(project_path):
+                    current_project = project_dir
+                    break
+            
+            if current_project:
+                integration = BucketLibraryIntegration(
+                    project_dir=os.path.join("projects", current_project),
+                    project_name=current_project
+                )
+                
+                # Get all available buckets (imported and local)
+                available_buckets = integration.list_available_buckets()
+                
+                # Add imported library buckets
+                for bucket in available_buckets["project"]["imported"]:
+                    blocks.append({
+                        "key": f"lightrag.{bucket['id']}",
+                        "label": bucket['name'],
+                        "description": bucket.get('description', 'Library bucket'),
+                        "bucket": bucket['id'],
+                        "type": "library",
+                        "doc_count": bucket.get('stats', {}).get('document_count', 0),
+                        "projects": bucket.get('projects', [])
+                    })
+                
+                # Add local project buckets
+                for bucket in available_buckets["project"]["local"]:
+                    blocks.append({
+                        "key": f"lightrag.{bucket['name']}",
+                        "label": bucket['name'],
+                        "description": bucket.get('description', 'Local project bucket'),
+                        "bucket": bucket['name'],
+                        "type": "local",
+                        "doc_count": 0  # Could be enhanced with actual count
+                    })
+                
+                # Add available library buckets that could be imported
+                for bucket in available_buckets["library"]["available"]:
+                    blocks.append({
+                        "key": f"lightrag.{bucket['id']}.available",
+                        "label": f"{bucket['name']} (Available)",
+                        "description": f"Available to import: {bucket.get('description', 'Library bucket')}",
+                        "bucket": bucket['id'],
+                        "type": "available",
+                        "importable": True,
+                        "doc_count": bucket.get('stats', {}).get('document_count', 0),
+                        "projects": bucket.get('projects', [])
+                    })
+        
+        except ImportError:
+            print("Bucket library integration not available, falling back to legacy discovery")
+            blocks = self._discover_legacy_lightrag_blocks()
+        except Exception as e:
+            print(f"Error discovering buckets from library: {e}")
+            blocks = self._discover_legacy_lightrag_blocks()
+        
+        return blocks
+    
+    def _discover_legacy_lightrag_blocks(self) -> List[Dict]:
+        """Legacy method for discovering buckets from old config"""
+        blocks = []
         
         try:
             bucket_config_path = os.path.join(self.lightrag_dir, "bucket_config.json")
@@ -172,20 +235,20 @@ class ProjectDiscovery:
                 with open(bucket_config_path, 'r') as f:
                     config = json.load(f)
                 
-                # Create blocks for core buckets only
-                for bucket_name, display_name in core_buckets.items():
-                    if bucket_name in config.get("metadata", {}):
-                        metadata = config["metadata"][bucket_name]
-                        blocks.append({
-                            "key": f"lightrag.{bucket_name}",
-                            "label": display_name,
-                            "description": metadata.get("description", f"{display_name} knowledge base"),
-                            "bucket": bucket_name,
-                            "doc_count": metadata.get("document_count", 0)
-                        })
+                # Create blocks for all buckets in config
+                for bucket_name in config.get("buckets", []):
+                    metadata = config.get("metadata", {}).get(bucket_name, {})
+                    blocks.append({
+                        "key": f"lightrag.{bucket_name}",
+                        "label": self._humanize_bucket_name(bucket_name),
+                        "description": metadata.get("description", f"{bucket_name} knowledge base"),
+                        "bucket": bucket_name,
+                        "type": "legacy",
+                        "doc_count": metadata.get("document_count", 0)
+                    })
                     
         except Exception as e:
-            print(f"Error discovering core LightRAG blocks: {e}")
+            print(f"Error discovering legacy LightRAG blocks: {e}")
         
         return blocks
     
@@ -768,4 +831,4 @@ if __name__ == '__main__':
     projects = discovery.discover_projects()
     print(f"✅ Found {len(projects)} projects: {', '.join(projects)}")
     
-    app.run(host='0.0.0.0', port=8002, debug=True)
+    app.run(host='0.0.0.0', port=8003, debug=True)
