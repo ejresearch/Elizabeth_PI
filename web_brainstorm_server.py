@@ -4,6 +4,7 @@ Automatically discovers project schemas and builds data blocks from real data
 """
 
 import os
+import re
 import json
 import sqlite3
 from datetime import datetime
@@ -253,17 +254,29 @@ class ProjectDiscovery:
         return blocks
     
     def _setup_prompts_table(self, cursor):
-        """Setup custom prompts table"""
+        """Setup custom prompts table with bucket configurations"""
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS custom_prompts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
                 template TEXT NOT NULL,
                 description TEXT,
+                bucket_configurations TEXT,  -- JSON storage for bucket configs
+                orchestration TEXT,  -- JSON storage for orchestration settings
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        # Add new columns to existing table if they don't exist
+        try:
+            cursor.execute('ALTER TABLE custom_prompts ADD COLUMN bucket_configurations TEXT')
+        except:
+            pass  # Column already exists
+        try:
+            cursor.execute('ALTER TABLE custom_prompts ADD COLUMN orchestration TEXT')
+        except:
+            pass  # Column already exists
         
         # Insert default System Brainstorm if it doesn't exist
         cursor.execute('SELECT COUNT(*) FROM custom_prompts WHERE name = ?', ('System Brainstorm',))
@@ -329,24 +342,63 @@ Now perform Pass 1 and Pass 2, then produce the output sections in order.'''
             ''', ('System Brainstorm', default_template, "Lizzy's official brainstorming template"))
     
     def _load_custom_prompts(self, cursor):
-        """Load all custom prompts"""
+        """Load all custom prompts with bucket configurations"""
         cursor.execute('''
-            SELECT id, name, template, description, created_at, updated_at
+            SELECT id, name, template, description, bucket_configurations, orchestration, created_at, updated_at
             FROM custom_prompts
             ORDER BY updated_at DESC
         ''')
         
         prompts = []
         for row in cursor.fetchall():
+            # Parse JSON configurations
+            bucket_configs = {}
+            orchestration = {}
+            
+            try:
+                if row[4]:  # bucket_configurations
+                    bucket_configs = json.loads(row[4])
+                else:
+                    # Try to extract from template if no saved configs
+                    bucket_configs = self._extract_bucket_configs_from_template(row[2] or '')
+            except:
+                bucket_configs = self._extract_bucket_configs_from_template(row[2] or '')
+                
+            try:
+                if row[5]:  # orchestration
+                    orchestration = json.loads(row[5])
+            except:
+                pass
+            
             prompts.append({
                 'id': row[0],
                 'name': row[1],
                 'template': row[2],
                 'description': row[3],
-                'created_at': row[4],
-                'updated_at': row[5]
+                'bucket_configurations': bucket_configs,
+                'orchestration': orchestration,
+                'created_at': row[6],
+                'updated_at': row[7]
             })
         return prompts
+    
+    def _extract_bucket_configs_from_template(self, template: str) -> Dict:
+        """Extract bucket configurations from enhanced variables in template"""
+        configs = {}
+        
+        # Pattern: {lightrag.bucket|guidance:"..."|mode:"..."|focus:N}
+        enhanced_pattern = r'{lightrag\.([^}|]+)\|guidance:"([^"]+)"\|mode:"([^"]+)"\|focus:(\d+)}'
+        matches = re.findall(enhanced_pattern, template)
+        
+        for bucket, guidance, mode, focus in matches:
+            configs[f'lightrag.{bucket}'] = {
+                'guidance': guidance,
+                'mode': mode,
+                'focus': int(focus),
+                'label': bucket.replace('_', ' ').title()
+            }
+        
+        return configs
     
     def _humanize_table_name(self, table_name: str) -> str:
         """Convert table names to human-readable labels"""
@@ -482,11 +534,35 @@ Now perform Pass 1 and Pass 2, then produce the output sections in order.'''
 # Initialize discovery system
 discovery = ProjectDiscovery()
 
+# Get current project from lizzy session
+def get_current_project():
+    """Get the current project from lizzy session"""
+    # Try environment variable first (passed from lizzy.py)
+    current_project = os.getenv('CURRENT_PROJECT')
+    if current_project:
+        return current_project
+    
+    # Try reading from shared state file
+    try:
+        state_file = '.lizzy_current_project'
+        if os.path.exists(state_file):
+            with open(state_file, 'r') as f:
+                state = json.load(f)
+                return state.get('current_project')
+    except:
+        pass
+    
+    return None
+
 @app.route('/api/projects')
 def get_projects():
     """Get list of available projects"""
     projects = discovery.discover_projects()
-    return jsonify({"projects": projects})
+    current_project = get_current_project()
+    return jsonify({
+        "projects": projects, 
+        "current_project": current_project
+    })
 
 @app.route('/api/project/<project_name>/schema')
 def get_project_schema(project_name):
@@ -550,9 +626,19 @@ def compile_prompt():
         else:
             compiled = compiled.replace(f'{{sql.{table}}}', f"No data available for {table} table")
     
-    # Replace LightRAG variables
-    lightrag_vars = re.findall(r'{lightrag\.(\w+)}', template)
-    for bucket in lightrag_vars:
+    # Replace LightRAG variables (both basic and enhanced)
+    # Enhanced format: {lightrag.bucket|guidance:"..."|mode:"..."|focus:N}
+    enhanced_lightrag_pattern = r'{lightrag\.([^}|]+)\|guidance:"([^"]+)"\|mode:"([^"]+)"\|focus:(\d+)}'
+    enhanced_matches = re.findall(enhanced_lightrag_pattern, template)
+    
+    for bucket, guidance, mode, focus in enhanced_matches:
+        enhanced_instruction = f"[Query {bucket} knowledge base with guidance: '{guidance}' using {mode} mode (focus level: {focus}/10)]"
+        full_match = f'{{lightrag.{bucket}|guidance:"{guidance}"|mode:"{mode}"|focus:{focus}}}'
+        compiled = compiled.replace(full_match, enhanced_instruction)
+    
+    # Basic LightRAG variables (fallback)
+    basic_lightrag_vars = re.findall(r'{lightrag\.(\w+)}', template)
+    for bucket in basic_lightrag_vars:
         compiled = compiled.replace(f'{{lightrag.{bucket}}}', f"[Query {bucket} knowledge base for relevant insights]")
     
     return jsonify({"compiled": compiled})
@@ -580,11 +666,13 @@ def get_project_prompts(project_name):
 
 @app.route('/api/project/<project_name>/prompts', methods=['POST'])
 def save_project_prompt(project_name):
-    """Save a new custom prompt"""
+    """Save a new custom prompt with bucket configurations"""
     data = request.json
     name = data.get('name')
     template = data.get('template') 
     description = data.get('description', '')
+    bucket_configurations = data.get('bucket_configurations', {})
+    orchestration = data.get('orchestration', {})
     
     if not name or not template:
         return jsonify({"error": "Name and template are required"}), 400
@@ -605,11 +693,11 @@ def save_project_prompt(project_name):
         if cursor.fetchone()[0] > 0:
             return jsonify({"error": "Prompt name already exists"}), 400
         
-        # Insert new prompt
+        # Insert new prompt with configurations
         cursor.execute('''
-            INSERT INTO custom_prompts (name, template, description, updated_at)
-            VALUES (?, ?, ?, ?)
-        ''', (name, template, description, datetime.now()))
+            INSERT INTO custom_prompts (name, template, description, bucket_configurations, orchestration, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (name, template, description, json.dumps(bucket_configurations), json.dumps(orchestration), datetime.now()))
         
         prompt_id = cursor.lastrowid
         conn.commit()
@@ -622,11 +710,13 @@ def save_project_prompt(project_name):
 
 @app.route('/api/project/<project_name>/prompts/<int:prompt_id>', methods=['PUT'])
 def update_project_prompt(project_name, prompt_id):
-    """Update an existing prompt"""
+    """Update an existing prompt with bucket configurations"""
     data = request.json
     name = data.get('name')
     template = data.get('template')
     description = data.get('description', '')
+    bucket_configurations = data.get('bucket_configurations', {})
+    orchestration = data.get('orchestration', {})
     
     if not name or not template:
         return jsonify({"error": "Name and template are required"}), 400
@@ -650,12 +740,12 @@ def update_project_prompt(project_name, prompt_id):
         if cursor.fetchone()[0] > 0:
             return jsonify({"error": "Prompt name already exists"}), 400
         
-        # Update prompt
+        # Update prompt with configurations
         cursor.execute('''
             UPDATE custom_prompts 
-            SET name = ?, template = ?, description = ?, updated_at = ?
+            SET name = ?, template = ?, description = ?, bucket_configurations = ?, orchestration = ?, updated_at = ?
             WHERE id = ?
-        ''', (name, template, description, datetime.now(), prompt_id))
+        ''', (name, template, description, json.dumps(bucket_configurations), json.dumps(orchestration), datetime.now(), prompt_id))
         
         conn.commit()
         conn.close()
@@ -774,9 +864,19 @@ def chat_with_ai():
                         else:
                             compiled_template = compiled_template.replace(f'{{sql.{table}}}', f"No data available for {table} table")
                     
-                    # Replace LightRAG variables with instructions
-                    lightrag_vars = re.findall(r'{lightrag\.(\w+)}', template)
-                    for bucket in lightrag_vars:
+                    # Replace LightRAG variables with instructions (enhanced and basic)
+                    # Enhanced format first
+                    enhanced_lightrag_pattern = r'{lightrag\.([^}|]+)\|guidance:"([^"]+)"\|mode:"([^"]+)"\|focus:(\d+)}'
+                    enhanced_matches = re.findall(enhanced_lightrag_pattern, template)
+                    
+                    for bucket, guidance, mode, focus in enhanced_matches:
+                        enhanced_instruction = f"[Use {bucket} knowledge with guidance: '{guidance}' using {mode} mode (focus level: {focus}/10) - reference relevant insights for this query]"
+                        full_match = f'{{lightrag.{bucket}|guidance:"{guidance}"|mode:"{mode}"|focus:{focus}}}'
+                        compiled_template = compiled_template.replace(full_match, enhanced_instruction)
+                    
+                    # Basic LightRAG variables (fallback)
+                    basic_lightrag_vars = re.findall(r'{lightrag\.(\w+)}', compiled_template)
+                    for bucket in basic_lightrag_vars:
                         compiled_template = compiled_template.replace(f'{{lightrag.{bucket}}}', f"[Use {bucket} knowledge - reference relevant insights for this query]")
                     
                     # Add as system message
@@ -822,7 +922,12 @@ def chat_with_ai():
 
 @app.route('/')
 def serve_interface():
-    """Serve the main interface"""
+    """Serve the clean interface by default"""
+    return send_from_directory('.', 'web_brainstorm_clean.html')
+
+@app.route('/original')
+def serve_original_interface():
+    """Serve the original interface (broken)"""
     return send_from_directory('.', 'web_brainstorm.html')
 
 if __name__ == '__main__':

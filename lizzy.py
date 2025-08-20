@@ -548,10 +548,9 @@ def project_menu():
         print()
         print(f"   {Colors.BOLD}1.{Colors.END} 🎨 Edit Tables (Characters, Scenes, Notes)")
         print(f"   {Colors.BOLD}2.{Colors.END} 🗂️  Bucket Manager (Knowledge Base Manager)")
-        print(f"   {Colors.BOLD}3.{Colors.END} 🕸️  Knowledge Explorer (Interactive LightRAG Graphs)")
-        print(f"   {Colors.BOLD}4.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
-        print(f"   {Colors.BOLD}5.{Colors.END} ✍️  Write (Create screenplay scenes)")
-        print(f"   {Colors.BOLD}6.{Colors.END} 📤 Export (Final screenplay output)")
+        print(f"   {Colors.BOLD}3.{Colors.END} 💭 Brainstorm (Generate ideas for scenes)")
+        print(f"   {Colors.BOLD}4.{Colors.END} ✍️  Write (Create screenplay scenes)")
+        print(f"   {Colors.BOLD}5.{Colors.END} 📤 Export (Final screenplay output)")
         print()
         print(f"   {Colors.BOLD}0.{Colors.END} 🏠 Back to Main Menu")
         
@@ -564,15 +563,13 @@ def project_menu():
         elif choice == "2":
             bucket_manager_menu()
         elif choice == "3":
-            knowledge_explorer_menu()
-        elif choice == "4":
             brainstorm_module()
-        elif choice == "5":
+        elif choice == "4":
             write_module()
-        elif choice == "6":
+        elif choice == "5":
             export_options()
         else:
-            print(f"{Colors.RED}Invalid choice. Please select 1-6 or 0.{Colors.END}")
+            print(f"{Colors.RED}Invalid choice. Please select 1-5 or 0.{Colors.END}")
             wait_for_key()
 
 def show_help():
@@ -664,14 +661,6 @@ def bucket_manager_menu():
     
     wait_for_key()
 
-def knowledge_explorer_menu():
-    """Knowledge Explorer - renamed from bucket_manager_menu"""
-    bucket_manager_menu_original()
-
-def bucket_manager_menu_original():
-    """Original bucket manager functionality"""
-    # This is the original function - renamed to avoid conflicts
-    pass
 
 def edit_tables_menu():
     """Edit Tables - Launch Functional Web Project Editor"""

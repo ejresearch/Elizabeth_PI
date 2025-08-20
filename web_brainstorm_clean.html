@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clean Prompt Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --muted: #64748b;
+            --accent: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .project-selector {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .project-dropdown {
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 16px;
+            min-width: 200px;
+            margin: 0 12px;
+        }
+
+        .main-interface {
+            display: grid;
+            grid-template-columns: 300px 1fr 350px;
+            gap: 24px;
+            height: calc(100vh - 220px);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            background: #f1f5f9;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .panel-content {
+            padding: 20px;
+            height: calc(100% - 60px);
+            overflow-y: auto;
+        }
+
+        /* Data Blocks */
+        .block-category {
+            margin-bottom: 20px;
+        }
+
+        .block-category h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .data-block {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .data-block:hover {
+            background: #f1f5f9;
+            border-color: var(--accent);
+        }
+
+        .data-block.sql {
+            border-left: 4px solid var(--success);
+        }
+
+        .data-block.lightrag {
+            border-left: 4px solid var(--warning);
+        }
+
+        .data-block.context {
+            border-left: 4px solid var(--accent);
+        }
+
+        .block-label {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .block-desc {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        /* Editor */
+        .editor {
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            padding: 20px;
+            border: none;
+            background: var(--panel);
+            color: var(--text);
+            resize: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .editor:focus {
+            outline: none;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 12px;
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        /* Preview */
+        .preview {
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 16px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .error {
+            color: #ef4444;
+            background: #fee;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 12px 0;
+        }
+
+        .status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        .status.success {
+            background: var(--success);
+            color: white;
+        }
+
+        .status.error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .status.info {
+            background: var(--accent);
+            color: white;
+        }
+
+        /* Templates */
+        .template-list {
+            margin-bottom: 20px;
+        }
+
+        .template-item {
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-item:hover {
+            border-color: var(--accent);
+        }
+
+        .template-item.active {
+            border-color: var(--accent);
+            background: #f0f9ff;
+        }
+
+        .template-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .template-desc {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        
+        .mode-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        /* Chat Interface */
+        .chat-container {
+            display: none;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            height: calc(100vh - 220px);
+        }
+        
+        .chat-container.active {
+            display: grid;
+        }
+        
+        .chat-main {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafafa;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .chat-input-area {
+            background: var(--panel);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        
+        .chat-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        
+        .chat-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .message.user {
+            background: var(--accent);
+            color: white;
+            margin-left: auto;
+        }
+        
+        .message.assistant {
+            background: var(--panel);
+            border: 1px solid var(--border);
+        }
+        
+        .message.system {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            color: #0c4a6e;
+            font-size: 14px;
+            margin: 8px auto;
+            max-width: 90%;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 Clean Prompt Studio</h1>
+            <p>Build prompts with real project data and run AI brainstorming sessions</p>
+            
+            <div class="mode-toggle" style="margin-top: 16px;">
+                <button id="builder-mode-btn" class="btn btn-primary" onclick="switchMode('builder')" style="margin-right: 8px;">🛠️ Prompt Builder</button>
+                <button id="chat-mode-btn" class="btn btn-secondary" onclick="switchMode('chat')">💬 AI Playground</button>
+            </div>
+        </div>
+
+        <!-- Project Selector -->
+        <div class="project-selector">
+            <label for="project-select" style="font-weight: 600; margin-right: 12px;">Select Project:</label>
+            <select id="project-select" class="project-dropdown" onchange="loadProject()">
+                <option value="">Loading projects...</option>
+            </select>
+            <button class="btn btn-secondary" onclick="refreshProjects()" style="margin-left: 12px;">🔄 Refresh</button>
+            
+            <div id="project-info" style="margin-top: 16px; display: none;"></div>
+        </div>
+
+        <!-- Main Interface -->
+        <div id="main-interface" class="main-interface" style="display: none;">
+            <!-- Left: Data Blocks -->
+            <div class="panel">
+                <div class="panel-header">📊 Data Blocks</div>
+                <div class="panel-content">
+                    <div id="templates-section" class="block-category">
+                        <h3>📋 Templates</h3>
+                        <div class="template-list" id="template-list">
+                            <div class="loading">Loading templates...</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="newTemplate()" style="width: 100%; font-size: 12px;">+ New Template</button>
+                    </div>
+
+                    <div id="sql-blocks" class="block-category" style="display: none;">
+                        <h3>🗄️ Project Data</h3>
+                        <div id="sql-content"></div>
+                    </div>
+
+                    <div id="lightrag-blocks" class="block-category" style="display: none;">
+                        <h3>📚 LightRAG Buckets</h3>
+                        <div id="lightrag-content"></div>
+                    </div>
+
+                    <div id="context-blocks" class="block-category" style="display: none;">
+                        <h3>🎯 Context Variables</h3>
+                        <div id="context-content"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Editor -->
+            <div class="panel">
+                <div class="panel-header">✏️ Prompt Editor</div>
+                <textarea id="prompt-editor" class="editor" placeholder="Select a template or start writing your prompt...
+
+Click data blocks to insert variables from your project's real data.
+
+Variables will be replaced with actual content when you preview."></textarea>
+                <div class="actions">
+                    <button class="btn btn-secondary" onclick="clearEditor()">Clear</button>
+                    <button class="btn btn-secondary" onclick="previewPrompt()">Preview</button>
+                    <button class="btn btn-primary" onclick="saveTemplate()">💾 Save</button>
+                    <button class="btn btn-primary" onclick="runBrainstorm()" style="background: var(--success);">🧠 Brainstorm</button>
+                </div>
+            </div>
+
+            <!-- Right: Preview -->
+            <div class="panel">
+                <div class="panel-header">👁️ Live Preview</div>
+                <div class="panel-content">
+                    <div id="preview-area" class="preview">
+                        Select a project and click "Preview" to see your prompt compiled with real data...
+                    </div>
+                    
+                    <div id="project-stats" style="margin-top: 24px; display: none;">
+                        <h3 style="font-size: 16px; margin-bottom: 12px;">📊 Project Stats</h3>
+                        <div id="stats-content" style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 14px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat/Playground Interface -->
+        <div id="chat-container" class="chat-container">
+            <!-- Left: Chat Controls -->
+            <div class="panel">
+                <div class="panel-header">💬 AI Playground</div>
+                <div class="panel-content">
+                    <div class="block-category">
+                        <h3>📋 Select Template</h3>
+                        <div id="chat-template-list">
+                            <div class="loading">Loading templates...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="block-category" style="margin-top: 24px;">
+                        <h3>⚙️ Settings</h3>
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Temperature:</label>
+                            <input type="range" id="temperature-slider" min="0" max="1" step="0.1" value="0.7" style="width: 100%;">
+                            <span id="temperature-value" style="font-size: 12px; color: var(--muted);">0.7</span>
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px;">Model:</label>
+                            <select id="model-select" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                                <option value="gpt-4o">GPT-4o</option>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right: Chat Interface -->
+            <div class="panel chat-main">
+                <div class="panel-header">
+                    <span id="current-template-name">Select a template to start brainstorming</span>
+                    <button class="btn btn-secondary" onclick="clearChat()" style="font-size: 12px; padding: 6px 12px;">Clear</button>
+                </div>
+                
+                <div id="chat-messages" class="chat-messages">
+                    <div style="text-align: center; color: var(--muted); margin-top: 40px;">
+                        <h3>🤖 AI Brainstorm Assistant</h3>
+                        <p>Select a template from the left to start brainstorming with AI!</p>
+                        <p style="font-size: 14px; margin-top: 16px;">Your prompts will be compiled with real project data before being sent to the AI.</p>
+                    </div>
+                </div>
+                
+                <div class="chat-input-area">
+                    <textarea id="chat-input" class="chat-input" placeholder="Select a template first, then type your message..." disabled></textarea>
+                    <div class="chat-controls">
+                        <div>
+                            <label style="font-size: 14px;">
+                                <input type="checkbox" id="use-template-checkbox" checked> Use template as system prompt
+                            </label>
+                        </div>
+                        <div>
+                            <button class="btn btn-primary" onclick="sendMessage()" disabled id="send-btn">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentProject = null;
+        let currentSchema = null;
+        let currentTemplates = [];
+        let currentTemplateId = null;
+
+        // Status system
+        function showStatus(message, type = 'info') {
+            const status = document.createElement('div');
+            status.className = `status ${type}`;
+            status.textContent = message;
+            document.body.appendChild(status);
+            
+            setTimeout(() => {
+                status.remove();
+            }, 3000);
+        }
+
+        // Project loading
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                const select = document.getElementById('project-select');
+                select.innerHTML = '<option value="">Select a project...</option>';
+                
+                data.projects.forEach(project => {
+                    const option = document.createElement('option');
+                    option.value = project;
+                    option.textContent = project;
+                    select.appendChild(option);
+                });
+                
+                // Auto-select current project if available
+                if (data.current_project && data.projects.includes(data.current_project)) {
+                    select.value = data.current_project;
+                    showStatus(`Auto-selected project: ${data.current_project}`, 'success');
+                    // Auto-load the project
+                    setTimeout(() => loadProject(), 500);
+                }
+                
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                showStatus('Error loading projects', 'error');
+            }
+        }
+
+        async function loadProject() {
+            const select = document.getElementById('project-select');
+            const projectName = select.value;
+            
+            if (!projectName) {
+                document.getElementById('main-interface').style.display = 'none';
+                return;
+            }
+            
+            currentProject = projectName;
+            const projectInfo = document.getElementById('project-info');
+            projectInfo.style.display = 'block';
+            projectInfo.innerHTML = '<div class="loading">Analyzing project schema...</div>';
+            
+            try {
+                const response = await fetch(`/api/project/${projectName}/schema`);
+                const schema = await response.json();
+                
+                if (schema.error) {
+                    throw new Error(schema.error);
+                }
+                
+                currentSchema = schema;
+                displayProjectInfo(schema);
+                populateDataBlocks(schema);
+                loadTemplates();
+                
+                // Show main interface
+                document.getElementById('main-interface').style.display = 'grid';
+                
+            } catch (error) {
+                console.error('Error loading project:', error);
+                projectInfo.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function displayProjectInfo(schema) {
+            const tableCount = Object.keys(schema.tables).length;
+            const totalRows = Object.values(schema.tables).reduce((sum, table) => sum + table.row_count, 0);
+            const blockCount = Object.values(schema.data_blocks).reduce((sum, blocks) => sum + blocks.length, 0);
+            
+            document.getElementById('project-info').innerHTML = `
+                <strong>Project:</strong> ${schema.project_name} | 
+                <strong>Tables:</strong> ${tableCount} | 
+                <strong>Rows:</strong> ${totalRows} | 
+                <strong>Data Blocks:</strong> ${blockCount}
+            `;
+            
+            // Show project stats
+            const statsPanel = document.getElementById('project-stats');
+            const statsContent = document.getElementById('stats-content');
+            if (statsPanel && statsContent) {
+                statsPanel.style.display = 'block';
+                statsContent.innerHTML = `
+                    <strong>Database:</strong> ${schema.project_name}.sqlite<br>
+                    <strong>Tables:</strong> ${Object.keys(schema.tables).join(', ')}<br>
+                    <strong>Total Records:</strong> ${totalRows}<br>
+                    <strong>Available Blocks:</strong> ${blockCount}<br>
+                    <strong>LightRAG Buckets:</strong> ${schema.data_blocks.lightrag.length}
+                `;
+            }
+        }
+
+        function populateDataBlocks(schema) {
+            // SQL blocks
+            if (schema.data_blocks.sql.length > 0) {
+                const sqlContainer = document.getElementById('sql-blocks');
+                const sqlContent = document.getElementById('sql-content');
+                sqlContainer.style.display = 'block';
+                sqlContent.innerHTML = '';
+                
+                schema.data_blocks.sql.forEach(block => {
+                    const blockElement = createDataBlock(block, 'sql');
+                    sqlContent.appendChild(blockElement);
+                });
+            }
+            
+            // LightRAG blocks
+            if (schema.data_blocks.lightrag.length > 0) {
+                const lightragContainer = document.getElementById('lightrag-blocks');
+                const lightragContent = document.getElementById('lightrag-content');
+                lightragContainer.style.display = 'block';
+                lightragContent.innerHTML = '';
+                
+                schema.data_blocks.lightrag.forEach(block => {
+                    const blockElement = createDataBlock(block, 'lightrag');
+                    lightragContent.appendChild(blockElement);
+                });
+            }
+            
+            // Context blocks
+            if (schema.data_blocks.context.length > 0) {
+                const contextContainer = document.getElementById('context-blocks');
+                const contextContent = document.getElementById('context-content');
+                contextContainer.style.display = 'block';
+                contextContent.innerHTML = '';
+                
+                schema.data_blocks.context.forEach(block => {
+                    const blockElement = createDataBlock(block, 'context');
+                    contextContent.appendChild(blockElement);
+                });
+            }
+        }
+
+        function createDataBlock(block, type) {
+            const button = document.createElement('button');
+            button.className = `data-block ${type}`;
+            button.onclick = () => insertBlock(block.key);
+            
+            button.innerHTML = `
+                <div class="block-label">${block.label}</div>
+                <div class="block-desc">${block.description}</div>
+            `;
+            
+            return button;
+        }
+
+        function insertBlock(blockKey) {
+            const editor = document.getElementById('prompt-editor');
+            const cursorPos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, cursorPos);
+            const textAfter = editor.value.substring(cursorPos);
+            
+            const variable = `{${blockKey}}`;
+            editor.value = textBefore + variable + textAfter;
+            editor.focus();
+            editor.setSelectionRange(cursorPos + variable.length, cursorPos + variable.length);
+            
+            showStatus(`Inserted ${blockKey}`, 'success');
+        }
+
+        // Template management
+        async function loadTemplates() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                currentTemplates = data.prompts || [];
+                displayTemplates(currentTemplates);
+                
+            } catch (error) {
+                console.error('Error loading templates:', error);
+                document.getElementById('template-list').innerHTML = '<div class="error">Error loading templates</div>';
+            }
+        }
+
+        function displayTemplates(templates) {
+            const container = document.getElementById('template-list');
+            container.innerHTML = '';
+            
+            templates.forEach(template => {
+                const element = createTemplateElement(template);
+                container.appendChild(element);
+            });
+        }
+
+        function createTemplateElement(template) {
+            const div = document.createElement('div');
+            div.className = 'template-item';
+            div.onclick = () => selectTemplate(template.id);
+            
+            div.innerHTML = `
+                <div class="template-name">${template.name}</div>
+                <div class="template-desc">${template.description || 'No description'}</div>
+            `;
+            
+            return div;
+        }
+
+        function selectTemplate(templateId) {
+            const template = currentTemplates.find(t => t.id === templateId);
+            if (!template) return;
+            
+            currentTemplateId = templateId;
+            
+            // Update active state
+            document.querySelectorAll('.template-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.template-item').classList.add('active');
+            
+            // Load template
+            document.getElementById('prompt-editor').value = template.template || '';
+            
+            showStatus(`Loaded template: ${template.name}`, 'success');
+        }
+
+        function newTemplate() {
+            const name = prompt('Template name:');
+            if (!name) return;
+            
+            const description = prompt('Template description (optional):') || '';
+            
+            // Clear editor and reset state
+            document.getElementById('prompt-editor').value = '';
+            currentTemplateId = null;
+            document.querySelectorAll('.template-item').forEach(item => item.classList.remove('active'));
+            
+            showStatus('New template ready. Write your prompt and save.', 'info');
+        }
+
+        async function saveTemplate() {
+            const template = document.getElementById('prompt-editor').value.trim();
+            
+            if (!template) {
+                alert('Please enter a template to save');
+                return;
+            }
+            
+            if (!currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            
+            let name, description;
+            
+            if (currentTemplateId) {
+                // Update existing
+                const currentTemplate = currentTemplates.find(t => t.id === currentTemplateId);
+                name = prompt('Template name:', currentTemplate.name);
+                if (!name) return;
+                description = prompt('Template description:', currentTemplate.description || '') || '';
+            } else {
+                // Create new
+                name = prompt('Template name:');
+                if (!name) return;
+                description = prompt('Template description (optional):') || '';
+            }
+            
+            try {
+                const method = currentTemplateId ? 'PUT' : 'POST';
+                const url = currentTemplateId 
+                    ? `/api/project/${currentProject}/prompts/${currentTemplateId}`
+                    : `/api/project/${currentProject}/prompts`;
+                
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        template: template,
+                        description: description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                await loadTemplates();
+                alert(`Template "${name}" saved successfully!`);
+                
+            } catch (error) {
+                alert(`Error saving template: ${error.message}`);
+            }
+        }
+
+        // Editor functions
+        function clearEditor() {
+            document.getElementById('prompt-editor').value = '';
+            showStatus('Editor cleared', 'info');
+        }
+
+        async function previewPrompt() {
+            const editor = document.getElementById('prompt-editor');
+            const preview = document.getElementById('preview-area');
+            const template = editor.value;
+            
+            if (!currentProject || !template.trim()) {
+                preview.textContent = 'No project selected or template empty...';
+                return;
+            }
+            
+            preview.textContent = 'Compiling with real project data...';
+            
+            try {
+                const response = await fetch('/api/compile-prompt', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        template: template
+                    })
+                });
+                
+                const data = await response.json();
+                preview.textContent = data.compiled || 'Compilation failed';
+                
+            } catch (error) {
+                preview.textContent = `Error compiling: ${error.message}`;
+            }
+        }
+
+        function refreshProjects() {
+            loadProjects();
+            showStatus('Projects refreshed', 'info');
+        }
+
+        // Brainstorming functions
+        let brainstormRunning = false;
+        
+        async function runBrainstorm() {
+            const template = document.getElementById('prompt-editor').value.trim();
+            
+            if (!currentProject) {
+                showStatus('Please select a project first', 'error');
+                return;
+            }
+            
+            if (!template) {
+                showStatus('Please enter a prompt template first', 'error');
+                return;
+            }
+            
+            // Show brainstorm session panel
+            const sessionPanel = document.getElementById('brainstorm-session');
+            const contentDiv = document.getElementById('brainstorm-content');
+            
+            if (!sessionPanel) {
+                // Create brainstorm panel if it doesn't exist
+                const rightPanel = document.querySelector('.panel:last-child .panel-content');
+                const brainstormHTML = `
+                    <div id="brainstorm-session" style="margin-top: 24px;">
+                        <h3 style="font-size: 16px; margin-bottom: 12px;">🧠 Brainstorm Session</h3>
+                        <div id="brainstorm-content" style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 13px; max-height: 300px; overflow-y: auto; font-family: 'SF Mono', monospace;"></div>
+                        <div style="margin-top: 8px;">
+                            <button class="btn btn-secondary" onclick="stopBrainstorm()" style="font-size: 12px; padding: 6px 12px;">Stop</button>
+                        </div>
+                    </div>
+                `;
+                rightPanel.insertAdjacentHTML('beforeend', brainstormHTML);
+            }
+            
+            document.getElementById('brainstorm-session').style.display = 'block';
+            const brainstormContent = document.getElementById('brainstorm-content');
+            
+            brainstormRunning = true;
+            brainstormContent.innerHTML = 'Starting brainstorm session...\n';
+            
+            try {
+                // First compile the template
+                const compileResponse = await fetch('/api/compile-prompt', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        template: template
+                    })
+                });
+                
+                const compileData = await compileResponse.json();
+                const compiledPrompt = compileData.compiled;
+                
+                brainstormContent.innerHTML += `Compiled prompt:\n${compiledPrompt}\n\n---\n\n`;
+                brainstormContent.scrollTop = brainstormContent.scrollHeight;
+                
+                // Now run AI brainstorming
+                const chatResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        user_message: compiledPrompt,
+                        temperature: 0.7,
+                        model: 'gpt-4'
+                    })
+                });
+                
+                const chatData = await chatResponse.json();
+                
+                if (chatData.error) {
+                    throw new Error(chatData.error);
+                }
+                
+                brainstormContent.innerHTML += `AI Response:\n${chatData.response}\n\n`;
+                brainstormContent.scrollTop = brainstormContent.scrollHeight;
+                
+                showStatus('Brainstorm complete!', 'success');
+                
+            } catch (error) {
+                brainstormContent.innerHTML += `Error: ${error.message}\n`;
+                showStatus(`Brainstorm failed: ${error.message}`, 'error');
+            }
+            
+            brainstormRunning = false;
+        }
+        
+        function stopBrainstorm() {
+            brainstormRunning = false;
+            showStatus('Brainstorm stopped', 'info');
+        }
+
+        // Mode switching
+        function switchMode(mode) {
+            const builderBtn = document.getElementById('builder-mode-btn');
+            const chatBtn = document.getElementById('chat-mode-btn');
+            const mainInterface = document.getElementById('main-interface');
+            const chatContainer = document.getElementById('chat-container');
+            
+            if (mode === 'builder') {
+                builderBtn.className = 'btn btn-primary';
+                chatBtn.className = 'btn btn-secondary';
+                mainInterface.style.display = 'grid';
+                chatContainer.classList.remove('active');
+            } else {
+                builderBtn.className = 'btn btn-secondary';
+                chatBtn.className = 'btn btn-primary';
+                mainInterface.style.display = 'none';
+                chatContainer.classList.add('active');
+                loadChatTemplates();
+            }
+        }
+        
+        // Chat functionality
+        let chatHistory = [];
+        let selectedChatTemplate = null;
+        
+        async function loadChatTemplates() {
+            if (!currentProject) return;
+            
+            try {
+                const response = await fetch(`/api/project/${currentProject}/prompts`);
+                const data = await response.json();
+                
+                const container = document.getElementById('chat-template-list');
+                container.innerHTML = '';
+                
+                if (!data.prompts || data.prompts.length === 0) {
+                    container.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No templates found. Create some in Prompt Builder first!</div>';
+                    return;
+                }
+                
+                data.prompts.forEach(template => {
+                    const div = document.createElement('div');
+                    div.className = 'template-item';
+                    div.onclick = () => selectChatTemplate(template);
+                    
+                    div.innerHTML = `
+                        <div class="template-name">${template.name}</div>
+                        <div class="template-desc">${template.description || 'No description'}</div>
+                    `;
+                    
+                    container.appendChild(div);
+                });
+                
+            } catch (error) {
+                console.error('Error loading chat templates:', error);
+            }
+        }
+        
+        function selectChatTemplate(template) {
+            selectedChatTemplate = template;
+            
+            // Update UI
+            document.querySelectorAll('#chat-template-list .template-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.template-item').classList.add('active');
+            
+            document.getElementById('current-template-name').textContent = template.name;
+            document.getElementById('chat-input').disabled = false;
+            document.getElementById('chat-input').placeholder = `Chat using template: ${template.name}`;
+            document.getElementById('send-btn').disabled = false;
+            
+            // Clear chat and add system message
+            clearChat();
+            addMessage('system', `Template "${template.name}" selected. Your messages will use this template as context.`);
+            
+            showStatus(`Template "${template.name}" selected for chat`, 'success');
+        }
+        
+        function addMessage(type, content, timestamp = null) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const timeStr = timestamp || new Date().toLocaleTimeString();
+            
+            messageDiv.innerHTML = `
+                <div>${content}</div>
+                <div class="message-time">${timeStr}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        async function sendMessage() {
+            if (!selectedChatTemplate) {
+                showStatus('Please select a template first', 'error');
+                return;
+            }
+            
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            addMessage('user', message);
+            input.value = '';
+            
+            // Disable send button while processing
+            const sendBtn = document.getElementById('send-btn');
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+            
+            try {
+                // Compile template if using as system prompt
+                let systemPrompt = '';
+                const useTemplate = document.getElementById('use-template-checkbox').checked;
+                
+                if (useTemplate) {
+                    const compileResponse = await fetch('/api/compile-prompt', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            project_name: currentProject,
+                            template: selectedChatTemplate.template
+                        })
+                    });
+                    
+                    const compileData = await compileResponse.json();
+                    systemPrompt = compileData.compiled || '';
+                }
+                
+                // Send to AI
+                const temperature = parseFloat(document.getElementById('temperature-slider').value);
+                const model = document.getElementById('model-select').value;
+                
+                const chatResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        project_name: currentProject,
+                        user_message: message,
+                        system_prompt: systemPrompt,
+                        temperature: temperature,
+                        model: model,
+                        chat_history: chatHistory
+                    })
+                });
+                
+                const chatData = await chatResponse.json();
+                
+                if (chatData.error) {
+                    throw new Error(chatData.error);
+                }
+                
+                // Add AI response
+                addMessage('assistant', chatData.response);
+                
+                // Update chat history
+                chatHistory.push({role: 'user', content: message});
+                chatHistory.push({role: 'assistant', content: chatData.response});
+                
+                // Keep only last 10 exchanges
+                if (chatHistory.length > 20) {
+                    chatHistory = chatHistory.slice(-20);
+                }
+                
+            } catch (error) {
+                addMessage('system', `Error: ${error.message}`);
+                showStatus(`Chat error: ${error.message}`, 'error');
+            }
+            
+            // Re-enable send button
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+        }
+        
+        function clearChat() {
+            document.getElementById('chat-messages').innerHTML = `
+                <div style="text-align: center; color: var(--muted); margin-top: 40px;">
+                    <h3>🤖 AI Brainstorm Assistant</h3>
+                    <p>${selectedChatTemplate ? `Using template: ${selectedChatTemplate.name}` : 'Select a template from the left to start brainstorming with AI!'}</p>
+                    <p style="font-size: 14px; margin-top: 16px;">Your prompts will be compiled with real project data before being sent to the AI.</p>
+                </div>
+            `;
+            chatHistory = [];
+        }
+        
+        // Temperature slider update
+        document.addEventListener('DOMContentLoaded', () => {
+            const slider = document.getElementById('temperature-slider');
+            const valueSpan = document.getElementById('temperature-value');
+            
+            if (slider && valueSpan) {
+                slider.addEventListener('input', function() {
+                    valueSpan.textContent = this.value;
+                });
+            }
+            
+            // Enable Enter key for chat input
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+        });
+    </script>
+</body>
+</html>

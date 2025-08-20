@@ -545,6 +545,267 @@
             opacity: 0.7;
             margin-top: 4px;
         }
+
+        /* Bucket Guidance Modal */
+        .bucket-guidance-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .bucket-guidance-modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--panel);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--text);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .guidance-section {
+            margin-bottom: 20px;
+        }
+
+        .guidance-section label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+
+        .guidance-textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .query-params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .param-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .param-group label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .param-group select,
+        .param-group input {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .focus-slider {
+            width: 100%;
+        }
+
+        .focus-value {
+            text-align: center;
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .preset-suggestions {
+            margin-bottom: 16px;
+        }
+
+        .preset-suggestions h4 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--muted);
+        }
+
+        .preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .preset-btn {
+            padding: 6px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* Enhanced bucket blocks in editor */
+        .enhanced-bucket-block {
+            display: inline-block;
+            background: linear-gradient(135deg, #3b82f610, #3b82f620);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 2px;
+            font-size: 12px;
+            position: relative;
+        }
+
+        .bucket-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .edit-guidance-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .edit-guidance-btn:hover {
+            opacity: 1;
+        }
+
+        .bucket-guidance-preview {
+            font-size: 10px;
+            color: var(--muted);
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        .bucket-params {
+            font-size: 9px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        /* Bucket Orchestration Panel */
+        .orchestration-panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-top: 16px;
+            overflow: hidden;
+        }
+
+        .orchestration-header {
+            background: #f1f5f9;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .orchestration-content {
+            padding: 16px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .bucket-sequence {
+            margin-bottom: 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .sequence-header {
+            background: #f8fafc;
+            padding: 8px 12px;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sequence-buckets {
+            padding: 12px;
+        }
+
+        .bucket-in-sequence {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .guidance-preview {
+            font-size: 12px;
+            color: var(--muted);
+            font-style: italic;
+            flex: 1;
+            margin: 0 12px;
+        }
+
+        .reorder-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+
+        .reorder-btn:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -580,6 +841,11 @@
             <h2>Welcome to Dynamic Prompt Studio</h2>
             <p style="font-size: 18px; color: var(--muted); margin-bottom: 20px;">Choose your workflow:</p>
             
+            <div style="text-align: center; margin-bottom: 20px;">
+                <button onclick="testBasicFunction()" class="btn btn-secondary" style="margin-right: 10px;">🔧 Test Basic JS</button>
+                <button onclick="selectMode('builder')" class="btn btn-accent" style="background: var(--accent); color: white;">🚀 Force Builder Mode</button>
+            </div>
+            
             <div class="mode-selection">
                 <div class="mode-card" onclick="selectMode('builder')">
                     <span class="mode-icon">🛠️</span>
@@ -609,9 +875,12 @@
                     
                     <div class="block-category">
                         <h3>📋 Templates</h3>
-                        <div class="template-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                            <button class="btn btn-secondary" onclick="newTemplate()" style="font-size: 12px; padding: 8px 12px;">+ New</button>
-                            <button class="btn btn-secondary" onclick="duplicateTemplate()" style="font-size: 12px; padding: 8px 12px;">📋 Duplicate</button>
+                        <div class="template-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 4px;">
+                            <button class="btn btn-secondary" onclick="newTemplate()" style="font-size: 11px; padding: 6px 10px;">+ New</button>
+                            <button class="btn btn-secondary" onclick="duplicateTemplate()" style="font-size: 11px; padding: 6px 10px;">📋 Duplicate</button>
+                            <button class="btn btn-secondary" onclick="convertTemplateToEnhanced()" style="font-size: 11px; padding: 6px 10px;">🔧 Enhance</button>
+                            <button class="btn btn-secondary" onclick="showTemplateTools()" style="font-size: 11px; padding: 6px 10px;">🛠️ Tools</button>
+                            <button class="btn btn-secondary" onclick="testEnhancedFeature()" style="font-size: 11px; padding: 6px 10px; background: var(--accent); color: white;">Test ✨</button>
                         </div>
                         <div id="template-list" class="template-grid">
                             <div class="loading">Loading templates...</div>
@@ -631,6 +900,23 @@
                     <div id="context-blocks" class="block-category" style="display: none;">
                         <h3>🎯 Context Variables</h3>
                         <div class="loading">Loading context options...</div>
+                    </div>
+                    
+                    <!-- Bucket Orchestration Panel -->
+                    <div id="bucket-orchestration" class="orchestration-panel" style="display: none;">
+                        <div class="orchestration-header">
+                            <span>🎼 Bucket Orchestration</span>
+                            <button class="btn btn-secondary" onclick="toggleOrchestration()" style="font-size: 12px; padding: 4px 8px;">Show/Hide</button>
+                        </div>
+                        <div id="orchestration-content" class="orchestration-content" style="display: none;">
+                            <div id="bucket-sequences">
+                                <!-- Bucket sequences will be populated here -->
+                            </div>
+                            
+                            <div style="margin-top: 16px; text-align: center;">
+                                <button class="btn btn-primary" onclick="addBucketSequence()" style="font-size: 12px; padding: 6px 12px;">+ Add Sequence</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -664,14 +950,19 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                         <div id="stats-content" style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 14px;"></div>
                     </div>
 
-                    <h3 style="margin: 24px 0 12px; font-size: 16px;">💡 Tips</h3>
+                    <h3 style="margin: 24px 0 12px; font-size: 16px;">💡 Enhanced Features</h3>
                     <ul style="font-size: 14px; color: var(--muted); line-height: 1.6;">
-                        <li>Select any project to auto-discover its data</li>
-                        <li>SQL blocks use real database content</li>
-                        <li>LightRAG blocks query knowledge buckets</li>
-                        <li>Context blocks add session metadata</li>
-                        <li>Preview shows actual data substitution</li>
+                        <li><strong>Smart Bucket Insertion:</strong> Click LightRAG buckets to add guidance</li>
+                        <li><strong>Enhanced Variables:</strong> {lightrag.bucket|guidance:"..."|mode:"mix"}</li>
+                        <li><strong>Orchestration:</strong> Manage multiple buckets with specific roles</li>
+                        <li><strong>Template Configs:</strong> Save bucket setups with templates</li>
+                        <li><strong>Live Preview:</strong> See actual data and guidance compilation</li>
                     </ul>
+                    
+                    <div id="bucket-config-summary" style="margin-top: 16px; display: none;">
+                        <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--accent);">Active Bucket Configurations:</h4>
+                        <div id="config-summary-content" style="background: #f8fafc; padding: 8px; border-radius: 4px; font-size: 12px;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -760,6 +1051,58 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         </div>
     </div>
 
+    <!-- Bucket Guidance Modal -->
+    <div id="bucket-guidance-modal" class="bucket-guidance-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-bucket-title">🪣 Configure Bucket</h3>
+                <button class="close-modal" onclick="closeBucketModal()">&times;</button>
+            </div>
+            
+            <div class="preset-suggestions">
+                <h4>💡 Quick Presets:</h4>
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="applyPreset('dialogue')">Find dialogue patterns</button>
+                    <button class="preset-btn" onclick="applyPreset('structure')">Extract story structure</button>
+                    <button class="preset-btn" onclick="applyPreset('character')">Analyze character archetypes</button>
+                    <button class="preset-btn" onclick="applyPreset('tone')">Study tone and style</button>
+                    <button class="preset-btn" onclick="applyPreset('technique')">Learn writing techniques</button>
+                </div>
+            </div>
+            
+            <div class="guidance-section">
+                <label for="bucket-guidance-input">How should this bucket be used as context?</label>
+                <textarea id="bucket-guidance-input" class="guidance-textarea" 
+                         placeholder="e.g., Find dialogue patterns and comedic timing examples"></textarea>
+            </div>
+            
+            <div class="query-params">
+                <div class="param-group">
+                    <label for="query-mode-select">Query Mode:</label>
+                    <select id="query-mode-select">
+                        <option value="mix">Mix (default)</option>
+                        <option value="local">Local only</option>
+                        <option value="global">Global only</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="naive">Naive</option>
+                    </select>
+                </div>
+                
+                <div class="param-group">
+                    <label for="focus-slider">Focus Level:</label>
+                    <input type="range" id="focus-slider" class="focus-slider" 
+                           min="1" max="10" value="5" oninput="updateFocusValue()">
+                    <div id="focus-value" class="focus-value">5/10</div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="insertBasicBucket()">Insert Basic</button>
+                <button class="btn btn-primary" onclick="insertGuidedBucket()">Insert with Guidance</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentProject = null;
         let currentSchema = null;
@@ -770,6 +1113,8 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         let chatHistory = [];
         let currentChatTemplate = null;
         let sqlUpdateInterval = null;
+        let currentBucketBlock = null;
+        let bucketConfigurations = {}; // Store bucket configurations for templates
 
         // Toggle API key visibility
         function toggleApiKeyVisibility() {
@@ -888,40 +1233,63 @@ Select a project and click "Preview" to see your prompt compiled with real data.
 
         // Mode switching functions
         function selectMode(mode) {
-            currentMode = mode;
-            
-            // Hide landing page
-            document.getElementById('landing-page').style.display = 'none';
-            
-            // Show mode toggle
-            document.getElementById('mode-toggle').style.display = 'flex';
-            
-            if (mode === 'builder') {
-                document.getElementById('builder').style.display = 'grid';
-                document.getElementById('chat-container').classList.remove('active');
-                document.getElementById('builder-mode-btn').classList.add('active');
-                document.getElementById('chat-mode-btn').classList.remove('active');
+            try {
+                console.log('Selecting mode:', mode);
+                currentMode = mode;
                 
-                // Ensure builder is activated if project is selected
-                if (currentProject) {
-                    document.getElementById('builder').classList.add('active');
-                    // Restart SQL auto-update if it was on
-                    if (sqlUpdateInterval) {
-                        startSqlAutoUpdate();
-                    }
+                // Hide landing page
+                const landingPage = document.getElementById('landing-page');
+                if (landingPage) {
+                    landingPage.style.display = 'none';
                 }
-            } else if (mode === 'chat') {
-                document.getElementById('builder').style.display = 'none';
-                document.getElementById('builder').classList.remove('active');
-                document.getElementById('chat-container').classList.add('active');
-                document.getElementById('builder-mode-btn').classList.remove('active');
-                document.getElementById('chat-mode-btn').classList.add('active');
                 
-                // Stop SQL auto-update when in chat mode to save resources
-                stopSqlAutoUpdate();
+                // Show mode toggle
+                const modeToggle = document.getElementById('mode-toggle');
+                if (modeToggle) {
+                    modeToggle.style.display = 'flex';
+                }
                 
-                // Load templates for chat
-                loadChatTemplates();
+                if (mode === 'builder') {
+                    const builder = document.getElementById('builder');
+                    if (builder) {
+                        builder.style.display = 'grid';
+                    }
+                    
+                    const chatContainer = document.getElementById('chat-container');
+                    if (chatContainer) {
+                        chatContainer.classList.remove('active');
+                    }
+                    
+                    const builderBtn = document.getElementById('builder-mode-btn');
+                    const chatBtn = document.getElementById('chat-mode-btn');
+                    if (builderBtn) builderBtn.classList.add('active');
+                    if (chatBtn) chatBtn.classList.remove('active');
+                    
+                    // Ensure builder is activated if project is selected
+                    if (currentProject && builder) {
+                        builder.classList.add('active');
+                    }
+                    
+                    console.log('Builder mode activated');
+                } else if (mode === 'chat') {
+                    const builder = document.getElementById('builder');
+                    const chatContainer = document.getElementById('chat-container');
+                    const builderBtn = document.getElementById('builder-mode-btn');
+                    const chatBtn = document.getElementById('chat-mode-btn');
+                    
+                    if (builder) {
+                        builder.style.display = 'none';
+                        builder.classList.remove('active');
+                    }
+                    if (chatContainer) chatContainer.classList.add('active');
+                    if (builderBtn) builderBtn.classList.remove('active');
+                    if (chatBtn) chatBtn.classList.add('active');
+                    
+                    console.log('Chat mode activated');
+                }
+            } catch (error) {
+                console.error('Error in selectMode:', error);
+                alert('Error switching modes. Check browser console for details.');
             }
         }
         
@@ -1152,21 +1520,29 @@ Select a project and click "Preview" to see your prompt compiled with real data.
         }
 
         async function loadProject() {
-            const select = document.getElementById('project-select');
-            const projectName = select.value;
-            
-            if (!projectName) {
-                document.getElementById('builder').classList.remove('active');
-                return;
-            }
-            
-            currentProject = projectName;
-            document.getElementById('project-info').style.display = 'block';
-            document.getElementById('project-info').innerHTML = '<div class="loading"><span class="spinner"></span>Analyzing project schema...</div>';
-            
             try {
+                const select = document.getElementById('project-select');
+                const projectName = select.value;
+                
+                console.log('Loading project:', projectName);
+                
+                if (!projectName) {
+                    const builder = document.getElementById('builder');
+                    if (builder) builder.classList.remove('active');
+                    return;
+                }
+                
+                currentProject = projectName;
+                const projectInfo = document.getElementById('project-info');
+                if (projectInfo) {
+                    projectInfo.style.display = 'block';
+                    projectInfo.innerHTML = '<div class="loading"><span class="spinner"></span>Analyzing project schema...</div>';
+                }
+                
                 const response = await fetch(`/api/project/${projectName}/schema`);
                 const schema = await response.json();
+                
+                console.log('Received schema:', schema);
                 
                 if (schema.error) {
                     throw new Error(schema.error);
@@ -1179,16 +1555,23 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 
                 // Show landing page if no mode selected, otherwise activate current mode
                 if (currentMode === 'landing') {
-                    document.getElementById('landing-page').style.display = 'flex';
+                    const landingPage = document.getElementById('landing-page');
+                    if (landingPage) landingPage.style.display = 'flex';
                 } else if (currentMode === 'builder') {
-                    document.getElementById('builder').classList.add('active');
+                    const builder = document.getElementById('builder');
+                    if (builder) builder.classList.add('active');
                 } else if (currentMode === 'chat') {
                     loadChatTemplates();
                 }
                 
+                console.log('Project loaded successfully');
+                
             } catch (error) {
                 console.error('Error loading project:', error);
-                document.getElementById('project-info').innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                const projectInfo = document.getElementById('project-info');
+                if (projectInfo) {
+                    projectInfo.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+                }
             }
         }
 
@@ -1247,6 +1630,12 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 contextContainer.appendChild(blockElement);
             });
             
+            // Show orchestration panel if we have LightRAG blocks
+            const orchestrationPanel = document.getElementById('bucket-orchestration');
+            if (schema.data_blocks.lightrag.length > 0) {
+                orchestrationPanel.style.display = 'block';
+            }
+            
             // Start SQL auto-update
             startSqlAutoUpdate();
         }
@@ -1257,10 +1646,16 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             
             // Handle different bucket types
             if (block.importable) {
-                button.onclick = () => importAndUseBlock(block);
+                // For importable buckets, show choice between import+use or just import
+                button.onclick = () => showImportChoiceModal(block);
                 button.classList.add('importable');
             } else {
-                button.onclick = () => insertBlock(block.key);
+                // Enhanced insertion for LightRAG buckets
+                if (type === 'lightrag') {
+                    button.onclick = () => showBucketGuidanceModal(block);
+                } else {
+                    button.onclick = () => insertBlock(block.key);
+                }
             }
             
             let content = `
@@ -1290,13 +1685,476 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             }
             
             if (block.importable) {
-                content += `<div class="block-action">Click to import & use</div>`;
+                content += `<div class="block-action">Click to import & use | <button onclick="event.stopPropagation(); testGuidanceModal('${block.key}', '${block.label}')" style="background:none;border:none;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:inherit;">Test Guidance</button></div>`;
             }
             
             button.innerHTML = content;
             return button;
         }
 
+        // Enhanced bucket guidance system
+        function showBucketGuidanceModal(block) {
+            currentBucketBlock = block;
+            
+            // Update modal title
+            document.getElementById('modal-bucket-title').innerHTML = `🪣 Configure: ${block.label}`;
+            
+            // Clear previous inputs
+            document.getElementById('bucket-guidance-input').value = '';
+            document.getElementById('query-mode-select').value = 'mix';
+            document.getElementById('focus-slider').value = '5';
+            updateFocusValue();
+            
+            // Show modal
+            document.getElementById('bucket-guidance-modal').classList.add('active');
+        }
+        
+        function closeBucketModal() {
+            document.getElementById('bucket-guidance-modal').classList.remove('active');
+            currentBucketBlock = null;
+        }
+        
+        function showImportChoiceModal(block) {
+            // For importable buckets, offer choice: import+configure or just import
+            const choice = confirm(
+                `Bucket "${block.label}" needs to be imported first.\n\n` +
+                `Click OK to import and configure with guidance\n` +
+                `Click Cancel to just import normally`
+            );
+            
+            if (choice) {
+                // Import then show guidance modal
+                importAndUseBlock(block).then(() => {
+                    // Create a non-importable version for guidance
+                    const guidanceBlock = {
+                        ...block,
+                        importable: false,
+                        key: block.key.replace('.available', '')
+                    };
+                    showBucketGuidanceModal(guidanceBlock);
+                });
+            } else {
+                // Just import normally
+                importAndUseBlock(block);
+            }
+        }
+        
+        function updateFocusValue() {
+            const slider = document.getElementById('focus-slider');
+            document.getElementById('focus-value').textContent = `${slider.value}/10`;
+        }
+        
+        function applyPreset(presetType) {
+            const presets = {
+                'dialogue': 'Find dialogue patterns and comedic timing examples',
+                'structure': 'Extract story structure and plot mechanisms',
+                'character': 'Analyze character archetypes and development patterns',
+                'tone': 'Study tone, style, and mood techniques',
+                'technique': 'Learn specific writing techniques and craft principles'
+            };
+            
+            document.getElementById('bucket-guidance-input').value = presets[presetType] || '';
+        }
+        
+        function insertBasicBucket() {
+            if (!currentBucketBlock) return;
+            
+            insertBlock(currentBucketBlock.key);
+            closeBucketModal();
+        }
+        
+        function insertGuidedBucket() {
+            if (!currentBucketBlock) return;
+            
+            const guidance = document.getElementById('bucket-guidance-input').value.trim();
+            const mode = document.getElementById('query-mode-select').value;
+            const focus = document.getElementById('focus-slider').value;
+            
+            if (!guidance) {
+                alert('Please provide guidance for how this bucket should be used.');
+                return;
+            }
+            
+            // Create enhanced variable
+            const bucketKey = currentBucketBlock.key;
+            const enhancedVariable = `{${bucketKey}|guidance:"${guidance}"|mode:"${mode}"|focus:${focus}}`;
+            
+            // Store configuration
+            bucketConfigurations[bucketKey] = {
+                guidance: guidance,
+                mode: mode,
+                focus: parseInt(focus),
+                label: currentBucketBlock.label
+            };
+            
+            // Insert into editor
+            const editor = document.getElementById('prompt-editor');
+            const cursorPos = editor.selectionStart;
+            const textBefore = editor.value.substring(0, cursorPos);
+            const textAfter = editor.value.substring(cursorPos);
+            
+            editor.value = textBefore + enhancedVariable + textAfter;
+            editor.focus();
+            editor.setSelectionRange(cursorPos + enhancedVariable.length, cursorPos + enhancedVariable.length);
+            
+            closeBucketModal();
+            
+            // Show success message
+            showStatus(`Bucket "${currentBucketBlock.label}" configured with guidance`, 'success');
+            
+            // Update orchestration panel if visible
+            updateOrchestrationPanel();
+            
+            // Call enhancement callback if it exists (for template conversion)
+            if (window.enhanceCallback) {
+                const callback = window.enhanceCallback;
+                window.enhanceCallback = null;
+                callback();
+            }
+        }
+        
+        // Bucket Orchestration Functions
+        function toggleOrchestration() {
+            const content = document.getElementById('orchestration-content');
+            const panel = document.getElementById('bucket-orchestration');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                panel.style.display = 'block';
+                updateOrchestrationPanel();
+            } else {
+                content.style.display = 'none';
+            }
+        }
+        
+        function updateOrchestrationPanel() {
+            const container = document.getElementById('bucket-sequences');
+            container.innerHTML = '';
+            
+            // Group configured buckets by sequence (for now, just show all)
+            const configuredBuckets = Object.entries(bucketConfigurations);
+            
+            if (configuredBuckets.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--muted); font-style: italic;">No configured buckets yet. Add some guided buckets to see orchestration options.</p>';
+                return;
+            }
+            
+            // Create a default sequence with all configured buckets
+            const sequenceDiv = document.createElement('div');
+            sequenceDiv.className = 'bucket-sequence';
+            sequenceDiv.innerHTML = `
+                <div class="sequence-header">
+                    <span>📋 Configured Buckets</span>
+                    <button class="btn btn-secondary" onclick="clearAllConfigurations()" style="font-size: 10px; padding: 4px 8px;">🗑️ Clear All</button>
+                </div>
+                <div class="sequence-buckets">
+                    ${configuredBuckets.map(([key, config]) => `
+                        <div class="bucket-in-sequence">
+                            <span>🪣 ${config.label}</span>
+                            <span class="guidance-preview">${config.guidance.substring(0, 50)}${config.guidance.length > 50 ? '...' : ''}</span>
+                            <button class="reorder-btn" onclick="removeBucketConfig('${key}')">🗑️</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            container.appendChild(sequenceDiv);
+            
+            // Update bucket configuration summary
+            updateBucketConfigSummary();
+        }
+        
+        function updateBucketConfigSummary() {
+            const summary = document.getElementById('bucket-config-summary');
+            const content = document.getElementById('config-summary-content');
+            
+            if (Object.keys(bucketConfigurations).length === 0) {
+                summary.style.display = 'none';
+                return;
+            }
+            
+            summary.style.display = 'block';
+            content.innerHTML = Object.entries(bucketConfigurations)
+                .map(([key, config]) => `
+                    <div style="margin-bottom: 6px;">
+                        <strong>${config.label}:</strong> ${config.guidance}<br>
+                        <span style="color: var(--muted); font-size: 10px;">Mode: ${config.mode} | Focus: ${config.focus}/10</span>
+                    </div>
+                `).join('');
+        }
+        
+        function addBucketSequence() {
+            // For now, just show the configured buckets
+            // This could be expanded to support multiple sequences
+            alert('Bucket sequencing will be enhanced in the next version. Currently showing all configured buckets.');
+        }
+        
+        function clearAllConfigurations() {
+            if (confirm('Clear all bucket configurations?')) {
+                bucketConfigurations = {};
+                updateOrchestrationPanel();
+                showStatus('All bucket configurations cleared', 'info');
+            }
+        }
+        
+        function removeBucketConfig(bucketKey) {
+            if (confirm(`Remove configuration for ${bucketConfigurations[bucketKey]?.label}?`)) {
+                delete bucketConfigurations[bucketKey];
+                updateOrchestrationPanel();
+                showStatus('Bucket configuration removed', 'info');
+            }
+        }
+        
+        function testGuidanceModal(key, label) {
+            // Test function to show the guidance modal with a mock block
+            const testBlock = {
+                key: key,
+                label: label,
+                description: 'Test bucket for guidance configuration'
+            };
+            showBucketGuidanceModal(testBlock);
+        }
+        
+        function extractBucketConfigsFromTemplate(template) {
+            // Extract bucket configurations from enhanced variables in template
+            const configs = {};
+            
+            try {
+                // Look for enhanced variables in a simpler way
+                if (template.includes('|guidance:')) {
+                    console.log('Found enhanced variables in template');
+                    // For now, return empty - we'll add this back when core features work
+                }
+            } catch (error) {
+                console.error('Error extracting bucket configs:', error);
+            }
+            
+            return configs;
+        }
+        
+        function convertTemplateToEnhanced() {
+            // Convert basic lightrag variables to enhanced ones
+            const editor = document.getElementById('prompt-editor');
+            let template = editor.value;
+            
+            // Find basic {lightrag.bucket} variables  
+            const basicPattern = /\{lightrag\.([^}]+?)\}/g;
+            const basicMatches = [];
+            let match;
+            
+            while ((match = basicPattern.exec(template)) !== null) {
+                const bucket = match[1];
+                if (!bucketConfigurations[`lightrag.${bucket}`]) {
+                    basicMatches.push(bucket);
+                }
+            }
+            
+            if (basicMatches.length === 0) {
+                showStatus('No basic LightRAG variables found to enhance', 'info');
+                return;
+            }
+            
+            // Show enhancement modal for each basic variable
+            enhanceBasicVariables(basicMatches, 0, template);
+        }
+        
+        function enhanceBasicVariables(buckets, index, template) {
+            if (index >= buckets.length) {
+                showStatus(`Enhanced ${buckets.length} variables!`, 'success');
+                return;
+            }
+            
+            const bucket = buckets[index];
+            const block = {
+                key: `lightrag.${bucket}`,
+                label: bucket.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                description: `Configure guidance for ${bucket} bucket`
+            };
+            
+            // Set callback to continue with next bucket
+            window.enhanceCallback = () => {
+                // Replace the basic variable with enhanced one
+                const editor = document.getElementById('prompt-editor');
+                const config = bucketConfigurations[`lightrag.${bucket}`];
+                if (config) {
+                    const basicVar = `{lightrag.${bucket}}`;
+                    const enhancedVar = `{lightrag.${bucket}|guidance:"${config.guidance}"|mode:"${config.mode}"|focus:${config.focus}}`;
+                    editor.value = editor.value.replace(new RegExp(basicVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), enhancedVar);
+                }
+                
+                // Continue with next bucket
+                enhanceBasicVariables(buckets, index + 1, template);
+            };
+            
+            showBucketGuidanceModal(block);
+        }
+        
+        function showTemplateTools() {
+            const tools = `
+                Template Tools:
+                
+                1. Export Current Template
+                2. Import Template from JSON
+                3. Share Template (Copy Link)
+                4. Convert Legacy Template
+                5. Template Analytics
+                
+                Choose option (1-5):
+            `;
+            
+            const choice = prompt(tools);
+            
+            switch(choice) {
+                case '1':
+                    exportCurrentTemplate();
+                    break;
+                case '2':
+                    importTemplate();
+                    break;
+                case '3':
+                    shareTemplate();
+                    break;
+                case '4':
+                    convertTemplateToEnhanced();
+                    break;
+                case '5':
+                    showTemplateAnalytics();
+                    break;
+                default:
+                    if (choice) showStatus('Invalid option', 'error');
+            }
+        }
+        
+        function exportCurrentTemplate() {
+            if (!currentTemplateId) {
+                showStatus('Please select a template first', 'error');
+                return;
+            }
+            
+            const currentPrompt = currentPrompts.find(p => p.id === currentTemplateId);
+            if (!currentPrompt) return;
+            
+            const exportData = {
+                name: currentPrompt.name,
+                description: currentPrompt.description,
+                template: currentPrompt.template,
+                bucket_configurations: bucketConfigurations,
+                orchestration: {},
+                exported_at: new Date().toISOString(),
+                exported_from: currentProject
+            };
+            
+            // Create download
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentPrompt.name.replace(/[^a-zA-Z0-9]/g, '_')}_template.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showStatus(`Template "${currentPrompt.name}" exported`, 'success');
+        }
+        
+        function importTemplate() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const text = await file.text();
+                    const templateData = JSON.parse(text);
+                    
+                    // Validate template data
+                    if (!templateData.name || !templateData.template) {
+                        throw new Error('Invalid template file');
+                    }
+                    
+                    // Load into editor
+                    document.getElementById('prompt-editor').value = templateData.template;
+                    bucketConfigurations = templateData.bucket_configurations || {};
+                    updateOrchestrationPanel();
+                    
+                    // Clear current template selection
+                    currentTemplateId = null;
+                    isEditingTemplate = true;
+                    document.querySelectorAll('.template-btn').forEach(btn => btn.classList.remove('active'));
+                    
+                    showStatus(`Template "${templateData.name}" imported! Save to make permanent.`, 'success');
+                    
+                } catch (error) {
+                    showStatus(`Import failed: ${error.message}`, 'error');
+                }
+            };
+            input.click();
+        }
+        
+        function shareTemplate() {
+            if (!currentTemplateId) {
+                showStatus('Please select a template first', 'error');
+                return;
+            }
+            
+            const currentPrompt = currentPrompts.find(p => p.id === currentTemplateId);
+            if (!currentPrompt) return;
+            
+            // Create shareable data (without sensitive info)
+            const shareData = {
+                name: currentPrompt.name,
+                description: currentPrompt.description,
+                template: currentPrompt.template,
+                bucket_configurations: bucketConfigurations
+            };
+            
+            // Copy to clipboard
+            const shareText = `Lizzy Template: ${currentPrompt.name}\n\n${JSON.stringify(shareData, null, 2)}`;
+            navigator.clipboard.writeText(shareText).then(() => {
+                showStatus('Template copied to clipboard for sharing', 'success');
+            }).catch(() => {
+                showStatus('Failed to copy to clipboard', 'error');
+            });
+        }
+        
+        function showTemplateAnalytics() {
+            if (!currentTemplateId) {
+                showStatus('Please select a template first', 'error');
+                return;
+            }
+            
+            const editor = document.getElementById('prompt-editor');
+            const template = editor.value;
+            
+            // Analyze template
+            const analysis = {
+                totalLength: template.length,
+                wordCount: template.split(/\s+/).length,
+                basicVariables: (template.match(/\{[^}|]+\}/g) || []).length,
+                enhancedVariables: (template.match(/\{[^}]+\|guidance:/g) || []).length,
+                configuredBuckets: Object.keys(bucketConfigurations).length,
+                sqlBlocks: (template.match(/\{sql\./g) || []).length,
+                contextBlocks: (template.match(/\{context\./g) || []).length
+            };
+            
+            const analyticsText = `
+                Template Analytics:
+                
+                📏 Length: ${analysis.totalLength} characters
+                📝 Words: ${analysis.wordCount}
+                🔧 Basic Variables: ${analysis.basicVariables}
+                ✨ Enhanced Variables: ${analysis.enhancedVariables}
+                🪣 Configured Buckets: ${analysis.configuredBuckets}
+                🗄️ SQL Blocks: ${analysis.sqlBlocks}
+                🎯 Context Blocks: ${analysis.contextBlocks}
+                
+                Enhancement Status: ${analysis.enhancedVariables > 0 ? 'Enhanced ✅' : 'Basic Template'}
+            `;
+            
+            alert(analyticsText);
+        }
+        
         function insertBlock(blockKey) {
             const editor = document.getElementById('prompt-editor');
             const cursorPos = editor.selectionStart;
@@ -1362,6 +2220,7 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                     insertBlock(cleanKey);
                     
                     showStatus('Bucket imported and added to prompt!', 'success');
+                    return true; // Success
                 } else {
                     throw new Error(importResult.error || 'Import failed');
                 }
@@ -1369,6 +2228,7 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             } catch (error) {
                 console.error('Import error:', error);
                 showStatus(`Failed to import bucket: ${error.message}`, 'error');
+                return false; // Failed
             }
         }
 
@@ -1377,6 +2237,8 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             
             const container = document.getElementById('template-list');
             container.innerHTML = '<div class="loading">Loading templates...</div>';
+            
+            console.log('Loading templates for project:', currentProject);
             
             try {
                 const response = await fetch(`/api/project/${currentProject}/prompts`);
@@ -1387,6 +2249,7 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 }
                 
                 currentPrompts = data.prompts || [];
+                console.log('Loaded prompts:', currentPrompts);
                 displayTemplates(currentPrompts);
                 
                 // Auto-select first template
@@ -1415,16 +2278,52 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             div.className = 'template-btn';
             div.onclick = () => selectTemplate(prompt.id);
             
+            // Check if template has enhanced configurations
+            const hasEnhanced = prompt.bucket_configurations && Object.keys(prompt.bucket_configurations).length > 0;
+            const enhancedIcon = hasEnhanced ? ' ✨' : '';
+            const enhancedCount = hasEnhanced ? ` (${Object.keys(prompt.bucket_configurations).length} enhanced)` : '';
+            
             div.innerHTML = `
-                <div class="template-name">${prompt.name}</div>
-                <div class="template-desc">${prompt.description || 'No description'}</div>
+                <div class="template-name">${prompt.name}${enhancedIcon}</div>
+                <div class="template-desc">${prompt.description || 'No description'}${enhancedCount}</div>
                 <div class="template-actions" style="margin-top: 8px;">
                     <button class="btn btn-secondary" onclick="event.stopPropagation(); editTemplate(${prompt.id})" style="font-size: 10px; padding: 4px 8px; margin-right: 4px;">✏️</button>
+                    ${hasEnhanced ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); viewTemplateConfigs(${prompt.id})" style="font-size: 10px; padding: 4px 8px; margin-right: 4px; background: var(--accent); color: white;">🪣</button>` : ''}
                     ${prompt.name !== 'System Brainstorm' ? `<button class="btn btn-secondary" onclick="event.stopPropagation(); deleteTemplate(${prompt.id})" style="font-size: 10px; padding: 4px 8px; background: var(--danger); color: white;">🗑️</button>` : ''}
                 </div>
             `;
             
             return div;
+        }
+        
+        function viewTemplateConfigs(templateId) {
+            const prompt = currentPrompts.find(p => p.id === templateId);
+            if (!prompt || !prompt.bucket_configurations) return;
+            
+            const configs = prompt.bucket_configurations;
+            const configText = Object.entries(configs)
+                .map(([key, config]) => `• ${config.label}: ${config.guidance} (${config.mode}, focus: ${config.focus}/10)`)
+                .join('\n');
+            
+            alert(`Template: ${prompt.name}\n\nBucket Configurations:\n${configText}`);
+        }
+        
+        function testEnhancedFeature() {
+            // Simple test to see if enhanced features work
+            const testBlock = {
+                key: 'lightrag.test_bucket',
+                label: 'Test Bucket',
+                description: 'Testing the enhanced bucket guidance system'
+            };
+            
+            console.log('Testing enhanced feature with block:', testBlock);
+            showBucketGuidanceModal(testBlock);
+        }
+        
+        function testBasicFunction() {
+            alert('🎉 JavaScript is working! Current project: ' + (currentProject || 'None'));
+            console.log('Basic test - currentProject:', currentProject);
+            console.log('Basic test - currentMode:', currentMode);
         }
 
         function selectTemplate(templateId, element = null) {
@@ -1454,6 +2353,23 @@ Select a project and click "Preview" to see your prompt compiled with real data.
             // Load template
             const editor = document.getElementById('prompt-editor');
             editor.value = prompt.template || '';
+            
+            // Load bucket configurations if available
+            if (prompt.bucket_configurations) {
+                bucketConfigurations = prompt.bucket_configurations;
+                updateOrchestrationPanel();
+                showStatus(`Loaded template "${prompt.name}" with ${Object.keys(bucketConfigurations).length} configured buckets`, 'success');
+            } else {
+                // Try to extract bucket configurations from existing template content
+                bucketConfigurations = extractBucketConfigsFromTemplate(prompt.template || '');
+                if (Object.keys(bucketConfigurations).length > 0) {
+                    updateOrchestrationPanel();
+                    showStatus(`Detected ${Object.keys(bucketConfigurations).length} enhanced variables in template "${prompt.name}"`, 'info');
+                } else {
+                    bucketConfigurations = {};
+                    updateOrchestrationPanel();
+                }
+            }
         }
         
         function newTemplate() {
@@ -1611,7 +2527,9 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                         body: JSON.stringify({
                             name: newName,
                             template: template,
-                            description: newDescription || ''
+                            description: newDescription || '',
+                            bucket_configurations: bucketConfigurations,
+                            orchestration: {}
                         })
                     });
                     
@@ -1642,7 +2560,9 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                         body: JSON.stringify({
                             name: name,
                             template: template,
-                            description: description
+                            description: description,
+                            bucket_configurations: bucketConfigurations,
+                            orchestration: {}
                         })
                     });
                     
@@ -1692,6 +2612,20 @@ Select a project and click "Preview" to see your prompt compiled with real data.
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
+                }
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('bucket-guidance-modal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeBucketModal();
+                }
+            });
+            
+            // Escape key to close modal
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeBucketModal();
                 }
             });
         });
